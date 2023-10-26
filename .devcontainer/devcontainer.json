@@ -1,0 +1,40 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/go-postgres
+{
+	"name": "talk2robots",
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	"features": {
+		"ghcr.io/devcontainers/features/terraform:1": {},
+		"ghcr.io/devcontainers-contrib/features/digitalocean-cli:1": {},
+		"ghcr.io/rio/features/kustomize:1": {}
+	},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [80],
+	"portsAttributes": {
+		"80": {
+			"label": "nginx",
+			"protocol": "http"
+		}
+	},
+
+	// Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"github.copilot",
+				"github.codespaces",
+				"golang.go"
+			],
+			"settings": {
+        "files.watcherExclude": {
+          "**/.git": true,
+          "**/tmp": true,
+          "**/node_modules": true
+        }
+      }
+		}
+	},
+	"onCreateCommand": ".devcontainer/on-create-command.sh",
+	"updateContentCommand": ".devcontainer/update-content-command.sh",
+	"postAttachCommand": ".devcontainer/post-attach-command.sh"
+}

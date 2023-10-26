@@ -1,0 +1,107 @@
+package status
+
+import (
+	"context"
+	"talk2robots/m/v2/app/db/mongo"
+	"talk2robots/m/v2/app/db/redis"
+	"talk2robots/m/v2/app/models"
+	"talk2robots/m/v2/app/openai"
+	"time"
+
+	"github.com/sirupsen/logrus"
+)
+
+type SystemStatus struct {
+	MongoDB *Status     `json:"mongodb"`
+	Redis   *Status     `json:"redis"`
+	OpenAI  *Status     `json:"openai"`
+	Time    time.Time   `json:"time"`
+	Usage   SystemUsage `json:"usage"`
+}
+
+type SystemUsage struct {
+	TotalUsers           int64   `json:"total_users"`
+	TotalFreePlusUsers   int64   `json:"total_free_plus_users"`
+	TotalBasicUsers      int64   `json:"total_basic_users"`
+	TotalTokens          int64   `json:"total_tokens"`
+	TotalCost            float64 `json:"total_cost"`
+	AudioDurationMinutes float64 `json:"audio_duration_minutes"`
+}
+
+// Status
+type Status struct {
+	Available bool `json:"available"`
+}
+
+// RedisStatus is a status of Redis
+type RedisStatus struct {
+	Connected bool      `json:"connected"`
+	Time      time.Time `json:"time"`
+}
+
+// SystemStatusHandler is a handler for system status
+type SystemStatusHandler struct {
+	MongoDB mongo.MongoClient
+	Redis   redis.Client
+	OpenAI  *openai.API
+}
+
+// New creates a new instance of SystemStatusHandler
+func New(mongoDB mongo.MongoClient, redis redis.Client, openAI *openai.API) *SystemStatusHandler {
+	return &SystemStatusHandler{
+		MongoDB: mongoDB,
+		Redis:   redis,
+		OpenAI:  openAI,
+	}
+}
+
+// GetSystemStatus gets a status of the system
+func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
+	mongoAvailable := false
+	ctxPing, cancelPing := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelPing()
+	err := h.MongoDB.Ping(ctxPing, nil)
+	if err != nil {
+		logrus.WithError(err).Warn("GetSystemStatus: failed to ping MongoDB")
+	} else {
+		mongoAvailable = true
+	}
+	openAIContext := context.WithValue(context.Background(), models.UserContext{}, "SYSTEM:STATUS")
+	openAIContext = context.WithValue(openAIContext, models.ClientContext{}, "none")
+	status := SystemStatus{
+		MongoDB: &Status{
+			Available: mongoAvailable,
+		},
+		Redis: &Status{
+			Available: h.Redis != nil && h.Redis.Ping(context.Background()).Err() == nil,
+		},
+		OpenAI: &Status{
+			Available: h.OpenAI != nil && h.OpenAI.IsAvailable(openAIContext),
+		},
+		Usage: SystemUsage{},
+		Time:  time.Now(),
+	}
+	if status.Redis.Available {
+		tokens := h.Redis.Get(context.Background(), "system_totals:tokens")
+		if tokens.Err() == nil {
+			status.Usage.TotalTokens, _ = tokens.Int64()
+		}
+		cost := h.Redis.Get(context.Background(), "system_totals:cost")
+		if cost.Err() == nil {
+			status.Usage.TotalCost, _ = cost.Float64()
+		}
+		audioDurationMinutes := h.Redis.Get(context.Background(), "system_totals:audio_minutes")
+		if audioDurationMinutes.Err() == nil {
+			status.Usage.AudioDurationMinutes, _ = audioDurationMinutes.Float64()
+		}
+	}
+	if status.MongoDB.Available {
+		users, _ := h.MongoDB.GetUsersCount(context.Background())
+		status.Usage.TotalUsers = users
+		freePlusUsers, _ := h.MongoDB.GetUsersCountForSubscription(context.Background(), "free+")
+		status.Usage.TotalFreePlusUsers = freePlusUsers
+		basicUsers, _ := h.MongoDB.GetUsersCountForSubscription(context.Background(), "basic")
+		status.Usage.TotalBasicUsers = basicUsers
+	}
+	return status
+}

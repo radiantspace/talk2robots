@@ -1,0 +1,63 @@
+# Datadog Agent with Logs, APM, Processes, and System Probe enabled
+# https://github.com/DataDog/helm-charts/blob/main/charts/datadog/values.yaml
+targetSystem: "linux"
+datadog:
+  site:  us3.datadoghq.com
+  apiKeyExistingSecret: datadog-api-key-ingestion
+  clusterName: talk2robots
+  tags: []
+  # datadog.kubelet.tlsVerify should be `false` on kind and minikube
+  # to establish communication with the kubelet
+  kubelet:
+    tlsVerify: "false"
+  logs:
+    enabled: true
+    containerCollectAll: true
+    containerCollectUsingFiles: true
+  apm:
+    portEnabled: true
+    socketPath: /var/run/datadog/apm.socket
+    hostSocketPath: /var/run/datadog/
+  processAgent:
+    enabled: true
+    processCollection: false
+  systemProbe:
+    enableTCPQueueLength: false
+    enableOOMKill: true
+    collectDNSStats: false
+  podLabelsAsTags: 
+    app: kube_app
+  nodeLabelsAsTags:
+    kubernetes.io/role: kube_role
+  containerExcludeLogs: "name:k8s-sidecar"
+  dogstatsd:
+    port: 8125
+    useSocketVolume: true
+    socketPath: /var/run/datadog/dsd.socket
+    hostSocketPath: /var/run/datadog/
+    useHostPort: true
+  confd:
+    # https://github.com/DataDog/integrations-core/blob/master/mongo/datadog_checks/mongo/data/conf.yaml.example
+    mongo.yaml: |-
+      init_config: {}
+      instances:
+        - server: mongodb+srv://datadog:{{ .Values.MONGO_PASSWORD }}@{{ .Values.MONGO_HOST }}/admin
+          dbnames:
+            - admin
+            - talk2robots
+          collections:
+            - talk2robots.users
+          tls: true
+          options:
+            authSource: admin
+            replicaSet: None
+          additional_metrics:
+            - metrics.commands
+            - tcmalloc
+            - top
+            - collection
+            - jumbo_chunks
+clusterAgent:
+  enabled: true
+  replicas: 2
+  createPodDisruptionBudget: true

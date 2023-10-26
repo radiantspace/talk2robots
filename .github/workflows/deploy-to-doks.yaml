@@ -1,0 +1,106 @@
+name: Deploy to DOKS
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  DO_REGISTRY: registry.digitalocean.com/radiantspace
+  DO_CLUSTER: k8s-do-sfo3-talk2robots-prod
+  IMAGE: talk2robots_backend
+  # sha of commit
+  TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # full parameters list
+      # https://github.com/appleboy/drone-telegram/blob/master/main.go
+      - name: Telegram Notify
+        uses: appleboy/telegram-action@0.0.3
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_SYSTEM_TOKEN }}
+          TELEGRAM_TO: ${{ secrets.TELEGRAM_SYSTEM_TO }}
+          TELEGRAM_MESSAGE: "🚀 Deploying to DOKS - ${{ github.sha }}"
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Tests
+        run: |
+          pushd backend && go test -v ./... && popd
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Authenticate with Digital Ocean
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_PAT }}
+
+      - name: Build and Push Docker image to DOKS registry
+        run: |
+          time doctl registry login
+          time docker pull ${{ env.DO_REGISTRY }}/${{ env.IMAGE }}:latest || true
+          time docker build --cache-from ${{ env.DO_REGISTRY }}/${{ env.IMAGE }}:latest -t ${{ env.IMAGE }}:${{ env.TAG }} ./backend
+          docker tag ${{ env.IMAGE }}:${{ env.TAG }} ${{ env.DO_REGISTRY }}/${{ env.IMAGE }}:latest
+          time docker push ${{ env.DO_REGISTRY }}/${{ env.IMAGE }}:latest
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.IMAGE }}:${{ env.TAG }})
+          echo "DIGEST=$DIGEST" >> $GITHUB_ENV
+          echo $DIGEST
+
+      - name: Save DigitalOcean kubeconfig
+        env:
+          DO_CLUSTER: ${{ env.DO_CLUSTER }}
+        run: doctl kubernetes cluster kubeconfig save ${{ env.DO_CLUSTER }}
+
+      - name: Deploy to DOKS cluster
+        env:
+          BACKEND_BASE_URL: ${{ secrets.BACKEND_BASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+          STRIPE_ENDPOINT_SECRET: ${{ secrets.STRIPE_ENDPOINT_SECRET }}
+          STRIPE_ENDPOINT_SUFFIX: ${{ secrets.STRIPE_ENDPOINT_SUFFIX }}
+          STRIPE_TOKEN: ${{ secrets.STRIPE_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_SYSTEM_TO: ${{ secrets.TELEGRAM_SYSTEM_TO }}
+          TELEGRAM_SYSTEM_TOKEN: ${{ secrets.TELEGRAM_SYSTEM_TOKEN }}
+        run: |
+          cd ./infra/kustomize
+          echo BACKEND_BASE_URL=$BACKEND_BASE_URL > environment-properties.env
+          echo OPENAI_API_KEY=$OPENAI_API_KEY >> environment-properties.env
+          echo SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN >> environment-properties.env
+          echo SLACK_SIGNING_SECRET=$SLACK_SIGNING_SECRET >> environment-properties.env
+          echo STRIPE_ENDPOINT_SECRET=$STRIPE_ENDPOINT_SECRET >> environment-properties.env
+          echo STRIPE_ENDPOINT_SUFFIX=$STRIPE_ENDPOINT_SUFFIX >> environment-properties.env
+          echo STRIPE_TOKEN=$STRIPE_TOKEN >> environment-properties.env
+          echo TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN >> environment-properties.env
+          echo TELEGRAM_SYSTEM_TO=$TELEGRAM_SYSTEM_TO >> environment-properties.env
+          echo TELEGRAM_SYSTEM_TOKEN=$TELEGRAM_SYSTEM_TOKEN >> environment-properties.env
+          kustomize edit set image ${{ env.DIGEST }}
+          time kustomize build . | kubectl apply -f -
+          rm environment-properties.env
+      
+      - name: Telegram Notify
+        uses: appleboy/telegram-action@0.0.3
+        if: success()
+        env:
+          TELEGRAM_TO: ${{ secrets.TELEGRAM_SYSTEM_TO }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_SYSTEM_TOKEN }}
+          TELEGRAM_MESSAGE: "🚀✅ Successfully deployed to DOKS - ${{ github.sha }}"
+       
+      # Notify if deployment failed
+      - name: Telegram Notify
+        uses: appleboy/telegram-action@0.0.3
+        if: failure()
+        env:
+          TELEGRAM_TO: ${{ secrets.TELEGRAM_SYSTEM_TO }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_SYSTEM_TOKEN }}
+          TELEGRAM_MESSAGE: "🚀❌ Deployment to DOKS failed - ${{ github.sha }}"

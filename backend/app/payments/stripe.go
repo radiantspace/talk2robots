@@ -1,0 +1,238 @@
+package payments
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"strconv"
+	"talk2robots/m/v2/app/config"
+	"talk2robots/m/v2/app/db/mongo"
+	"talk2robots/m/v2/app/db/redis"
+	"talk2robots/m/v2/app/lib"
+	"talk2robots/m/v2/app/models"
+	"talk2robots/m/v2/app/util"
+
+	"github.com/mymmrac/telego"
+	tu "github.com/mymmrac/telego/telegoutil"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/stripe/stripe-go/v74"
+	"github.com/stripe/stripe-go/v74/checkout/session"
+	"github.com/stripe/stripe-go/v74/customer"
+	"github.com/stripe/stripe-go/v74/subscription"
+	"github.com/stripe/stripe-go/v74/webhook"
+	"github.com/valyala/fasthttp"
+)
+
+const (
+	// TODO: move to config
+	// TestBasicPlanPriceId = "price_1N9MltLiy4WJgIwVyfxmfGGG"
+	BasicPlanPriceId = "price_1N9MjhLiy4WJgIwVLXPc41OQ"
+)
+
+func StripeWebhook(ctx *fasthttp.RequestCtx) {
+	payload := ctx.Request.Body()
+	event := stripe.Event{}
+
+	if err := json.Unmarshal(payload, &event); err != nil {
+		log.Errorf("Webhook error while parsing Stripe request. %v", err)
+		ctx.Response.Header.SetStatusCode(http.StatusBadRequest)
+		return
+	}
+
+	endpointSecret := config.CONFIG.StripeEndpointSecret
+	signatureHeader := string(ctx.Request.Header.PeekAll("Stripe-Signature")[0])
+	event, err := webhook.ConstructEvent(payload, signatureHeader, endpointSecret)
+	if err != nil {
+		log.Errorf("Webhook signature verification failed. %v", err)
+		ctx.Response.Header.SetStatusCode(http.StatusBadRequest) // Return a 400 error on a bad signature
+		return
+	}
+	config.CONFIG.DataDogClient.Incr("stripe.webhook", []string{"event_type:" + event.Type}, 1)
+
+	// Unmarshal the event data into an appropriate struct depending on its Type
+	switch event.Type {
+	case "checkout.session.completed":
+		var session stripe.CheckoutSession
+		err := json.Unmarshal(event.Data.Raw, &session)
+		if err != nil {
+			log.Errorf("Error parsing %s webhook JSON: %v", event.Type, err)
+			ctx.Response.Header.SetStatusCode(http.StatusBadRequest)
+			return
+		}
+		log.Infof("Successful checkout session for %d.", session.AmountTotal)
+		handleCheckoutSessionCompleted(session)
+	case "customer.subscription.deleted":
+		var subscription stripe.Subscription
+		err := json.Unmarshal(event.Data.Raw, &subscription)
+		if err != nil {
+			log.Errorf("Error parsing webhook JSON: %v", err)
+			ctx.Response.Header.SetStatusCode(http.StatusBadRequest)
+			return
+		}
+		log.Infof("Canceled subscription for %s.", subscription.Customer.ID)
+		handleCustomerSubscriptionDeleted(subscription)
+	default:
+		log.Errorf("Unhandled Stripe event type: %s, payload: %v", event.Type, event)
+	}
+
+	ctx.Response.Header.SetStatusCode(http.StatusOK)
+}
+
+func StripeCreateCustomer(ctx context.Context, bot *telego.Bot, message *telego.Message) (*stripe.Customer, error) {
+	userIDString := util.GetChatIDString(message)
+	userName := config.CONFIG.BotName + ":" + userIDString
+	description := config.CONFIG.BotName + " telegram bot created customer: " + userIDString
+	if message.From != nil && message.From.Username != "" {
+		userName = message.From.Username + "," + userIDString
+		description = message.From.FirstName + " " + message.From.LastName + ", " + config.CONFIG.BotName + " telegram bot created customer: " + userIDString
+	}
+	params := &stripe.CustomerParams{
+		Name:        stripe.String(userName),
+		Description: stripe.String(description),
+	}
+	params.AddMetadata("telegram_chat_id", userIDString)
+
+	c, err := customer.New(params)
+	if err != nil {
+		log.Errorf("StripeCreateCustomer: %v", err)
+		return nil, err
+	}
+	return c, nil
+}
+
+func StripeCreateCheckoutSession(ctx context.Context, bot *telego.Bot, message *telego.Message, customerId, priceId string) (*stripe.CheckoutSession, error) {
+	chatID := util.GetChatID(message)
+	params := &stripe.CheckoutSessionParams{
+		CancelURL:         stripe.String(config.CONFIG.BotUrl),
+		ClientReferenceID: stripe.String(util.GetChatIDString(message)),
+		Customer:          stripe.String(customerId),
+		Mode:              stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+		SuccessURL:        stripe.String(config.CONFIG.BotUrl),
+		LineItems: []*stripe.CheckoutSessionLineItemParams{
+			{
+				Price:    stripe.String(priceId),
+				Quantity: stripe.Int64(1),
+			},
+		},
+	}
+	params.AddMetadata("telegram_chat_id", util.GetChatIDString(message))
+	s, err := session.New(params)
+	if err != nil {
+		bot.SendMessage(tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
+		log.Errorf("StripeCreateCheckoutSession: %v", err)
+		return nil, err
+	}
+
+	return s, nil
+}
+
+func StripeGetCustomer(ctx context.Context, bot *telego.Bot, message *telego.Message, customerId string) (*stripe.Customer, error) {
+	chatID := util.GetChatID(message)
+	c, err := customer.Get(customerId, nil)
+	if err != nil {
+		bot.SendMessage(tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
+		log.Errorf("StripeGetCustomer: %v", err)
+		return nil, err
+	}
+	return c, nil
+}
+
+func StripeCancelSubscription(ctx context.Context, customerId string) error {
+	params := &stripe.SubscriptionListParams{
+		Customer: stripe.String(customerId),
+		Status:   stripe.String(string(stripe.SubscriptionStatusActive)),
+	}
+	params.AddExpand("data.default_payment_method")
+	i := subscription.List(params)
+	for i.Next() {
+		sub := i.Subscription()
+		if sub.Status == "active" {
+			// cancel subscription
+			_, err := subscription.Cancel(sub.ID, nil)
+			if err != nil {
+				log.Errorf("StripeCancelSubscription for customer %s error: %v", customerId, err)
+			}
+		}
+	}
+	return nil
+}
+
+func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
+	log.Infof("Processing checkout session %s, user_id: %s", session.ID, session.Metadata["telegram_chat_id"])
+	config.CONFIG.DataDogClient.Incr("stripe.checkout_session_completed", []string{"payment_status:" + string(session.PaymentStatus)}, 1)
+	chatIDString := session.Metadata["telegram_chat_id"]
+	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
+	chatIDInt64, err := strconv.ParseInt(chatIDString, 10, 64)
+	if err != nil {
+		log.Errorf("Failed to convert string to int64 and process successful payment: %v", err)
+		return
+	}
+	chatID := tu.ID(chatIDInt64)
+
+	if session.PaymentStatus != "paid" {
+		log.Errorf("Checkout session %s payment status is not paid: %s, user_id: %s", session.ID, session.PaymentStatus, chatIDString)
+		PaymentsBot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to basic paid plan. Please contact /support for help."))
+		return
+	}
+
+	// update subscription metadata to include telegram chat id
+	// this way we can immediately correlate subscription events to a user
+	params := &stripe.SubscriptionParams{}
+	params.AddMetadata("telegram_chat_id", chatIDString)
+	_, err = subscription.Update(session.Subscription.ID, params)
+	if err != nil {
+		log.Errorf("Failed to update subscription metadata to add telegram chat id: %v", err)
+	}
+
+	err = mongo.MongoDBClient.UpdateUserSubscription(ctx, lib.Subscriptions[lib.BasicSubscriptionName])
+	if err != nil {
+		log.Errorf("Failed to update MongoDB record and process successful payment: %v", err)
+		PaymentsBot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to basic paid plan. Please contact /support for help."))
+		return
+	}
+
+	if customerDetails := session.CustomerDetails; customerDetails != nil {
+		mongo.MongoDBClient.UpdateUserContacts(ctx, customerDetails.Name, customerDetails.Phone, customerDetails.Email)
+	}
+
+	PaymentsBot.SendMessage(tu.Message(chatID, "Your account has been upgraded to basic paid plan (/status)! Thanks for your support!"))
+
+	log.Infof("Successfully processed checkout session %s, user_id: %s", session.ID, chatIDString)
+}
+
+func handleCustomerSubscriptionDeleted(subscription stripe.Subscription) {
+	log.Infof("Processing customer subscription deleted: %+v", subscription)
+	config.CONFIG.DataDogClient.Incr("stripe.customer_subscription_deleted", nil, 1)
+
+	chatIDString := subscription.Metadata["telegram_chat_id"]
+	if chatIDString == "" {
+		log.Errorf("handleCustomerSubscriptionDeleted: failed to get telegram_chat_id from Stripe subscription metadata, try to get from customer %s", subscription.Customer.ID)
+		customer, err := customer.Get(subscription.Customer.ID, nil)
+		if err != nil {
+			log.Errorf("handleCustomerSubscriptionDeleted: failed to get customer %s from Stripe: %v", subscription.Customer.ID, err)
+			return
+		}
+		chatIDString = customer.Metadata["telegram_chat_id"]
+	}
+
+	chatIDInt64, err := strconv.ParseInt(chatIDString, 10, 64)
+	if err != nil {
+		log.Errorf("handleCustomerSubscriptionDeleted: failed to convert string to int64, user id: %s: %v", chatIDString, err)
+		return
+	}
+	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
+	chatID := tu.ID(chatIDInt64)
+	err = mongo.MongoDBClient.UpdateUserSubscription(ctx, lib.Subscriptions[lib.FreePlusSubscriptionName])
+	if err != nil {
+		log.Errorf("handleCustomerSubscriptionDeleted: failed to update MongoDB record, user id: %s: %v", chatIDString, err)
+		PaymentsBot.SendMessage(tu.Message(chatID, "Failed to cancel your subscription. Please contact /support for help."))
+		return
+	}
+
+	//  downgrade engine to GPT-3.5 Turbo
+	redis.SaveEngine(chatIDString, models.ChatGpt35Turbo)
+
+	PaymentsBot.SendMessage(tu.Message(chatID, "Your subscription has been canceled and the account downgraded to free+. No further charges will be made. If you were using GPT-4 it was downgraded to GPT-3.5 Turbo."))
+	log.Infof("Successfully deleted customer %s subscription %s, user id: %s", subscription.Customer.ID, subscription.ID, chatIDString)
+}

@@ -1,0 +1,5 @@
+.terraform/
+.terraform.*
+terraform.tfstate*
+infra/kustomize/environment-properties.env
+data/

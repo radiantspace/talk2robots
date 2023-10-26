@@ -1,0 +1,137 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      serviceAccountName: backend
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: server
+          image: registry.digitalocean.com/radiantspace/talk2robots_backend:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - all
+            privileged: false
+            readOnlyRootFilesystem: true
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8801
+              name: prom
+          readinessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: "/health"
+              port: 8080
+              httpHeaders:
+                - name: "Cookie"
+                  value: "shop_session-id=x-readiness-probe"
+          livenessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: "/health"
+              port: 8080
+              httpHeaders:
+                - name: "Cookie"
+                  value: "shop_session-id=x-liveness-probe"
+          env:
+            - name: DATADOG_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-api-key
+                  key: api-key
+            - name: ENV
+              value: "production"
+            - name: REDIS_HOST
+              value: redis.stateful.svc.cluster.local
+            - name: REDIS_PASSWORD
+              value: ""
+            - name: SLACK_BOT_TOKEN
+              value: $(SLACK_BOT_TOKEN)
+            - name: SLACK_SIGNING_SECRET
+              value: $(SLACK_SIGNING_SECRET)
+            - name: STRIPE_ENDPOINT_SECRET
+              value: $(STRIPE_ENDPOINT_SECRET)
+            - name: STRIPE_ENDPOINT_SUFFIX
+              value: $(STRIPE_ENDPOINT_SUFFIX)
+            - name: STRIPE_TOKEN
+              value: $(STRIPE_TOKEN)
+            - name: TELEGRAM_BOT_TOKEN
+              value: $(TELEGRAM_BOT_TOKEN)
+            - name: TELEGRAM_SYSTEM_TOKEN
+              value: $(TELEGRAM_SYSTEM_TOKEN)
+            - name: TELEGRAM_SYSTEM_TO
+              value: $(TELEGRAM_SYSTEM_TO)
+            - name: OPENAI_API_KEY
+              value: $(OPENAI_API_KEY)
+            - name: BACKEND_BASE_URL
+              value: $(BACKEND_BASE_URL)
+            - name: PROMETHEUS_LISTEN_ADDRESS
+              value: "0.0.0.0:8801"
+            - name: BACKEND_LISTEN_ADDRESS
+              value: "0.0.0.0:8080"
+            - name: BACKEND_LISTEN_URL
+              value: "http://0.0.0.0:8080"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MONGO_DB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb
+                  key: connection-string
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: backend-data
+              mountPath: /data
+      volumes:
+        - name: backend-data
+          emptyDir:
+            sizeLimit: 500Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: prom
+      port: 8801
+      targetPort: 8801
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backend

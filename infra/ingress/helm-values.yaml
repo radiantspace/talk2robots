@@ -1,0 +1,20 @@
+controller:
+  replicaCount: 2
+  service:
+    type: LoadBalancer
+  resources:
+    requests:
+      cpu: 100m
+      memory: 90Mi
+  config:
+    use-forwarded-headers: "true"
+  ingressClass: nginx
+  metrics:
+    enabled: true
+  podAnnotations:
+    controller:
+      metrics:
+        service:
+          servicePort: "9090"
+    prometheus.io/port: "10254"
+    prometheus.io/scrape: "true"

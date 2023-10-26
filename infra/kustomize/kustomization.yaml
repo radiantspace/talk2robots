@@ -1,0 +1,84 @@
+# https://github.com/digitalocean/kubernetes-sample-apps/blob/master/microservices-demo/kustomize/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- prod
+
+configMapGenerator:
+- behavior: create
+  envs:
+  - environment-properties.env
+  name: environment-variables
+
+vars:
+- fieldref:
+    fieldPath: data.SLACK_BOT_TOKEN
+  name: SLACK_BOT_TOKEN
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables
+- fieldref:
+    fieldPath: data.SLACK_SIGNING_SECRET
+  name: SLACK_SIGNING_SECRET
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables
+- fieldref:
+    fieldPath: data.STRIPE_ENDPOINT_SECRET
+  name: STRIPE_ENDPOINT_SECRET
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables
+- fieldref:
+    fieldPath: data.STRIPE_ENDPOINT_SUFFIX
+  name: STRIPE_ENDPOINT_SUFFIX
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables
+- fieldref:
+    fieldPath: data.STRIPE_TOKEN
+  name: STRIPE_TOKEN
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables
+- fieldref:
+    fieldPath: data.TELEGRAM_SYSTEM_TOKEN
+  name: TELEGRAM_SYSTEM_TOKEN
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables
+- fieldref:
+    fieldPath: data.TELEGRAM_SYSTEM_TO
+  name: TELEGRAM_SYSTEM_TO
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables
+- fieldref:
+    fieldPath: data.TELEGRAM_BOT_TOKEN
+  name: TELEGRAM_BOT_TOKEN
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables
+- fieldref:
+    fieldPath: data.BACKEND_BASE_URL
+  name: BACKEND_BASE_URL
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables
+- fieldref:
+    fieldPath: data.OPENAI_API_KEY
+  name: OPENAI_API_KEY
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables

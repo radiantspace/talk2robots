@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-talk2robots-backend
+  namespace: talk2robots
+spec:
+  tls:
+    - hosts:
+        - "*.radiant.space"
+      secretName: radiant.space
+  rules:
+  - host: talk2robots-backend-prod.radiant.space
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8080
+  ingressClassName: nginx

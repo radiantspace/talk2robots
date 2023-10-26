@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: talk2robots
+commonLabels:
+  variant: prod
+
+resources:
+  - ../base
+
+images:
+  - name: talk2robots_backend
+    newName: talk2robots_backend
+    newTag: latest
+
+replicas:
+  - name: backend
+    count: 3
