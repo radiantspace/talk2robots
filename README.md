@@ -3,7 +3,7 @@ Complete and extensible human to AI interface
 
 ## What is talk2robots?
 
-talk2robots is a complete and extensible human to AI interface. It is a framework that allows you to easily create your own chatbot, voice assistant, or any other kind of AI interface. It is designed to be easy to use and to extend, and it is completely free and open source.
+talk2robots is an extensible human to AI interface. It is a framework that allows you to easily create your own chatbot, voice assistant, or any other kind of AI interface. It is designed to be easy to use and to extend.
 
 ### Try it 
 
@@ -15,6 +15,10 @@ in Slack:
 
 ## 📝 Table of contents
 
+- [General Features](#general-features)
+- [Telegram Features](#telegram-features)
+- [Slack Features](#slack-features)
+- [Admin Features (via Telegram System bot)](#admin-features-via-telegram-system-bot)
 - [Development in GitHub Codespaces](#-development-in-github-codespaces)
   - [Requirements](#requirements)
   - [Start local development environment](#start-local-development-environment)
@@ -22,7 +26,63 @@ in Slack:
   - [DigitalOcean Requirements](#digitalocean-requirements)
   - [Stripe Requirements](#stripe-requirements)
 - [Architecture overview](#%EF%B8%8F-architecture-overview)
-- [Features](#features)
+
+## General Features
+- [x] Telegram bot
+- [x] Slack integration
+- [ ] Discord bot
+- [x] Telegram voice chat (OpenAI Wisper)
+- [x] Cache persistent layer (Redis)
+- [x] System health check and analytics (DataDog)
+- [x] Business analytics integration (DataDog)
+- [x] Alarm system/notifications integration (Telegram System Bot, DataDog)
+- [x] Support/feedback system (likes/dislikes, comments, etc.)
+- [x] Payment system integration (Stripe)
+- [ ] Image recognition and generation
+- [ ] Video/Audio summary
+- [ ] Text2Speech (Google Voice)
+- [ ] Context awareness and memory (Langchain)
+
+## Telegram Features
+
+- [x] Chat with GPT-3.5 or GPT-4 `/chatgpt`, responses are streamed as the OpenAI API is streaming
+- [x] Use `/grammar` mode just to correct grammar
+- [x] Use `/teacher` mode to correct and explain grammar
+- [x] Upgrade subscription `/upgrade`. Three subscription plans are available:
+  - Free - limits to $0.01 OpenAI API usage
+  - Free+ - limits to $0.05 OpenAI API usage (just to test the system and conversion rates)
+  - Basic - $9.99/month, limits to $3.00 OpenAI API usage
+- [x] Cancel subscription `/downgrade`
+- [x] Get user status (usage, limits etc) `/status`
+- [x] Get `/support`
+- [x] View terms `/terms`
+
+## Slack Features
+
+- [x] Chat in DM, private and public channels and/or threads
+- [x] Chat with GPT-3.5 `/chatgpt`, responses are streamed as the OpenAI API is streaming
+- [x] Use `/grammar` mode just to correct grammar, you can also add :eyeglasses: emoji to a message to get grammar correction reply
+- [x] Summarize message thread by adding :memo: emoji to a message
+- [ ] Use `/teacher` mode to correct and explain grammar
+- [x] Upgrade subscription `/upgrade`, only free subscription is available at the moment:
+  - Free - limits to $0.01 OpenAI API usage
+  - Free+ - limits to $0.05 OpenAI API usage (just to test the system and conversion rates)
+- [ ] Cancel subscription `/downgrade`
+- [ ] Get user status (usage, limits etc) `/mystatus`
+- [ ] Get `/support`
+- [ ] View terms `/terms`
+
+
+## Admin Features (via Telegram System bot)
+
+- [x] Get system status `/status`
+- [x] Ban/Unban user `/banuser` `/unbanuser`
+- [x] Reset Stripe subscription for a user `/stripereset`
+- [x] Reset usage for a user `/usagereset`
+- [x] Get user info `/user`
+- [x] Get users count `/userscount`
+- [x] Get users count for a subscription `/usersforsubscription`
+
 
 ## ⛏️ Development in GitHub Codespaces
 
@@ -89,29 +149,3 @@ graph LR
 
 
 ```
-
-## Features
-- [x] Telegram bot
-- [x] Slack integration
-- [ ] Discord bot
-- [x] Telegram voice chat (OpenAI Wisper)
-- [x] Cache persistent layer (Redis)
-- [x] System health check and analytics (DataDog)
-- [x] Business analytics integration (DataDog)
-- [x] Alarm system/notifications integration (Telegram System Bot, DataDog)
-- [x] Support/feedback system (likes/dislikes, comments, etc.)
-- [x] Payment system integration (Stripe)
-- [ ] Image recognition and generation
-- [ ] Video/Audio summary
-- [ ] Text2Speech (Google Voice)
-- [ ] Context awareness and memory (Langchain)
-
-## Admin Features (via Telegram System bot)
-
-- [x] Get system status `/status`
-- [x] Ban/Unban user `/banuser` `/unbanuser`
-- [x] Reset Stripe subscription for a user `/stripereset`
-- [x] Reset usage for a user `/usagereset`
-- [x] Get user info `/user`
-- [x] Get users count `/userscount`
-- [x] Get users count for a subscription `/usersforsubscription`
