@@ -19,7 +19,7 @@ var Subscriptions = map[models.MongoSubscriptionName]models.MongoSubscription{
 	},
 	BasicSubscriptionName: {
 		Name:         BasicSubscriptionName,
-		MaximumUsage: 3.00,
+		MaximumUsage: 9.99,
 	},
 }
 

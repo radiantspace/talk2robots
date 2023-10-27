@@ -46,16 +46,23 @@ in Slack:
 ## Telegram Features
 
 - [x] Chat with GPT-3.5 or GPT-4 `/chatgpt`, responses are streamed as the OpenAI API is streaming
+- [x] Voice support, just send a voice message in any language and get a reply. Replies are in English at the moment.
 - [x] Use `/grammar` mode just to correct grammar
 - [x] Use `/teacher` mode to correct and explain grammar
 - [x] Upgrade subscription `/upgrade`. Three subscription plans are available:
-  - Free - limits to $0.01 OpenAI API usage
-  - Free+ - limits to $0.05 OpenAI API usage (just to test the system and conversion rates)
-  - Basic - $9.99/month, limits to $3.00 OpenAI API usage
+  - Free - limits to $0.01/month of OpenAI API usage (text and audio)
+  - Free+ - limits to $0.05/month OpenAI API usage (just to test the system and conversion rates)
+  - Basic - $9.99/month, limits to $9.99/month OpenAI API usage
 - [x] Cancel subscription `/downgrade`
 - [x] Get user status (usage, limits etc) `/status`
 - [x] Get `/support`
 - [x] View terms `/terms`
+
+### Video of the Telegram bot in action
+
+<video controls>
+  <source src="docs/assets/gienji-telegram.mov" type="video/mp4">
+</video>
 
 ## Slack Features
 
@@ -73,6 +80,7 @@ in Slack:
 - [ ] View terms `/terms`
 
 
+
 ## Admin Features (via Telegram System bot)
 
 - [x] Get system status `/status`
@@ -83,37 +91,6 @@ in Slack:
 - [x] Get users count `/userscount`
 - [x] Get users count for a subscription `/usersforsubscription`
 
-
-## ⛏️ Development in GitHub Codespaces
-
-### Requirements
-- Setup Telegram bot - https://core.telegram.org/bots#6-botfather and save in the repo/Codespace secrets as `TELEGRAM_BOT_TOKEN`
-- Setup OpenAI API key - https://platform.openai.com/account/api-keys and save in the repo/Codespace secrets as `OPENAI_API_KEY`
-
-### Start local development environment
-
-- Fork the repository
-- Start [a Codespace](https://docs.github.com/codespaces)
-- Make port 80 of the Codespace public, [guide](https://docs.github.com/en/codespaces/developing-in-codespaces/forwarding-ports-in-your-codespace).
-- Run the following command inside the Codespace:
-  ```bash
-  $ make start
-  ```
-
-- Try accessing backend
-  ```bash
-  $ curl http://localhost/health
-  ```
-
-## 🚀 Deploy and enjoy
-### DigitalOcean Requirements 
-
-- Setup DO CLI - https://docs.digitalocean.com/reference/doctl/how-to/install/
-- Setup DigitalOcean PAT - https://docs.digitalocean.com/reference/api/create-personal-access-token/ and save in the repo secrets as `DO_PAT`
-
-### Stripe Requirements
-
-- Setup Stripe CLI - https://stripe.com/docs/stripe-cli#install
 
 ## 🏗️ Architecture overview
 
@@ -149,3 +126,35 @@ graph LR
 
 
 ```
+
+## ⛏️ Development in GitHub Codespaces
+
+### Requirements
+- Setup Telegram bot - https://core.telegram.org/bots#6-botfather and save in the repo/Codespace secrets as `TELEGRAM_BOT_TOKEN`
+- Setup OpenAI API key - https://platform.openai.com/account/api-keys and save in the repo/Codespace secrets as `OPENAI_API_KEY`
+
+### Start local development environment
+
+- Fork the repository
+- Start [a Codespace](https://docs.github.com/codespaces)
+- Make port 80 of the Codespace public, [guide](https://docs.github.com/en/codespaces/developing-in-codespaces/forwarding-ports-in-your-codespace).
+- Run the following command inside the Codespace:
+  ```bash
+  $ make start
+  ```
+
+- Try accessing backend
+  ```bash
+  $ curl http://localhost/health
+  ```
+
+## 🚀 Deploy and enjoy
+### DigitalOcean Requirements 
+
+- Setup DO CLI - https://docs.digitalocean.com/reference/doctl/how-to/install/
+- Setup DigitalOcean PAT - https://docs.digitalocean.com/reference/api/create-personal-access-token/ and save in the repo secrets as `DO_PAT`
+
+### Stripe Requirements
+
+- Setup Stripe CLI - https://stripe.com/docs/stripe-cli#install
+

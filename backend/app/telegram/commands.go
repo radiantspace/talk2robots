@@ -221,7 +221,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 
 		// send link to customer as a button in telegram
 		bot.SendMessage(
-			tu.Message(chatID, "Press the subscribe button below and navigate to our partner, Stripe, to proceed with the payment. You will upgrade to the basic paid plan, which includes:\n💪 60x usage limits compared to the Free+ plan of OpenAI tokens and voice recognition\n🧠 Access to more intelligent GPT-4 model (and more models that OpenAI will release)\n💁🏽 Priority support\n\nBy proceeding with the payments, you agree to /terms of usage.\n\nCancel your subscription at any time with the /downgrade command.").WithReplyMarkup(
+			tu.Message(chatID, "Press the subscribe button below and navigate to our partner, Stripe, to proceed with the payment. You will upgrade to the basic paid plan, which includes:\n💪 200x usage limits compared to the Free+ plan of OpenAI tokens and voice recognition\n🧠 Access to more intelligent GPT-4 model (and more models that OpenAI will release)\n💁🏽 Priority support\n\nBy proceeding with the payments, you agree to /terms of usage.\n\nCancel your subscription at any time with the /downgrade command.").WithReplyMarkup(
 				&telego.InlineKeyboardMarkup{
 					InlineKeyboard: [][]telego.InlineKeyboardButton{
 						{
