@@ -79,7 +79,9 @@ in Slack:
 - [ ] Get `/support`
 - [ ] View terms `/terms`
 
-
+<video controls>
+  <source src="docs/assets/gienji-slack.mov" type="video/mp4">
+</video>
 
 ## Admin Features (via Telegram System bot)
 
