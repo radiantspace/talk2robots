@@ -60,7 +60,7 @@ in Slack:
 
 ### Telegram bot in action
 
-https://github.com/radiantspace/talk2robots/assets/8243681/3ab6c562-a509-4714-8fe8-6dd9aba1341c
+https://github.com/radiantspace/talk2robots/assets/8243681/3cfd47c4-55ed-4eb3-9f9a-e3c1c3605a3b
 
 ## Slack Features
 
@@ -79,7 +79,7 @@ https://github.com/radiantspace/talk2robots/assets/8243681/3ab6c562-a509-4714-8f
 
 ### Slack bot in action
 
-https://github.com/radiantspace/talk2robots/assets/8243681/e3fc5f93-327a-4759-9d9c-c45627ac2cd6
+https://github.com/radiantspace/talk2robots/assets/8243681/3bd170f1-c901-4420-829b-4ffc5e9de64d
 
 ## Admin Features (via Telegram System bot)
 
