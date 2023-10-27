@@ -114,14 +114,20 @@ func slackEventsHandler(ctx *fasthttp.RequestCtx) {
 				}
 				log.Infof("Received slack `%s` reaction event from user %s in channel %s, ts: %s", ev.Reaction, ev.User, ev.Item.Channel, ev.Item.Timestamp)
 				message := fetchMessage(ev.Item.Channel, ev.Item.Timestamp)
+				messageTS := message.Timestamp
+				if message.ThreadTimestamp != "" {
+					messageTS = message.ThreadTimestamp
+				}
 				if ev.Reaction == GRAMMAR_CHECK_REACTION {
-					handleMessageEvent("slack:"+ev.User, ev.Item.Channel, ev.Item.Timestamp, message.Text, true, lib.Grammar)
+					handleMessageEvent("slack:"+ev.User, ev.Item.Channel, messageTS, message.Text, true, lib.Grammar)
 					BOT.AddReaction(PROCESSED_REACTION, slack.ItemRef{
 						Channel:   ev.Item.Channel,
 						Timestamp: message.Timestamp,
 					})
+					return
 				} else if ev.Reaction == SUMMARIZE_REACTION {
 					summarizeThread("slack:"+ev.User, message.Timestamp, ev.Item.Channel)
+					return
 				}
 				return
 			case *slackevents.AppHomeOpenedEvent:
