@@ -58,7 +58,33 @@ func fetchMessage(channelId string, messageTS string) slack.Message {
 		return slack.Message{}
 	}
 
-	log.Infof("Found message: %s", messages.Messages[0].Timestamp)
+	log.Infof("Found %d messages in channel %s, first one with TS: %s, thread TS %s", len(messages.Messages), channelId, messages.Messages[0].Timestamp, messages.Messages[0].ThreadTimestamp)
+
+	if messages.Messages[0].Timestamp != messageTS {
+		log.Infof("Message %s is part of a thread, fetching thread", messageTS)
+		messages.Messages, _, _, err = BOT.GetConversationReplies(
+			&slack.GetConversationRepliesParameters{
+				ChannelID:          channelId,
+				Timestamp:          messageTS,
+				Limit:              1,
+				Inclusive:          true,
+				IncludeAllMetadata: true,
+			},
+		)
+
+		if err != nil {
+			log.Errorf("Error fetching message in a thread in channel %s, ts: %s, error: %v", channelId, messageTS, err)
+			return slack.Message{}
+		}
+
+		if len(messages.Messages) == 0 {
+			log.Errorf("No messages found")
+			return slack.Message{}
+		}
+
+		log.Infof("Found %d thread messages in channel %s, first one with TS: %s, thread TS %s", len(messages.Messages), channelId, messages.Messages[0].Timestamp, messages.Messages[0].ThreadTimestamp)
+	}
+
 	return messages.Messages[0]
 }
 
