@@ -58,11 +58,9 @@ in Slack:
 - [x] Get `/support`
 - [x] View terms `/terms`
 
-### Video of the Telegram bot in action
+### Telegram bot in action
 
-<video controls>
-  <source src="docs/assets/gienji-telegram.mov" type="video/mp4">
-</video>
+https://github.com/radiantspace/talk2robots/assets/8243681/3ab6c562-a509-4714-8fe8-6dd9aba1341c
 
 ## Slack Features
 
@@ -79,9 +77,9 @@ in Slack:
 - [ ] Get `/support`
 - [ ] View terms `/terms`
 
-<video controls>
-  <source src="docs/assets/gienji-slack.mov" type="video/mp4">
-</video>
+### Slack bot in action
+
+https://github.com/radiantspace/talk2robots/assets/8243681/e3fc5f93-327a-4759-9d9c-c45627ac2cd6
 
 ## Admin Features (via Telegram System bot)
 
