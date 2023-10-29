@@ -25,7 +25,7 @@ var (
 	GRAMMAR_CHECK_REACTION              = "eyeglasses"
 	SUMMARIZE_REACTION                  = "memo"
 	PROCESSED_REACTION                  = "white_check_mark"
-	HOME_TAB_MESSAGE                    = "I'm Gienji, your intelligent chatbot. I'm here to help you with any questions or problems you might have. Just type your question or request, and I'll do my best to provide you with the information you need. You can direct message me or add me to a public channel. Just tag me to talk with me with @gienji."
+	HOME_TAB_MESSAGE                    = "I'm @gienji, your intelligent chatbot. Just DM your question or request, and I'll do my best to provide you with the information you need. You can also add me to a channel and mention @gienji. React a message with :eyeglasses: to check grammar, :memo: to summarize threads.\n\n Btw, did I mention that I'm powered by OpenAI's API and completely open source - https://github.com/radiantspace/talk2robots?"
 	TIMEOUT                             = 2 * time.Minute
 	THREAD_MESSAGES_LIMIT_FOR_SUMMARIZE = 100
 )
@@ -206,7 +206,7 @@ func handleAppHomeOpenedEvent(ev *slackevents.AppHomeOpenedEvent) {
 
 	usage := user.Usage
 	productName := user.SubscriptionType.Name
-	hasFreePlan := productName == lib.FreeSubscriptionName || productName == lib.FreePlusSubscriptionName
+	hasFreePlan := productName == lib.FreeSubscriptionName // TODO: basic subscription: || productName == lib.FreePlusSubscriptionName
 
 	// Row 1: Current Plan and Upgrade Button
 	currentPlanSection := slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("✅ *%s*", productName), false, false), nil, nil)
