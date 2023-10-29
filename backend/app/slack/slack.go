@@ -1,11 +1,9 @@
 package slack
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/db/redis"
@@ -242,9 +240,7 @@ func handleAppHomeOpenedEvent(ev *slackevents.AppHomeOpenedEvent) {
 		},
 	}
 
-	seed := time.Now().UnixNano()
-	hash := sha256.New().Sum([]byte(strconv.FormatInt(seed, 10)))
-	_, err = BOT.Client.PublishView(ev.User, homeTabContent, string(hash))
+	_, err = BOT.Client.PublishView(ev.User, homeTabContent, "")
 
 	if err != nil {
 		log.Errorf("Failed to publish home tab view: %v", err)
