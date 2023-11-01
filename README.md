@@ -79,7 +79,8 @@ https://github.com/radiantspace/talk2robots/assets/8243681/3cfd47c4-55ed-4eb3-9f
 
 ### Slack bot in action
 
-https://github.com/radiantspace/talk2robots/assets/8243681/3bd170f1-c901-4420-829b-4ffc5e9de64d
+https://github.com/radiantspace/talk2robots/assets/8243681/c5805c11-716b-47ab-9f5e-a7814069cdfd
+
 
 ## Admin Features (via Telegram System bot)
 
