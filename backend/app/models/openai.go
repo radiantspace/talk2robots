@@ -11,7 +11,7 @@ const (
 	Davinci             Engine = "davinci"
 	ChatGpt35Turbo      Engine = "gpt-3.5-turbo-1106"
 	ChatGpt4            Engine = "gpt-4"
-	ChatGpt4TurboVision Engine = "gpt-4-1106-vision-preview"
+	ChatGpt4TurboVision Engine = "gpt-4-vision-preview"
 	Whisper             Engine = "whisper-1"
 	TTS                 Engine = "tts-1"
 )
