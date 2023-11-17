@@ -24,15 +24,25 @@ import (
 // Multiple models, each with different capabilities and price points.
 // Prices are per 1,000 tokens. You can think of tokens as pieces of words, where 1,000 tokens is about 750 words.
 // This paragraph is 35 tokens.
-// gpt-3.5-turbo	$0.0015 / 1K tokens
-// gpt-4			$0.06 / 1K tokens
+
+// Example for GPT-4:
 // $3 can buy you 50K tokens, which is ~37.5K words
 // $9 can buy you 150K tokens, which is ~112.5K words
 
 const (
-	CHAT_PRICE_PER_TOKEN      = 0.0015 / 1000
-	CHAT_GPT4_PRICE_PER_TOKEN = 0.06 / 1000
-	WORDS_PER_TOKEN           = 750.0 / 1000.0
+	// gpt-3.5-turbo-1106
+	CHAT_INPUT_PRICE  = 0.001 / 1000
+	CHAT_OUTPUT_PRICE = 0.002 / 1000
+
+	// gpt-4
+	CHAT_GPT4_INPUT_PRICE  = 0.03 / 1000
+	CHAT_GPT4_OUTPUT_PRICE = 0.06 / 1000
+
+	// gpt-4-1106-vision-preview
+	CHAT_GPT4_TURBO_VISION_INPUT_PRICE  = 0.01 / 1000
+	CHAT_GPT4_TURBO_VISION_OUTPUT_PRICE = 0.02 / 1000
+
+	WORDS_PER_TOKEN = 750.0 / 1000.0
 )
 
 // Complete completes text
@@ -51,10 +61,11 @@ func (a *API) ChatComplete(ctx context.Context, completion models.ChatCompletion
 	}
 
 	usage := models.CostAndUsage{
-		Engine:       models.Engine(completion.Model),
-		PricePerUnit: pricePerToken(models.Engine(completion.Model)),
-		Cost:         0,
-		Usage:        models.Usage{},
+		Engine:             models.Engine(completion.Model),
+		PricePerInputUnit:  pricePerInputToken(models.Engine(completion.Model)),
+		PricePerOutputUnit: pricePerOutputToken(models.Engine(completion.Model)),
+		Cost:               0,
+		Usage:              models.Usage{},
 	}
 
 	data := map[string]interface{}{
@@ -100,14 +111,14 @@ func (a *API) ChatComplete(ctx context.Context, completion models.ChatCompletion
 	return response.Choices[0].Message.Content, nil
 }
 
-func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatCompletion, cancelContext context.CancelFunc) (chan string, error) {
+func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatMultimodalCompletion, cancelContext context.CancelFunc) (chan string, error) {
 	timeNow := time.Now()
 	if completion.Model == "" {
 		completion.Model = string(models.ChatGpt35Turbo)
 	}
 	promptTokens := 0.0
 	for _, message := range completion.Messages {
-		promptTokens += 4 + ApproximateTokensCount(message.Content)
+		promptTokens += 4 + ApproximateTokensCount(message.Content[0].Text)
 	}
 	if completion.MaxTokens == 0 {
 		// calculate max tokens based on prompt words count
@@ -115,9 +126,10 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatC
 	}
 
 	usage := models.CostAndUsage{
-		Engine:       models.Engine(completion.Model),
-		PricePerUnit: pricePerToken(models.Engine(completion.Model)),
-		Cost:         0,
+		Engine:             models.Engine(completion.Model),
+		PricePerInputUnit:  pricePerInputToken(models.Engine(completion.Model)),
+		PricePerOutputUnit: pricePerOutputToken(models.Engine(completion.Model)),
+		Cost:               0,
 		Usage: models.Usage{
 			PromptTokens: int(promptTokens),
 		},
@@ -191,12 +203,25 @@ func ApproximateTokensCount(message string) float64 {
 	return math.Max(float64(len(strings.Split(message, " ")))/WORDS_PER_TOKEN, 1)
 }
 
-func pricePerToken(model models.Engine) float64 {
+func pricePerInputToken(model models.Engine) float64 {
 	switch model {
 	case models.ChatGpt4:
-		return CHAT_GPT4_PRICE_PER_TOKEN
+		return CHAT_GPT4_INPUT_PRICE
+	case models.ChatGpt4TurboVision:
+		return CHAT_GPT4_TURBO_VISION_INPUT_PRICE
 	default:
-		return CHAT_PRICE_PER_TOKEN
+		return CHAT_INPUT_PRICE
+	}
+}
+
+func pricePerOutputToken(model models.Engine) float64 {
+	switch model {
+	case models.ChatGpt4:
+		return CHAT_GPT4_OUTPUT_PRICE
+	case models.ChatGpt4TurboVision:
+		return CHAT_GPT4_TURBO_VISION_OUTPUT_PRICE
+	default:
+		return CHAT_OUTPUT_PRICE
 	}
 }
 

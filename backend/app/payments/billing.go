@@ -78,7 +78,10 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 
 func Bill(ctx context.Context, usage models.CostAndUsage) models.CostAndUsage {
 	defer ctx.Done()
-	usage.Cost = float64(usage.Usage.TotalTokens)*usage.PricePerUnit + usage.Usage.AudioDuration*usage.PricePerUnit
+	usage.Cost =
+		float64(usage.Usage.PromptTokens)*usage.PricePerInputUnit +
+			float64(usage.Usage.CompletionTokens)*usage.PricePerOutputUnit +
+			usage.Usage.AudioDuration*usage.PricePerInputUnit
 	redis.RedisClient.IncrByFloat(ctx, "system_totals:cost", usage.Cost)
 
 	usage.User = ctx.Value(models.UserContext{}).(string)

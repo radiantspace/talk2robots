@@ -2,6 +2,10 @@ package telegram
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
@@ -25,17 +29,64 @@ func ProcessStreamingMessage(
 ) {
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
+	messages := util.MessagesToMultimodalMessages(seedData)
+
+	// check if message had an image attachments and pass it on in base64 format to the model
+	if message.Photo == nil || len(message.Photo) == 0 || engineModel == models.ChatGpt35Turbo {
+		messages = append(messages, models.MultimodalMessage{
+			Role:    "user",
+			Content: []models.MultimodalContent{{Type: "text", Text: userMessagePrimer + message.Text}},
+		},
+		)
+	} else {
+		engineModel = models.ChatGpt4TurboVision
+
+		// get the last image for now
+		photo := message.Photo
+		photoSize := photo[len(photo)-1]
+		photoFile, err := bot.GetFile(&telego.GetFileParams{FileID: photoSize.FileID})
+		if err != nil {
+			log.Errorf("Failed to get file from telegram: %s", err)
+			return
+		}
+		fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token(), photoFile.FilePath)
+		photoResponse, err := http.Get(fileURL)
+		if err != nil {
+			log.Errorf("Error downloading file in chat %s: %v", chatIDString, err)
+		}
+		defer photoResponse.Body.Close()
+
+		photoBytes := make([]byte, photoResponse.ContentLength)
+		_, err = io.ReadFull(photoResponse.Body, photoBytes)
+		if err != nil {
+			log.Errorf("Error reading file in chat %s: %v", chatIDString, err)
+		}
+		photoBase64 := base64.StdEncoding.EncodeToString(photoBytes)
+
+		messages = append(messages, models.MultimodalMessage{
+			Role: "user",
+			Content: []models.MultimodalContent{
+				{
+					Type: "text",
+					Text: userMessagePrimer + message.Text,
+				},
+				{
+					Type: "image_url",
+					ImageURL: struct {
+						URL string `json:"url"`
+					}{
+						URL: fmt.Sprintf("data:image/jpeg;base64,%s", photoBase64),
+					},
+				},
+			},
+		})
+	}
+
 	messageChannel, err := BOT.API.ChatCompleteStreaming(
 		ctx,
-		models.ChatCompletion{
-			Model: string(engineModel),
-			Messages: []models.Message(append(
-				seedData,
-				models.Message{
-					Role:    "user",
-					Content: userMessagePrimer + message.Text,
-				},
-			)),
+		models.ChatMultimodalCompletion{
+			Model:    string(engineModel),
+			Messages: messages,
 		},
 		cancelContext,
 	)

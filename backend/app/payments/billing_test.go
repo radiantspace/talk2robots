@@ -38,14 +38,17 @@ func TestBill(t *testing.T) {
 
 	usage := models.CostAndUsage{
 		Usage: models.Usage{
-			TotalTokens:   1000,
-			AudioDuration: 10,
+			PromptTokens:     550,
+			CompletionTokens: 450,
+			TotalTokens:      1000,
+			AudioDuration:    10,
 		},
-		PricePerUnit: 0.001,
+		PricePerInputUnit:  0.001,
+		PricePerOutputUnit: 0.002,
 	}
 
 	result := Bill(ctx, usage)
-	expectedCost := float64(usage.Usage.TotalTokens)*usage.PricePerUnit + usage.Usage.AudioDuration*usage.PricePerUnit
+	expectedCost := float64(usage.Usage.PromptTokens)*usage.PricePerInputUnit + float64(usage.Usage.CompletionTokens)*usage.PricePerOutputUnit + usage.Usage.AudioDuration*usage.PricePerInputUnit
 	assert.Equal(t, expectedCost, result.Cost, "Incorrect cost calculation")
 }
 

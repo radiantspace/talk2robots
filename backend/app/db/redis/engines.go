@@ -20,6 +20,13 @@ func GetChatEngine(chatID string) models.Engine {
 		SaveEngine(chatID, models.ChatGpt35Turbo)
 		return models.ChatGpt35Turbo
 	}
+
+	// use newer, cheeper and faster model, instead of old Gpt4
+	if models.Engine(engine) == models.ChatGpt4 {
+		SaveEngine(chatID, models.ChatGpt4TurboVision)
+		return models.ChatGpt4TurboVision
+	}
+
 	return models.Engine(engine)
 }
 

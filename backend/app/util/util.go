@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"talk2robots/m/v2/app/config"
+	"talk2robots/m/v2/app/models"
 
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -40,4 +41,15 @@ func GetChatID(m *telego.Message) telego.ChatID {
 
 func GetChatIDString(m *telego.Message) string {
 	return fmt.Sprintf("%d", m.Chat.ID)
+}
+
+func MessagesToMultimodalMessages(messages []models.Message) []models.MultimodalMessage {
+	multimodalMessages := make([]models.MultimodalMessage, len(messages))
+	for i, message := range messages {
+		multimodalMessages[i] = models.MultimodalMessage{
+			Role:    message.Role,
+			Content: []models.MultimodalContent{{Type: "text", Text: message.Content}},
+		}
+	}
+	return multimodalMessages
 }

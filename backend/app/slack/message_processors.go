@@ -5,6 +5,7 @@ import (
 	"strings"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
+	"talk2robots/m/v2/app/util"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -26,13 +27,13 @@ func ProcessStreamingMessage(
 	userId := ctx.Value(models.UserContext{}).(string)
 	messageChannel, err := BOT.API.ChatCompleteStreaming(
 		ctx,
-		models.ChatCompletion{
+		models.ChatMultimodalCompletion{
 			Model: string(engineModel),
-			Messages: []models.Message(append(
-				seedData,
-				models.Message{
+			Messages: []models.MultimodalMessage(append(
+				util.MessagesToMultimodalMessages(seedData),
+				models.MultimodalMessage{
 					Role:    "user",
-					Content: userMessagePrimer + message,
+					Content: []models.MultimodalContent{{Type: "text", Text: userMessagePrimer + message}},
 				},
 			)),
 		},

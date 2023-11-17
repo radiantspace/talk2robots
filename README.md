@@ -31,17 +31,18 @@ in Slack:
 - [x] Telegram bot
 - [x] Slack integration
 - [ ] Discord bot
-- [x] Telegram voice chat (OpenAI Wisper)
+- [x] Voice prompt (OpenAI Wisper)
 - [x] Cache persistent layer (Redis)
 - [x] System health check and analytics (DataDog)
 - [x] Business analytics integration (DataDog)
 - [x] Alarm system/notifications integration (Telegram System Bot, DataDog)
 - [x] Support/feedback system (likes/dislikes, comments, etc.)
 - [x] Payment system integration (Stripe)
-- [ ] Image recognition and generation
+- [x] Image recognition
+- [ ] Image generation
 - [ ] Video/Audio summary
-- [ ] Text2Speech (Google Voice)
-- [ ] Context awareness and memory (Langchain)
+- [ ] Voice response (OpenAI TTS)
+- [ ] Threads, i.e. context awareness and memory (Langchain/OpenAI threads)
 
 ## Telegram Features
 

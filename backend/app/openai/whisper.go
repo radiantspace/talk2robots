@@ -103,10 +103,10 @@ func (uw *whisper) Whisper(ctx context.Context, config WhisperConfig, read io.Re
 	uw.transcribing = false
 	uw.transcript = WhisperTranscript{}
 	uw.usage = models.CostAndUsage{
-		Engine:       models.Engine(models.Whisper),
-		PricePerUnit: WHISPER_PRICE_PER_MINUTE,
-		Cost:         0,
-		Usage:        models.Usage{},
+		Engine:            models.Engine(models.Whisper),
+		PricePerInputUnit: WHISPER_PRICE_PER_MINUTE,
+		Cost:              0,
+		Usage:             models.Usage{},
 	}
 
 	uw.onTranscribing()
