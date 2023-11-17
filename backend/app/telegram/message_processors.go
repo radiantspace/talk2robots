@@ -82,7 +82,7 @@ func ProcessStreamingMessage(
 			Content: []models.MultimodalContent{
 				{
 					Type: "text",
-					Text: userMessagePrimer + message.Text,
+					Text: userMessagePrimer + message.Text + "\n" + message.Caption,
 				},
 				{
 					Type: "image_url",

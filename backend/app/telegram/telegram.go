@@ -107,7 +107,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	defer cancelContext()
 
 	// process commands
-	if message.Voice == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
+	if message.Voice == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
 		if message.Video != nil && strings.HasPrefix(message.Caption, string(SYSTEMSetOnboardingVideoCommand)) {
 			log.Infof("System command received: %+v", message) // audit
 			message.Text = string(SYSTEMSetOnboardingVideoCommand)
@@ -143,7 +143,12 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		}
 	}
 
-	config.CONFIG.DataDogClient.Incr("telegram.text_message_received", nil, 1)
+	if message.Photo != nil {
+		config.CONFIG.DataDogClient.Incr("telegram.photo_message_received", nil, 1)
+	} else {
+		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", nil, 1)
+	}
+
 	var seedData []models.Message
 	var userMessagePrimer string
 	mode := lib.GetMode(chatIDString)
