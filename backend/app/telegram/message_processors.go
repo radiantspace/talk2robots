@@ -46,20 +46,34 @@ func ProcessStreamingMessage(
 		photoSize := photo[len(photo)-1]
 		photoFile, err := bot.GetFile(&telego.GetFileParams{FileID: photoSize.FileID})
 		if err != nil {
-			log.Errorf("Failed to get file from telegram: %s", err)
+			log.Errorf("Failed to get image file params from telegram: %s", err)
+			bot.SendMessage(&telego.SendMessageParams{
+				ChatID: chatID,
+				Text:   "😔 can't accept image messages at the moment",
+			})
 			return
 		}
 		fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token(), photoFile.FilePath)
 		photoResponse, err := http.Get(fileURL)
 		if err != nil {
-			log.Errorf("Error downloading file in chat %s: %v", chatIDString, err)
+			log.Errorf("Error downloading image file in chat %s: %v", chatIDString, err)
+			bot.SendMessage(&telego.SendMessageParams{
+				ChatID: chatID,
+				Text:   "😔 can't accept image messages at the moment",
+			})
+			return
 		}
 		defer photoResponse.Body.Close()
 
 		photoBytes := make([]byte, photoResponse.ContentLength)
 		_, err = io.ReadFull(photoResponse.Body, photoBytes)
 		if err != nil {
-			log.Errorf("Error reading file in chat %s: %v", chatIDString, err)
+			log.Errorf("Error reading image file in chat %s: %v", chatIDString, err)
+			bot.SendMessage(&telego.SendMessageParams{
+				ChatID: chatID,
+				Text:   "😔 can't accept image messages at the moment",
+			})
+			return
 		}
 		photoBase64 := base64.StdEncoding.EncodeToString(photoBytes)
 
