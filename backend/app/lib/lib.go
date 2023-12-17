@@ -43,7 +43,7 @@ func SetupUserAndContext(userId string, client ClientName, channelId string) (us
 	defaultSubscription := Subscriptions[currentSubscriptionName]
 	user, err = mongo.MongoDBClient.GetUser(currentContext)
 	if err != nil {
-		log.Warnf("Failed to get Slack user: %v", err)
+		log.Warnf("Failed to get a user (%s): %v", userId, err)
 	}
 	// No user found, create a new one
 	if user == nil || user.SubscriptionType.Name == "" {
