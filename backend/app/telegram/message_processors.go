@@ -32,13 +32,22 @@ func ProcessStreamingMessage(
 	messages := util.MessagesToMultimodalMessages(seedData)
 
 	// check if message had an image attachments and pass it on in base64 format to the model
-	if message.Photo == nil || len(message.Photo) == 0 || engineModel == models.ChatGpt35Turbo {
+	if message.Photo == nil || len(message.Photo) == 0 {
 		messages = append(messages, models.MultimodalMessage{
 			Role:    "user",
 			Content: []models.MultimodalContent{{Type: "text", Text: userMessagePrimer + message.Text}},
 		},
 		)
 	} else {
+		// check user's subscription status
+		if lib.IsUserFree(ctx) || lib.IsUserFreePlus(ctx) {
+			bot.SendMessage(&telego.SendMessageParams{
+				ChatID: chatID,
+				Text:   "Image vision is not currently available on free plans, since it's kinda expensive. Please /upgrade to use this feature.",
+			})
+			return
+		}
+
 		engineModel = models.ChatGpt4TurboVision
 
 		// get the last image for now
@@ -121,7 +130,7 @@ func ProcessStreamingMessage(
 	if err != nil {
 		log.Errorf("Failed to send primer message in chat: %s, %v", chatIDString, err)
 	}
-	// only update message every 5 seconds
+	// only update message every 5 seconds to prevent rate limiting from telegram
 	ticker := time.NewTicker(5 * time.Second)
 	previousMessageLength := len(responseText)
 	defer func() {
