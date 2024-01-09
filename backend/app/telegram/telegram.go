@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/converters"
@@ -126,8 +127,12 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	userText := ""
 	// if the message is voice message, process it to upload to WhisperAI API and get the text
-	if message.Voice != nil {
-		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", nil, 1)
+	if message.Voice != nil || message.Audio != nil {
+		voice_type := "voice"
+		if message.Audio != nil {
+			voice_type = "audio"
+		}
+		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", []string{"type:" + voice_type}, 1)
 		userText = getVoiceTransript(ctx, bot, message)
 		if userText != "" {
 			message.Text = userText
@@ -270,8 +275,17 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Message) string {
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
-	voice := message.Voice
-	voiceMessageFileData, err := bot.GetFile(&telego.GetFileParams{FileID: voice.FileID})
+
+	var fileId string
+	if message.Voice != nil {
+		fileId = message.Voice.FileID
+	} else if message.Audio != nil {
+		fileId = message.Audio.FileID
+	} else {
+		log.Errorf("No voice message in chat %s", chatIDString)
+		return ""
+	}
+	voiceMessageFileData, err := bot.GetFile(&telego.GetFileParams{FileID: fileId})
 	if err != nil {
 		log.Errorf("Failed to get voice message in chat %s: %v", chatIDString, err)
 		_, err = bot.SendMessage(tu.Message(chatID, "Failed to get the voice message, please try again"))
@@ -292,17 +306,23 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 
 	// create uuid for the file
 	temporaryFileName := uuid.New().String()
-	ogaFile := "/data/" + temporaryFileName + ".oga"
+	temporaryFileExtension := filepath.Ext(voiceMessageFileData.FilePath)
+	if temporaryFileExtension == "" || message.Voice != nil {
+		temporaryFileExtension = "oga"
+	}
+	sourceFile := "/data/" + temporaryFileName + "." + temporaryFileExtension
 	webmFile := "/data/" + temporaryFileName + ".webm"
 
 	// save response.Body to a temporary file
-	f, err := os.Create(ogaFile)
+	f, err := os.Create(sourceFile)
 	if err != nil {
-		log.Errorf("Error creating file %s in chat %s: %v", ogaFile, chatIDString, err)
+		log.Errorf("Error creating file %s in chat %s: %v", sourceFile, chatIDString, err)
 		return ""
+	} else {
+		log.Infof("Created file %s for conversion in chat %s, size: %d", sourceFile, chatIDString, voiceMessageFileData.FileSize)
 	}
 	defer f.Close()
-	defer safeOsDelete(ogaFile)
+	defer safeOsDelete(sourceFile)
 	_, err = io.Copy(f, response.Body)
 	if err != nil {
 		log.Errorf("Error saving voice message in chat %s: %v", chatIDString, err)
@@ -310,7 +330,7 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 	}
 
 	// convert .oga audio format into one of ['m4a', 'mp3', 'webm', 'mp4', 'mpga', 'wav', 'mpeg']
-	duration, err := converters.ConvertWithFFMPEG(ogaFile, webmFile)
+	duration, err := converters.ConvertWithFFMPEG(sourceFile, webmFile)
 	defer safeOsDelete(webmFile)
 	if err != nil {
 		log.Errorf("Error converting voice message in chat %s: %v", chatIDString, err)
