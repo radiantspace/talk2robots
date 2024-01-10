@@ -11,11 +11,11 @@ const (
 var Subscriptions = map[models.MongoSubscriptionName]models.MongoSubscription{
 	FreeSubscriptionName: {
 		Name:         FreeSubscriptionName,
-		MaximumUsage: 0.01,
+		MaximumUsage: 0.05,
 	},
 	FreePlusSubscriptionName: {
 		Name:         FreePlusSubscriptionName,
-		MaximumUsage: 0.05,
+		MaximumUsage: 0.25,
 	},
 	BasicSubscriptionName: {
 		Name:         BasicSubscriptionName,

@@ -54,8 +54,8 @@ in Slack:
 - [x] `/transcribe` voice/audio/video messages
 - [x] `/summarize` text/voice/audio/video messages
 - [x] Upgrade subscription `/upgrade`. Three subscription plans are available:
-  - Free - limits to $0.01/month of OpenAI API usage (text and audio)
-  - Free+ - limits to $0.05/month OpenAI API usage (just to test the system and conversion rates)
+  - Free - limits to $0.05/month of OpenAI API usage (text and audio)
+  - Free+ - limits to $0.25/month OpenAI API usage (just to test the system and conversion rates)
   - Basic - $9.99/month, limits to $9.99/month OpenAI API usage
 - [x] Cancel subscription `/downgrade`
 - [x] Get user status (usage, limits etc) `/status`
@@ -74,8 +74,8 @@ https://github.com/radiantspace/talk2robots/assets/8243681/3cfd47c4-55ed-4eb3-9f
 - [x] Summarize message thread by adding :memo: emoji to a message
 - [ ] Use `/teacher` mode to correct and explain grammar
 - [x] Upgrade subscription `/upgrade`, only free subscription is available at the moment:
-  - Free - limits to $0.01 OpenAI API usage
-  - Free+ - limits to $0.05 OpenAI API usage (just to test the system and conversion rates)
+  - Free - limits to $0.05 OpenAI API usage
+  - Free+ - limits to $0.25 OpenAI API usage (just to test the system and conversion rates)
 - [ ] Cancel subscription `/downgrade`
 - [ ] Get user status (usage, limits etc) `/mystatus`
 - [ ] Get `/support`

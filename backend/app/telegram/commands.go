@@ -48,6 +48,18 @@ const (
 	TranscribeCommand         Command = "/transcribe"
 	SummarizeCommand          Command = "/summarize"
 
+	// commands setting for BotFather
+	Commands string = `
+start - 🚀 onboarding instructions
+chatgpt - 🧠 ask AI anything
+grammar - 👀 grammar checking mode only, no explanations
+teacher - 🧑‍🏫 grammar correction and explanations
+transcribe - 🎙 transcribe voice/audio/video
+summarize - 📝 summarize text/voice/audio/video
+support - 🤔 contact developer for support
+terms - 📜 usage terms
+`
+
 	// has to use system command here since it's not possible to trasfer fileId from one bot to another
 	// be super careful with this command refactoring and make sure that it's not possible to send this command from any other chat
 	SYSTEMSetOnboardingVideoCommand Command = "/setonboardingvideo"

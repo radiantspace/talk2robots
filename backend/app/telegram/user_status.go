@@ -29,7 +29,7 @@ func GetUserStatus(ctx context.Context) string {
 	return fmt.Sprintf(`⚙️ User status:
 		Mode: %s
 		Subscription: %s
-		Maximum OpenAI usage: %.2f$
+		Maximum OpenAI usage: $%.2f/month
 		Monthly consumption: %.1f%%
 		Monthly tokens processed: %d
 		Monthly audio transcribed, minutes: %.2f`, mode, subscriptionToDisplay, subscription.MaximumUsage, usagePercent, tokens, audioMinutes)
