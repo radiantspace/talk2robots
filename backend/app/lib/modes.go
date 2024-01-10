@@ -12,12 +12,13 @@ import (
 type ModeName string
 
 const (
-	Grammar   ModeName = "grammar"
-	Teacher   ModeName = "teacher"
-	Emili     ModeName = "emili"
-	Vasilisa  ModeName = "vasilisa"
-	ChatGPT   ModeName = "chatgpt"
-	Summarize ModeName = "summarize"
+	Grammar    ModeName = "grammar"
+	Teacher    ModeName = "teacher"
+	Emili      ModeName = "emili"
+	Vasilisa   ModeName = "vasilisa"
+	ChatGPT    ModeName = "chatgpt"
+	Transcribe ModeName = "transcribe"
+	Summarize  ModeName = "summarize"
 )
 
 func SaveMode(chatID string, mode ModeName) {
@@ -131,7 +132,7 @@ var chatGPTSeed = []models.Message{}
 var summarizeSeed = []models.Message{
 	{
 		Role:    "system",
-		Content: "You will summarize a conversation provided as a transcript. Summarize the conversation in a few paragraphs. Structure should include context, participants (<@mentions>), and the main points of the conversation. If there were major decisions and/or action items, you will add them as a bullet list. Keep the mentions in slack format, i.e. <@U12345678>.",
+		Content: "You will summarize a conversation provided as a transcript. Summarize the conversation in a few paragraphs. Structure should include context, participants/actors (<@mentions>), and the main points of the conversation. If there were major decisions and/or action items, you will add them as a bullet list. Keep the mentions in slack format, i.e. <@U12345678>.",
 	},
 }
 

@@ -13,6 +13,7 @@ import (
 
 func GetUserStatus(ctx context.Context) string {
 	userIdString := ctx.Value(models.UserContext{}).(string)
+	mode := string(lib.GetMode(userIdString))
 	subscriptionName := ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName)
 	subscription := lib.Subscriptions[subscriptionName]
 	usage := GetUserUsage(userIdString)
@@ -26,11 +27,12 @@ func GetUserStatus(ctx context.Context) string {
 	}
 
 	return fmt.Sprintf(`⚙️ User status:
+		Mode: %s
 		Subscription: %s
 		Maximum OpenAI usage: %.2f$
 		Monthly consumption: %.1f%%
 		Monthly tokens processed: %d
-		Monthly audio transcribed, minutes: %.2f`, subscriptionToDisplay, subscription.MaximumUsage, usagePercent, tokens, audioMinutes)
+		Monthly audio transcribed, minutes: %.2f`, mode, subscriptionToDisplay, subscription.MaximumUsage, usagePercent, tokens, audioMinutes)
 }
 
 func GetStatusKeyboard(ctx context.Context) telego.ReplyMarkup {
@@ -56,11 +58,21 @@ func GetStatusKeyboard(ctx context.Context) telego.ReplyMarkup {
 			},
 			{
 				{
-					Text:         "GPT 3.5 Turbo",
+					Text:         "Transribe",
+					CallbackData: string(lib.Transcribe),
+				},
+				{
+					Text:         "Summarize",
+					CallbackData: string(lib.Summarize),
+				},
+			},
+			{
+				{
+					Text:         "Engine: 3.5",
 					CallbackData: string(models.ChatGpt35Turbo),
 				},
 				{
-					Text:         "GPT 4",
+					Text:         "Engine: 4",
 					CallbackData: string(models.ChatGpt4),
 				},
 			},

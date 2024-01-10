@@ -125,20 +125,33 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		return
 	}
 
-	userText := ""
-	// if the message is voice message, process it to upload to WhisperAI API and get the text
-	if message.Voice != nil || message.Audio != nil {
+	mode := lib.GetMode(chatIDString)
+	if message.Text != "" {
+		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", nil, 1)
+
+		if mode == lib.Transcribe {
+			bot.SendMessage(tu.Message(chatID, "Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
+			return
+		}
+	}
+
+	voiceTranscriptionText := ""
+	// if the message is voice/audio/video message, process it to upload to WhisperAI API and get the transcription
+	if message.Voice != nil || message.Audio != nil || message.Video != nil {
 		voice_type := "voice"
 		if message.Audio != nil {
 			voice_type = "audio"
+		} else if message.Video != nil {
+			voice_type = "video"
 		}
 		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", []string{"type:" + voice_type}, 1)
-		userText = getVoiceTransript(ctx, bot, message)
-		if userText != "" {
-			message.Text = userText
 
-			// another typing action to show that bot is still working
-			sendTypingAction(bot, chatID)
+		// send typing action to show that bot is working
+		sendTypingAction(bot, chatID)
+		voiceTranscriptionText = getVoiceTransript(ctx, bot, message)
+		// combine message text with transcription
+		if voiceTranscriptionText != "" {
+			message.Text = message.Text + "\n" + voiceTranscriptionText
 		}
 
 		// process commands again if it was a voice command
@@ -146,23 +159,29 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 			AllCommandHandlers.handleCommand(ctx, BOT, &message)
 			return
 		}
+
+		if mode == lib.Transcribe {
+			bot.SendMessage(tu.Message(chatID, voiceTranscriptionText))
+			return
+		}
+
+		bot.SendMessage(tu.Message(chatID, "🗣:\n"+voiceTranscriptionText))
 	}
 
 	if message.Photo != nil {
 		config.CONFIG.DataDogClient.Incr("telegram.photo_message_received", nil, 1)
-	} else {
-		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", nil, 1)
 	}
 
 	var seedData []models.Message
 	var userMessagePrimer string
-	mode := lib.GetMode(chatIDString)
 	seedData, userMessagePrimer = lib.GetSeedDataAndPrimer(mode)
 
 	log.Debugf("Received message: %d, in chat: %d, initiating request to OpenAI", message.MessageID, chatID.ID)
 	engineModel := redis.GetChatEngine(chatIDString)
 
-	if mode == lib.ChatGPT {
+	// send typing action to show that bot is working
+	sendTypingAction(bot, chatID)
+	if mode == lib.ChatGPT || mode == lib.Summarize {
 		ProcessStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel, cancelContext)
 	} else {
 		ProcessNonStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel)
@@ -170,32 +189,27 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 }
 
 func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
-	log.Infof("Received callback query: %s, for user: %d", callbackQuery.Data, callbackQuery.From.ID)
+	userId := callbackQuery.From.ID
+	log.Infof("Received callback query: %s, for user: %d", callbackQuery.Data, userId)
 	config.CONFIG.DataDogClient.Incr("telegram.callback_query", []string{"data:" + callbackQuery.Data}, 1)
 	switch callbackQuery.Data {
 	case "like":
-		log.Infof("User liked a message.")
+		log.Infof("User %d liked a message.", userId)
 		config.CONFIG.DataDogClient.Incr("telegram.like", nil, 1)
 		bot.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Thanks for your feedback! 👍",
 		})
 	case "dislike":
-		log.Infof("User disliked a message.")
+		log.Infof("User %d disliked a message.", userId)
 		config.CONFIG.DataDogClient.Incr("telegram.dislike", nil, 1)
 		bot.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Thanks for your feedback!",
 		})
-	case string(lib.ChatGPT):
+	case string(lib.ChatGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe):
 		handleCommandsInCallbackQuery(callbackQuery)
-	case string(lib.Grammar):
-		handleCommandsInCallbackQuery(callbackQuery)
-	case string(lib.Teacher):
-		handleCommandsInCallbackQuery(callbackQuery)
-	case string(models.ChatGpt35Turbo):
-		handleEngineSwitchCallbackQuery(callbackQuery)
-	case string(models.ChatGpt4):
+	case string(models.ChatGpt35Turbo), string(models.ChatGpt4):
 		handleEngineSwitchCallbackQuery(callbackQuery)
 	default:
 		log.Errorf("Unknown callback query: %s", callbackQuery.Data)
@@ -277,26 +291,29 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 	chatIDString := util.GetChatIDString(&message)
 
 	var fileId string
-	if message.Voice != nil {
+	switch {
+	case message.Voice != nil:
 		fileId = message.Voice.FileID
-	} else if message.Audio != nil {
+	case message.Audio != nil:
 		fileId = message.Audio.FileID
-	} else {
-		log.Errorf("No voice message in chat %s", chatIDString)
+	case message.Video != nil:
+		fileId = message.Video.FileID
+	default:
+		log.Errorf("No voice/audio/video message in chat %s", chatIDString)
 		return ""
 	}
-	voiceMessageFileData, err := bot.GetFile(&telego.GetFileParams{FileID: fileId})
+	fileData, err := bot.GetFile(&telego.GetFileParams{FileID: fileId})
 	if err != nil {
-		log.Errorf("Failed to get voice message in chat %s: %v", chatIDString, err)
-		_, err = bot.SendMessage(tu.Message(chatID, "Failed to get the voice message, please try again"))
+		log.Errorf("Failed to get voice/audio/video file data in chat %s: %v", chatIDString, err)
+		_, err = bot.SendMessage(tu.Message(chatID, "Something went wrong while getting voice/audio/video file, please try again."))
 		if err != nil {
 			log.Errorf("Failed to send message in chat %s: %v", chatIDString, err)
 		}
 		return ""
 	}
-	log.Debugf("Voice message file data: %+v", voiceMessageFileData)
+	log.Debugf("Voice message file data: %+v", fileData)
 
-	fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token(), voiceMessageFileData.FilePath)
+	fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token(), fileData.FilePath)
 	response, err := http.Get(fileURL)
 	if err != nil {
 		log.Errorf("Error downloading file in chat %s: %v", chatIDString, err)
@@ -306,11 +323,11 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 
 	// create uuid for the file
 	temporaryFileName := uuid.New().String()
-	temporaryFileExtension := filepath.Ext(voiceMessageFileData.FilePath)
+	temporaryFileExtension := filepath.Ext(fileData.FilePath)
 	if temporaryFileExtension == "" || message.Voice != nil {
-		temporaryFileExtension = "oga"
+		temporaryFileExtension = ".oga"
 	}
-	sourceFile := "/data/" + temporaryFileName + "." + temporaryFileExtension
+	sourceFile := "/data/" + temporaryFileName + temporaryFileExtension
 	webmFile := "/data/" + temporaryFileName + ".webm"
 
 	// save response.Body to a temporary file
@@ -319,7 +336,7 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 		log.Errorf("Error creating file %s in chat %s: %v", sourceFile, chatIDString, err)
 		return ""
 	} else {
-		log.Infof("Created file %s for conversion in chat %s, size: %d", sourceFile, chatIDString, voiceMessageFileData.FileSize)
+		log.Infof("Created file %s for conversion in chat %s, size: %d", sourceFile, chatIDString, fileData.FileSize)
 	}
 	defer f.Close()
 	defer safeOsDelete(sourceFile)
@@ -353,10 +370,9 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 		temporaryFileName+".webm")
 
 	if whisper.Transcript().Text == "" {
-		bot.SendMessage(tu.Message(chatID, "Couldn't transcribe the voice message, maybe next time?"))
+		bot.SendMessage(tu.Message(chatID, "Couldn't transcribe the voice/audio/video message, maybe next time?"))
 		return ""
 	}
-	bot.SendMessage(tu.Message(chatID, "🗣: "+whisper.Transcript().Text))
 
 	return whisper.Transcript().Text
 }

@@ -22,6 +22,15 @@ type Command string
 
 var EMILY_BIRTHDAY = time.Date(2023, 5, 25, 0, 18, 0, 0, time.FixedZone("UTC+3", 3*60*60))
 var VASILISA_BIRTHDAY = time.Date(2007, 12, 13, 23, 45, 0, 0, time.FixedZone("UTC+3", 3*60*60))
+var ONBOARDING_TEXT = `Hi, I'm a bot powered by OpenAI! I can:
+- Default: chat with or answer any questions (/chatgpt)
+- Correct grammar (/grammar)
+- Explain grammar and mistakes (/teacher)
+- New feature ✨: transcribe voice/audio/video messages (/transcribe)
+- New feature ✨: summarize text/voice/audio/video messages (/summarize)
+- New feature ✨: explain pictures/photos in (/chatgpt) mode. That works for Basic subscription only, since it's expensive to run. Please /upgrade to use this feature.
+
+Also, I will never store your messages, or any other private information.`
 
 const (
 	CancelSubscriptionCommand Command = "/downgrade"
@@ -36,6 +45,8 @@ const (
 	TeacherCommand            Command = "/teacher"
 	UpgradeCommand            Command = "/upgrade"
 	VasilisaCommand           Command = "/vasilisa"
+	TranscribeCommand         Command = "/transcribe"
+	SummarizeCommand          Command = "/summarize"
 
 	// has to use system command here since it's not possible to trasfer fileId from one bot to another
 	// be super careful with this command refactoring and make sure that it's not possible to send this command from any other chat
@@ -55,7 +66,7 @@ func setupCommandHandlers() {
 	AllCommandHandlers = []*CommandHandler{
 		newCommandHandler(EmptyCommand, emptyCommandHandler),
 		newCommandHandler(StartCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			_, err := bot.SendMessage(tu.Message(util.GetChatID(message), "Hi, I'm a bot powered by OpenAI! I can:\n- Answer any questions (/chatgpt) which is the default mode,\n- Correct grammar (/grammar)\n- Explain any found mistakes (/teacher).\n\nI can now understand voice messages 🗣️🎤🧠\n\nAlso, I will never store your messages, or any other private information.").WithReplyMarkup(GetStatusKeyboard(ctx)))
+			_, err := bot.SendMessage(tu.Message(util.GetChatID(message), ONBOARDING_TEXT).WithReplyMarkup(GetStatusKeyboard(ctx)))
 			if err != nil {
 				log.Errorf("Failed to send StartCommand message: %v", err)
 			}
@@ -74,43 +85,22 @@ func setupCommandHandlers() {
 				log.Errorf("Failed to send onboarding video: %v", err)
 			}
 		}),
-		newCommandHandler(EmiliCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			bot.SendMessage(tu.Message(util.GetChatID(message), "היי, אעזור עם הטקסטים והודעות בעברית."+"\n\n"+fmt.Sprintf("אגב, אני בת %.f שעות, כלומר %.f ימים, %.f שבועות, %.1f חודשים או %.1f שנים", time.Since(EMILY_BIRTHDAY).Hours(), time.Since(EMILY_BIRTHDAY).Hours()/24, time.Since(EMILY_BIRTHDAY).Hours()/24/7, 12*(time.Since(EMILY_BIRTHDAY).Hours()/24/365), time.Since(EMILY_BIRTHDAY).Hours()/24/365)))
-			lib.SaveMode(util.GetChatIDString(message), lib.Emili)
-		}),
-		newCommandHandler(VasilisaCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			bot.SendMessage(tu.Message(util.GetChatID(message), "Привет, я помогу тебе с текстами и сообщениями на русском языке 😊\n\n"+fmt.Sprintf("Кстати, мне %.f часов, то есть %.f дней или %.1f лет", time.Since(VASILISA_BIRTHDAY).Hours(), time.Since(VASILISA_BIRTHDAY).Hours()/24, time.Since(VASILISA_BIRTHDAY).Hours()/24/365)))
-			lib.SaveMode(util.GetChatIDString(message), lib.Vasilisa)
-		}),
+		newCommandHandler(EmiliCommand, getModeHandlerFunction(lib.Emili, "היי, אעזור עם הטקסטים והודעות בעברית."+"\n\n"+fmt.Sprintf("אגב, אני בת %.f שעות, כלומר %.f ימים, %.f שבועות, %.1f חודשים או %.1f שנים", time.Since(EMILY_BIRTHDAY).Hours(), time.Since(EMILY_BIRTHDAY).Hours()/24, time.Since(EMILY_BIRTHDAY).Hours()/24/7, 12*(time.Since(EMILY_BIRTHDAY).Hours()/24/365), time.Since(EMILY_BIRTHDAY).Hours()/24/365))),
+		newCommandHandler(VasilisaCommand, getModeHandlerFunction(lib.Vasilisa, "Привет, я помогу тебе с текстами и сообщениями на русском языке 😊\n\n"+fmt.Sprintf("Кстати, мне %.f часов, то есть %.f дней или %.1f лет", time.Since(VASILISA_BIRTHDAY).Hours(), time.Since(VASILISA_BIRTHDAY).Hours()/24, time.Since(VASILISA_BIRTHDAY).Hours()/24/365))),
 		newCommandHandler(ChatGPTCommand, getModeHandlerFunction(lib.ChatGPT, "🚀 ChatGPT is now fully unleashed! Just tell me or ask me anything you want. Previous messages will not be taken into account.")),
 		newCommandHandler(GrammarCommand, getModeHandlerFunction(lib.Grammar, "Will only correct your grammar without any explainations. If you want to get explainations, use /teacher command.")),
 		newCommandHandler(TeacherCommand, getModeHandlerFunction(lib.Teacher, "Will correct your grammar and explain any mistakes found.")),
-		newCommandHandler(StatusCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			_, err := bot.SendMessage(tu.Message(util.GetChatID(message), GetUserStatus(ctx)).WithReplyMarkup(GetStatusKeyboard(ctx)))
-			if err != nil {
-				log.Errorf("Failed to send StatusCommand message: %v", err)
-			}
-		}),
+		newCommandHandler(TranscribeCommand, getModeHandlerFunction(lib.Transcribe, "Will transcribe your voice/audio/video messages only.")),
+		newCommandHandler(SummarizeCommand, getModeHandlerFunction(lib.Summarize, "Will summarize your text/voice/audio/video messages.")),
+		newCommandHandler(StatusCommand, statusCommandHandler),
 		newCommandHandler(UpgradeCommand, upgradeCommandHandler),
 		newCommandHandler(CancelSubscriptionCommand, cancelSubscriptionCommandHandler),
-		newCommandHandler(SupportCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			log.Infof("Support command received from userID: %s", util.GetChatIDString(message))
-			supportMessage := tu.MessageWithEntities(
-				util.GetChatID(message),
-				tu.Entity("If you have any questions, please contact us at "),
-				tu.Entity("free+support@radiant.space").Email(),
-				tu.Entityf(", explaining the problem and mentioning userID: %s.", util.GetChatIDString(message)),
-			)
-			_, err := bot.SendMessage(supportMessage)
-			if err != nil {
-				log.Errorf("Failed to send SupportCommand message: %v", err)
-			}
-		}),
+		newCommandHandler(SupportCommand, supportCommandHandler),
 		newCommandHandler(TermsCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
 			log.Infof("Terms command received from userID: %s", util.GetChatIDString(message))
 			bot.SendMessage(tu.Message(util.GetChatID(message), USAGE_TERMS_URL))
 		}),
-		// we have to use system command here since it's not possible to trasfer fileId from one bot to another
+		// we have to use system command here since it's not possible to transfer fileId from one bot to another
 		// be super careful with this command refactoring and make sure that it's not possible to send this command from any other chat
 		newCommandHandler(SYSTEMSetOnboardingVideoCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
 			if SystemBOT.ChatID != tu.ID(message.Chat.ID) {
@@ -289,5 +279,26 @@ func emptyCommandHandler(ctx context.Context, bot *Bot, message *telego.Message)
 	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), "There is no message provided to correct or comment on. If you have a message you would like me to review, please provide it."))
 	if err != nil {
 		log.Errorf("Failed to send EmptyCommand message: %v", err)
+	}
+}
+
+func supportCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
+	log.Infof("Support command received from userID: %s", util.GetChatIDString(message))
+	supportMessage := tu.MessageWithEntities(
+		util.GetChatID(message),
+		tu.Entity("If you have any questions, please contact us at "),
+		tu.Entity("free+support@radiant.space").Email(),
+		tu.Entityf(", explaining the problem and mentioning userID: %s.", util.GetChatIDString(message)),
+	)
+	_, err := bot.SendMessage(supportMessage)
+	if err != nil {
+		log.Errorf("Failed to send SupportCommand message: %v", err)
+	}
+}
+
+func statusCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
+	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), GetUserStatus(ctx)).WithReplyMarkup(GetStatusKeyboard(ctx)))
+	if err != nil {
+		log.Errorf("Failed to send StatusCommand message: %v", err)
 	}
 }

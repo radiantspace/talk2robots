@@ -31,16 +31,17 @@ in Slack:
 - [x] Telegram bot
 - [x] Slack integration
 - [ ] Discord bot
-- [x] Voice prompt (OpenAI Wisper)
+- [x] Voice/Audio/Video prompt (OpenAI Wisper)
 - [x] Cache persistent layer (Redis)
 - [x] System health check and analytics (DataDog)
 - [x] Business analytics integration (DataDog)
 - [x] Alarm system/notifications integration (Telegram System Bot, DataDog)
-- [x] Support/feedback system (likes/dislikes, comments, etc.)
+- [x] Support/feedback system (likes/dislikes)
 - [x] Payment system integration (Stripe)
-- [x] Image recognition
+- [x] Image recognition (OpenAI Multimodal gpt-4-vision-preview)
 - [ ] Image generation
-- [ ] Video/Audio summary
+- [x] Video/Audio transcription
+- [x] Video/Audio summary
 - [ ] Voice response (OpenAI TTS)
 - [ ] Threads, i.e. context awareness and memory (Langchain/OpenAI threads)
 
@@ -48,8 +49,10 @@ in Slack:
 
 - [x] Chat with GPT-3.5 or GPT-4 `/chatgpt`, responses are streamed as the OpenAI API is streaming
 - [x] Voice support, just send a voice message in any language and get a reply. Replies are in English at the moment.
-- [x] Use `/grammar` mode just to correct grammar
-- [x] Use `/teacher` mode to correct and explain grammar
+- [x] `/grammar` mode just to correct grammar
+- [x] `/teacher` mode to correct and explain grammar
+- [x] `/transcribe` voice/audio/video messages
+- [x] `/summarize` text/voice/audio/video messages
 - [x] Upgrade subscription `/upgrade`. Three subscription plans are available:
   - Free - limits to $0.01/month of OpenAI API usage (text and audio)
   - Free+ - limits to $0.05/month OpenAI API usage (just to test the system and conversion rates)
