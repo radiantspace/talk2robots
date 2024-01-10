@@ -157,10 +157,15 @@ func ProcessStreamingMessage(
 				continue
 			}
 			previousMessageLength = len(responseText)
+			trimmedResponseText := responseText
+			if mode == lib.Teacher || mode == lib.Grammar {
+				// drop primer from response if it was used
+				trimmedResponseText = strings.TrimPrefix(responseText, userMessagePrimer)
+			}
 			_, err = bot.EditMessageText(&telego.EditMessageTextParams{
 				ChatID:      chatID,
 				MessageID:   responseMessage.MessageID,
-				Text:        responseText,
+				Text:        trimmedResponseText,
 				ReplyMarkup: getPendingReplyMarkup(),
 			})
 			if err != nil {

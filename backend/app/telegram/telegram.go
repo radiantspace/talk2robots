@@ -108,7 +108,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	defer cancelContext()
 
 	// process commands
-	if message.Voice == nil && message.Audio == nil && message.Video == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
+	if message.Voice == nil && message.Audio == nil && message.Video == nil && message.VideoNote == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
 		AllCommandHandlers.handleCommand(ctx, BOT, &message)
 		return
 	}
@@ -146,6 +146,8 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 			voice_type = "audio"
 		} else if message.Video != nil {
 			voice_type = "video"
+		} else if message.VideoNote != nil {
+			voice_type = "note"
 		}
 		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", []string{"type:" + voice_type}, 1)
 
@@ -184,7 +186,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	// send typing action to show that bot is working
 	sendTypingAction(bot, chatID)
-	if mode == lib.ChatGPT || mode == lib.Summarize {
+	if mode == lib.ChatGPT || mode == lib.Summarize || mode == lib.Grammar {
 		ProcessStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel, cancelContext)
 	} else {
 		ProcessNonStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel)
@@ -273,7 +275,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 			return
 		}
 		redis.SaveEngine(chatIDString, models.ChatGpt4)
-		_, err = BOT.SendMessage(tu.Message(tu.ID(callbackQuery.From.ID), "Switched to GPT-4 model, very intelligent, but slow and expensive! Don't forget to check /status regularly to avoid hitting the usage cap."))
+		_, err = BOT.SendMessage(tu.Message(tu.ID(callbackQuery.From.ID), "Switched to GPT-4 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap."))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-4 message: %v", err)
 		}
@@ -301,6 +303,8 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 		fileId = message.Audio.FileID
 	case message.Video != nil:
 		fileId = message.Video.FileID
+	case message.VideoNote != nil:
+		fileId = message.VideoNote.FileID
 	default:
 		log.Errorf("No voice/audio/video message in chat %s", chatIDString)
 		return ""
@@ -327,7 +331,7 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 	// create uuid for the file
 	temporaryFileName := uuid.New().String()
 	temporaryFileExtension := filepath.Ext(fileData.FilePath)
-	if temporaryFileExtension == "" || message.Voice != nil {
+	if message.Voice != nil {
 		temporaryFileExtension = ".oga"
 	}
 	sourceFile := "/data/" + temporaryFileName + temporaryFileExtension
@@ -373,6 +377,7 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 		temporaryFileName+".webm")
 
 	if whisper.Transcript().Text == "" {
+		log.Warnf("Failed to transcribe voice message in chat %s from %s, size %d", chatIDString, fileData.FilePath, fileData.FileSize)
 		bot.SendMessage(tu.Message(chatID, "Couldn't transcribe the voice/audio/video message, maybe next time?"))
 		return ""
 	}
