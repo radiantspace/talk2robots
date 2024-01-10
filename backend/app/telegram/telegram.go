@@ -109,10 +109,13 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	// process commands
 	if message.Voice == nil && message.Audio == nil && message.Video == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
-		if message.Video != nil && strings.HasPrefix(message.Caption, string(SYSTEMSetOnboardingVideoCommand)) {
-			log.Infof("System command received: %+v", message) // audit
-			message.Text = string(SYSTEMSetOnboardingVideoCommand)
-		}
+		AllCommandHandlers.handleCommand(ctx, BOT, &message)
+		return
+	}
+
+	if message.Video != nil && strings.HasPrefix(message.Caption, string(SYSTEMSetOnboardingVideoCommand)) {
+		log.Infof("System command received: %+v", message) // audit
+		message.Text = string(SYSTEMSetOnboardingVideoCommand)
 		AllCommandHandlers.handleCommand(ctx, BOT, &message)
 		return
 	}
