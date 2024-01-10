@@ -108,7 +108,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	defer cancelContext()
 
 	// process commands
-	if message.Voice == nil && message.Audio == nil && message.Video == nil && message.VideoNote == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
+	if message.Voice == nil && message.Audio == nil && message.Video == nil && message.VideoNote == nil && message.Document == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
 		AllCommandHandlers.handleCommand(ctx, BOT, &message)
 		return
 	}
@@ -140,14 +140,17 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	voiceTranscriptionText := ""
 	// if the message is voice/audio/video message, process it to upload to WhisperAI API and get the transcription
-	if message.Voice != nil || message.Audio != nil || message.Video != nil || message.VideoNote != nil {
+	if message.Voice != nil || message.Audio != nil || message.Video != nil || message.VideoNote != nil || message.Document != nil {
 		voice_type := "voice"
-		if message.Audio != nil {
+		switch {
+		case message.Audio != nil:
 			voice_type = "audio"
-		} else if message.Video != nil {
+		case message.Video != nil:
 			voice_type = "video"
-		} else if message.VideoNote != nil {
+		case message.VideoNote != nil:
 			voice_type = "note"
+		case message.Document != nil:
+			voice_type = "document"
 		}
 		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", []string{"type:" + voice_type}, 1)
 
@@ -305,6 +308,8 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 		fileId = message.Video.FileID
 	case message.VideoNote != nil:
 		fileId = message.VideoNote.FileID
+	case message.Document != nil:
+		fileId = message.Document.FileID
 	default:
 		log.Errorf("No voice/audio/video message in chat %s", chatIDString)
 		return ""
@@ -312,6 +317,10 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 	fileData, err := bot.GetFile(&telego.GetFileParams{FileID: fileId})
 	if err != nil {
 		log.Errorf("Failed to get voice/audio/video file data in chat %s: %v", chatIDString, err)
+		if strings.Contains(err.Error(), "file is too big") {
+			_, _ = bot.SendMessage(tu.Message(chatID, "Telegram API doesn't support downloading files bigger than 20Mb, try sending a shorter voice/audio/video message."))
+			return ""
+		}
 		_, err = bot.SendMessage(tu.Message(chatID, "Something went wrong while getting voice/audio/video file, please try again."))
 		if err != nil {
 			log.Errorf("Failed to send message in chat %s: %v", chatIDString, err)

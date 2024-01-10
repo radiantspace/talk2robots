@@ -10,7 +10,7 @@ import (
 )
 
 func ConvertWithFFMPEG(inputFile string, outputFile string) (duration time.Duration, err error) {
-	cmd := exec.Command("ffmpeg", "-i", inputFile, "-af", "silencedetect=n=-50dB:d=1", "-vn", outputFile)
+	cmd := exec.Command("ffmpeg", "-i", inputFile, "-af", "silencedetect=n=-50dB:d=1", "-map", "a", "-q:a", "0", outputFile)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return 0, fmt.Errorf("failed to convert %s to %s: %s\n%s", inputFile, outputFile, err, output)
