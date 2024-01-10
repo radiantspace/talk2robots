@@ -140,7 +140,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	voiceTranscriptionText := ""
 	// if the message is voice/audio/video message, process it to upload to WhisperAI API and get the transcription
-	if message.Voice != nil || message.Audio != nil || message.Video != nil {
+	if message.Voice != nil || message.Audio != nil || message.Video != nil || message.VideoNote != nil {
 		voice_type := "voice"
 		if message.Audio != nil {
 			voice_type = "audio"
