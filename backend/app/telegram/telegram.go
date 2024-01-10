@@ -169,11 +169,11 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		}
 
 		if mode == lib.Transcribe {
-			bot.SendMessage(tu.Message(chatID, voiceTranscriptionText))
+			util.TelegramChunkSendMessage(bot, chatID, voiceTranscriptionText)
 			return
 		}
 
-		bot.SendMessage(tu.Message(chatID, "🗣:\n"+voiceTranscriptionText))
+		util.TelegramChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
 	}
 
 	if message.Photo != nil {

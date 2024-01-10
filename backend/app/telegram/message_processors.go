@@ -162,6 +162,10 @@ func ProcessStreamingMessage(
 				// drop primer from response if it was used
 				trimmedResponseText = strings.TrimPrefix(responseText, userMessagePrimer)
 			}
+			// TODO: split into multiple messages if too long
+			if len(trimmedResponseText) > 4000 {
+				trimmedResponseText = trimmedResponseText[:4000] + "... (truncated, since telegram has a 4096 character limit)"
+			}
 			_, err = bot.EditMessageText(&telego.EditMessageTextParams{
 				ChatID:      chatID,
 				MessageID:   responseMessage.MessageID,
@@ -205,6 +209,9 @@ func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *t
 		separator := "Explanation:"
 		parts := strings.Split(response, separator)
 		for i, part := range parts {
+			if len(part) > 4000 {
+				part = part[:4000] + "... (truncated, since telegram has a 4096 character limit)"
+			}
 			log.Debugf("Sending part %d: %s", i, part)
 			message := tu.Message(chatID, strings.Trim(part, "\n")).WithReplyMarkup(getLikeDislikeReplyMarkup())
 			_, err = bot.SendMessage(message)
@@ -213,6 +220,9 @@ func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *t
 			log.Errorf("Failed to send message in chat %s: %s", chatIDString, err)
 		}
 	} else {
+		if len(response) > 4000 {
+			response = response[:4000] + "... (truncated, since telegram has a 4096 character limit)"
+		}
 		bot.SendMessage(tu.Message(chatID, "🧠: "+response).WithReplyMarkup(getLikeDislikeReplyMarkup()))
 	}
 }

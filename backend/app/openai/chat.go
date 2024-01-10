@@ -229,8 +229,8 @@ func pricePerOutputToken(model models.Engine) float64 {
 func maxTokensForModel(model models.Engine, promptTokensCount float64) float64 {
 	switch model {
 	case models.ChatGpt4:
-		return 1000 // math.Min(promptTokensCount*10, 500)
+		return 2000
 	default:
-		return 2000 // math.Min(promptTokensCount*10, 2000)
+		return 2000
 	}
 }
