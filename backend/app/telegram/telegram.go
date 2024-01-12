@@ -82,6 +82,13 @@ func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Updat
 		"/bot"+bot.Token(),
 		telego.WithWebhookSet(&telego.SetWebhookParams{
 			URL: util.Env("BACKEND_BASE_URL") + "/bot" + bot.Token(),
+			AllowedUpdates: []string{
+				"message",
+				"callback_query",
+				// TODO: uncomment these when https://github.com/mymmrac/telego/pull/157/files lands
+				// "message_reaction",
+				// "message_reaction_count",
+			},
 		}),
 		telego.WithWebhookServer(telego.FastHTTPWebhookServer{
 			Logger: log.StandardLogger(),
