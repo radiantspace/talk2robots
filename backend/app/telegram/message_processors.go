@@ -29,80 +29,10 @@ func ProcessStreamingMessage(
 ) {
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
-	messages := util.MessagesToMultimodalMessages(seedData)
-
-	// check if message had an image attachments and pass it on in base64 format to the model
-	if message.Photo == nil || len(message.Photo) == 0 {
-		messages = append(messages, models.MultimodalMessage{
-			Role:    "user",
-			Content: []models.MultimodalContent{{Type: "text", Text: userMessagePrimer + message.Text}},
-		},
-		)
-	} else {
-		// check user's subscription status
-		if lib.IsUserFree(ctx) || lib.IsUserFreePlus(ctx) {
-			bot.SendMessage(&telego.SendMessageParams{
-				ChatID: chatID,
-				Text:   "Image vision is not currently available on free plans, since it's kinda expensive. Please /upgrade to use this feature.",
-			})
-			return
-		}
-
-		engineModel = models.ChatGpt4TurboVision
-
-		// get the last image for now
-		photo := message.Photo
-		photoSize := photo[len(photo)-1]
-		photoFile, err := bot.GetFile(&telego.GetFileParams{FileID: photoSize.FileID})
-		if err != nil {
-			log.Errorf("Failed to get image file params from telegram: %s", err)
-			bot.SendMessage(&telego.SendMessageParams{
-				ChatID: chatID,
-				Text:   "😔 can't accept image messages at the moment",
-			})
-			return
-		}
-		fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token(), photoFile.FilePath)
-		photoResponse, err := http.Get(fileURL)
-		if err != nil {
-			log.Errorf("Error downloading image file in chat %s: %v", chatIDString, err)
-			bot.SendMessage(&telego.SendMessageParams{
-				ChatID: chatID,
-				Text:   "😔 can't accept image messages at the moment",
-			})
-			return
-		}
-		defer photoResponse.Body.Close()
-
-		photoBytes := make([]byte, photoResponse.ContentLength)
-		_, err = io.ReadFull(photoResponse.Body, photoBytes)
-		if err != nil {
-			log.Errorf("Error reading image file in chat %s: %v", chatIDString, err)
-			bot.SendMessage(&telego.SendMessageParams{
-				ChatID: chatID,
-				Text:   "😔 can't accept image messages at the moment",
-			})
-			return
-		}
-		photoBase64 := base64.StdEncoding.EncodeToString(photoBytes)
-
-		messages = append(messages, models.MultimodalMessage{
-			Role: "user",
-			Content: []models.MultimodalContent{
-				{
-					Type: "text",
-					Text: userMessagePrimer + message.Text + "\n" + message.Caption,
-				},
-				{
-					Type: "image_url",
-					ImageURL: struct {
-						URL string `json:"url"`
-					}{
-						URL: fmt.Sprintf("data:image/jpeg;base64,%s", photoBase64),
-					},
-				},
-			},
-		})
+	messages, err := prepareMessages(ctx, bot, message, seedData, userMessagePrimer, mode, engineModel)
+	if err != nil {
+		log.Errorf("Failed to prepare messages: %s", err)
+		return
 	}
 
 	messageChannel, err := BOT.API.ChatCompleteStreaming(
@@ -227,6 +157,9 @@ func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *t
 	}
 }
 
+func ProcessThreadedMessage(ctx context.Context, bot *telego.Bot, message *telego.Message, seedData []models.Message, userMessagePrimer string, mode lib.ModeName, engineModel models.Engine) {
+}
+
 func getLikeDislikeReplyMarkup() *telego.InlineKeyboardMarkup {
 	// set up inline keyboard for like/dislike buttons
 	btnLike := telego.InlineKeyboardButton{Text: "👍", CallbackData: "like"}
@@ -238,4 +171,98 @@ func getPendingReplyMarkup() *telego.InlineKeyboardMarkup {
 	// set up inline keyboard for like/dislike buttons
 	btnPending := telego.InlineKeyboardButton{Text: "...", CallbackData: "pending"}
 	return &telego.InlineKeyboardMarkup{InlineKeyboard: [][]telego.InlineKeyboardButton{{btnPending}}}
+}
+
+func prepareMessages(
+	ctx context.Context,
+	bot *telego.Bot,
+	message *telego.Message,
+	seedData []models.Message,
+	userMessagePrimer string,
+	mode lib.ModeName,
+	engineModel models.Engine,
+) (messages []models.MultimodalMessage, err error) {
+	chatID := util.GetChatID(message)
+	chatIDString := util.GetChatIDString(message)
+	messages = util.MessagesToMultimodalMessages(seedData)
+
+	// check if message had an image attachments and pass it on in base64 format to the model
+	if message.Photo == nil || len(message.Photo) == 0 {
+		messages = append(messages, models.MultimodalMessage{
+			Role:    "user",
+			Content: []models.MultimodalContent{{Type: "text", Text: userMessagePrimer + message.Text}},
+		},
+		)
+		return messages, nil
+	}
+
+	// photo message detected, check user's subscription status
+	if lib.IsUserFree(ctx) || lib.IsUserFreePlus(ctx) {
+		bot.SendMessage(&telego.SendMessageParams{
+			ChatID: chatID,
+			Text:   "Image vision is not currently available on free plans, since it's kinda expensive. Please /upgrade to use this feature.",
+		})
+		return nil, fmt.Errorf("user %s tried to use image vision on free plan", chatIDString)
+	}
+
+	engineModel = models.ChatGpt4TurboVision
+
+	// get the last image for now
+	photo := message.Photo
+	photoSize := photo[len(photo)-1]
+	var photoFile *telego.File
+	photoFile, err = bot.GetFile(&telego.GetFileParams{FileID: photoSize.FileID})
+	if err != nil {
+		log.Errorf("Failed to get image file params from telegram: %s", err)
+		bot.SendMessage(&telego.SendMessageParams{
+			ChatID: chatID,
+			Text:   "😔 can't accept image messages at the moment",
+		})
+		return nil, fmt.Errorf("failed to get image file params from telegram: %s", err)
+	}
+	fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token(), photoFile.FilePath)
+
+	var photoResponse *http.Response
+	photoResponse, err = http.Get(fileURL)
+	if err != nil {
+		log.Errorf("Error downloading image file in chat %s: %v", chatIDString, err)
+		bot.SendMessage(&telego.SendMessageParams{
+			ChatID: chatID,
+			Text:   "😔 can't accept image messages at the moment",
+		})
+		return
+	}
+	defer photoResponse.Body.Close()
+
+	photoBytes := make([]byte, photoResponse.ContentLength)
+	_, err = io.ReadFull(photoResponse.Body, photoBytes)
+	if err != nil {
+		log.Errorf("Error reading image file in chat %s: %v", chatIDString, err)
+		bot.SendMessage(&telego.SendMessageParams{
+			ChatID: chatID,
+			Text:   "😔 can't accept image messages at the moment",
+		})
+		return
+	}
+	photoBase64 := base64.StdEncoding.EncodeToString(photoBytes)
+
+	messages = append(messages, models.MultimodalMessage{
+		Role: "user",
+		Content: []models.MultimodalContent{
+			{
+				Type: "text",
+				Text: userMessagePrimer + message.Text + "\n" + message.Caption,
+			},
+			{
+				Type: "image_url",
+				ImageURL: struct {
+					URL string `json:"url"`
+				}{
+					URL: fmt.Sprintf("data:image/jpeg;base64,%s", photoBase64),
+				},
+			},
+		},
+	})
+
+	return messages, nil
 }
