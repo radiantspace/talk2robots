@@ -127,62 +127,6 @@ func (a *API) CancelRun(ctx context.Context, threadId, runId string) (*models.Th
 	return &threadRunResponse, nil
 }
 
-// Retrieve a run by id.
-// GET
-
-// https://api.openai.com/v1/threads/{thread_id}/runs/{run_id}
-
-// Retrieves a run.
-
-// Path parameters
-// thread_id
-// string
-// Required
-// The ID of the thread that was run.
-
-// run_id
-// string
-// Required
-// The ID of the run to retrieve.
-
-// Returns
-// The run object matching the specified ID.
-
-// Example request
-// curl
-
-// curl
-// curl https://api.openai.com/v1/threads/thread_abc123/runs/run_abc123 \
-//   -H "Authorization: Bearer $OPENAI_API_KEY" \
-//   -H "OpenAI-Beta: assistants=v1"
-// Response
-// {
-//   "id": "run_abc123",
-//   "object": "thread.run",
-//   "created_at": 1699075072,
-//   "assistant_id": "asst_abc123",
-//   "thread_id": "thread_abc123",
-//   "status": "completed",
-//   "started_at": 1699075072,
-//   "expires_at": null,
-//   "cancelled_at": null,
-//   "failed_at": null,
-//   "completed_at": 1699075073,
-//   "last_error": null,
-//   "model": "gpt-3.5-turbo",
-//   "instructions": null,
-//   "tools": [
-//     {
-//       "type": "code_interpreter"
-//     }
-//   ],
-//   "file_ids": [
-//     "file-abc123",
-//     "file-abc456"
-//   ],
-//   "metadata": {}
-// }
-
 // retrieve a run by id and threadId.
 func (a *API) GetThreadRun(ctx context.Context, threadId, runId string) (*models.ThreadRunResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/threads/"+threadId+"/runs/"+runId, nil)

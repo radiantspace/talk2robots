@@ -237,45 +237,6 @@ type ThreadRunResponse struct {
 	Metadata     struct{}        `json:"metadata"`
 }
 
-// curl
-//
-//	curl https://api.openai.com/v1/threads/thread_abc123/runs/run_abc123/steps \
-//	  -H "Authorization: Bearer $OPENAI_API_KEY" \
-//	  -H "Content-Type: application/json" \
-//	  -H "OpenAI-Beta: assistants=v1"
-//
-// Response
-//
-//	{
-//	  "object": "list",
-//	  "data": [
-//	    {
-//	      "id": "step_abc123",
-//	      "object": "thread.run.step",
-//	      "created_at": 1699063291,
-//	      "run_id": "run_abc123",
-//	      "assistant_id": "asst_abc123",
-//	      "thread_id": "thread_abc123",
-//	      "type": "message_creation",
-//	      "status": "completed",
-//	      "cancelled_at": null,
-//	      "completed_at": 1699063291,
-//	      "expired_at": null,
-//	      "failed_at": null,
-//	      "last_error": null,
-//	      "step_details": {
-//	        "type": "message_creation",
-//	        "message_creation": {
-//	          "message_id": "msg_abc123"
-//	        }
-//	      }
-//	    }
-//	  ],
-//	  "first_id": "step_abc123",
-//	  "last_id": "step_abc456",
-//	  "has_more": false
-//	}
-
 type ThreadRunStepsResponse struct {
 	Object  string          `json:"object"`
 	Data    []ThreadRunStep `json:"data"`
