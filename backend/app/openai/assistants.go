@@ -19,12 +19,12 @@ func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRe
 	}
 	if assistant.Tools == nil {
 		assistant.Tools = []models.AssistantTool{
-			{
-				Type: "code_interpreter",
-			},
-			{
-				Type: "retrieval",
-			},
+			// {
+			// 	Type: "code_interpreter",
+			// },
+			// {
+			// 	Type: "retrieval",
+			// },
 		}
 	}
 	if assistant.Instructions == "" {
@@ -96,6 +96,59 @@ func (a *API) GetAssistant(ctx context.Context, assistantID string) (*models.Ass
 	}
 
 	var assistantResponse models.AssistantResponse
+	err = json.Unmarshal(body, &assistantResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &assistantResponse, nil
+}
+
+// List assistants
+func (a *API) ListAssistants(ctx context.Context, limit int, order string, after string, before string) (*models.AssistantListResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/assistants", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("OpenAI-Beta", "assistants=v1")
+
+	q := req.URL.Query()
+	if limit > 0 {
+		q.Add("limit", fmt.Sprintf("%d", limit))
+	}
+	if order != "" {
+		q.Add("order", order)
+	}
+	if after != "" {
+		q.Add("after", after)
+	}
+	if before != "" {
+		q.Add("before", before)
+	}
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound {
+			return &models.AssistantListResponse{Data: []models.AssistantResponse{}}, nil
+		}
+		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var assistantResponse models.AssistantListResponse
 	err = json.Unmarshal(body, &assistantResponse)
 	if err != nil {
 		return nil, err

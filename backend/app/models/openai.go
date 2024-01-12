@@ -1,7 +1,11 @@
 package models
 
+import "talk2robots/m/v2/app/config"
+
 // Engine is a type for OpenAI API engine
 type Engine string
+
+type AssistantKey string
 
 // Engine types
 const (
@@ -14,7 +18,33 @@ const (
 	ChatGpt4TurboVision Engine = "gpt-4-vision-preview"
 	Whisper             Engine = "whisper-1"
 	TTS                 Engine = "tts-1"
+
+	// used as Redis keys
+	AssistantGpt4  AssistantKey = "assistant:gpt-4"
+	AssistantGpt35 AssistantKey = "assistant:gpt-3.5"
 )
+
+func AssistantKeyForModel(model Engine) AssistantKey {
+	switch model {
+	case ChatGpt4, ChatGpt4TurboVision:
+		return AssistantGpt4
+	case ChatGpt35Turbo:
+		return AssistantGpt35
+	default:
+		return AssistantGpt35
+	}
+}
+
+func AssistantIdForModel(model Engine) string {
+	switch model {
+	case ChatGpt4, ChatGpt4TurboVision:
+		return config.CONFIG.AssistantGpt4Id
+	case ChatGpt35Turbo:
+		return config.CONFIG.AssistantGpt35Id
+	default:
+		return config.CONFIG.AssistantGpt35Id
+	}
+}
 
 type CostAndUsage struct {
 	Engine             Engine  `json:"engine"`
@@ -294,4 +324,12 @@ type DeletedResponse struct {
 	ID      string `json:"id"`
 	Object  string `json:"object"`
 	Deleted bool   `json:"deleted"`
+}
+
+type AssistantListResponse struct {
+	Object  string              `json:"object"`
+	Data    []AssistantResponse `json:"data"`
+	FirstID string              `json:"first_id"`
+	LastID  string              `json:"last_id"`
+	HasMore bool                `json:"has_more"`
 }

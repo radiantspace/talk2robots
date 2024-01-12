@@ -9,6 +9,8 @@ import (
 var CONFIG *Config
 
 type Config struct {
+	AssistantGpt4Id        string
+	AssistantGpt35Id       string
 	BotName                string
 	BotUrl                 string
 	DataDogClient          *statsd.Client
