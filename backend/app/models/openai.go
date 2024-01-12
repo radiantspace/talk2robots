@@ -139,3 +139,198 @@ type Usage struct {
 	TotalTokens      int     `json:"total_tokens"`
 	AudioDuration    float64 `json:"audio_duration"` // only for whisper API
 }
+
+type ThreadRequest struct {
+	Messages []MultimodalMessage `json:"messages"`
+	Metadata struct {
+	} `json:"metadata"`
+}
+
+type ThreadResponse struct {
+	ID        string `json:"id"`
+	Object    string `json:"object"`
+	CreatedAt int64  `json:"created_at"`
+	Metadata  struct {
+	} `json:"metadata"`
+}
+
+type ThreadMessageResponse struct {
+	ID          string              `json:"id"`
+	Object      string              `json:"object"`
+	CreatedAt   int64               `json:"created_at"`
+	ThreadID    string              `json:"thread_id"`
+	Role        string              `json:"role"`
+	Content     []MultimodalContent `json:"content"`
+	FileIDs     []string            `json:"file_ids"`
+	AssistantID string              `json:"assistant_id"`
+	RunID       string              `json:"run_id"`
+	Metadata    struct {
+	} `json:"metadata"`
+}
+
+type ThreadMessage struct {
+	ID          string              `json:"id"`
+	Object      string              `json:"object"`
+	CreatedAt   int64               `json:"created_at"`
+	ThreadID    string              `json:"thread_id"`
+	Role        string              `json:"role"`
+	Content     []MultimodalContent `json:"content"`
+	FileIDs     []string            `json:"file_ids"`
+	AssistantID string              `json:"assistant_id"`
+	RunID       string              `json:"run_id"`
+	Metadata    string              `json:"metadata"`
+}
+
+type MessageFile struct {
+	ID        string `json:"id"`
+	Object    string `json:"object"`
+	CreatedAt int64  `json:"created_at"`
+	MessageID string `json:"message_id"`
+	FileID    string `json:"file_id"`
+}
+
+type AssistantRequest struct {
+	Model        string          `json:"model"`
+	Name         string          `json:"name"`
+	Tools        []AssistantTool `json:"tools"`
+	Instructions string          `json:"instructions"`
+	FileIDs      []string        `json:"file_ids"`
+	Metadata     struct{}        `json:"metadata"`
+	Description  string          `json:"description"`
+}
+
+type AssistantTool struct {
+	Type string `json:"type"`
+}
+
+type AssistantResponse struct {
+	ID           string          `json:"id"`
+	Object       string          `json:"object"`
+	CreatedAt    int64           `json:"created_at"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description"`
+	Model        string          `json:"model"`
+	Instructions string          `json:"instructions"`
+	Tools        []AssistantTool `json:"tools"`
+	FileIDs      []string        `json:"file_ids"`
+	Metadata     struct {
+	} `json:"metadata"`
+}
+
+type ThreadRunResponse struct {
+	ID           string          `json:"id"`
+	Object       string          `json:"object"`
+	CreatedAt    int64           `json:"created_at"`
+	AssistantID  string          `json:"assistant_id"`
+	ThreadID     string          `json:"thread_id"`
+	Status       string          `json:"status"`
+	StartedAt    int64           `json:"started_at"`
+	ExpiresAt    int64           `json:"expires_at"`
+	CancelledAt  int64           `json:"cancelled_at"`
+	FailedAt     int64           `json:"failed_at"`
+	CompletedAt  int64           `json:"completed_at"`
+	LastError    string          `json:"last_error"`
+	Model        string          `json:"model"`
+	Instructions string          `json:"instructions"`
+	Tools        []AssistantTool `json:"tools"`
+	FileIDs      []string        `json:"file_ids"`
+	Metadata     struct{}        `json:"metadata"`
+}
+
+// curl
+//
+//	curl https://api.openai.com/v1/threads/thread_abc123/runs/run_abc123/steps \
+//	  -H "Authorization: Bearer $OPENAI_API_KEY" \
+//	  -H "Content-Type: application/json" \
+//	  -H "OpenAI-Beta: assistants=v1"
+//
+// Response
+//
+//	{
+//	  "object": "list",
+//	  "data": [
+//	    {
+//	      "id": "step_abc123",
+//	      "object": "thread.run.step",
+//	      "created_at": 1699063291,
+//	      "run_id": "run_abc123",
+//	      "assistant_id": "asst_abc123",
+//	      "thread_id": "thread_abc123",
+//	      "type": "message_creation",
+//	      "status": "completed",
+//	      "cancelled_at": null,
+//	      "completed_at": 1699063291,
+//	      "expired_at": null,
+//	      "failed_at": null,
+//	      "last_error": null,
+//	      "step_details": {
+//	        "type": "message_creation",
+//	        "message_creation": {
+//	          "message_id": "msg_abc123"
+//	        }
+//	      }
+//	    }
+//	  ],
+//	  "first_id": "step_abc123",
+//	  "last_id": "step_abc456",
+//	  "has_more": false
+//	}
+
+type ThreadRunStepsResponse struct {
+	Object  string          `json:"object"`
+	Data    []ThreadRunStep `json:"data"`
+	FirstID string          `json:"first_id"`
+	LastID  string          `json:"last_id"`
+	HasMore bool            `json:"has_more"`
+}
+
+type ThreadRunStep struct {
+	ID          string      `json:"id"`
+	Object      string      `json:"object"`
+	CreatedAt   int64       `json:"created_at"`
+	RunID       string      `json:"run_id"`
+	AssistantID string      `json:"assistant_id"`
+	ThreadID    string      `json:"thread_id"`
+	Type        string      `json:"type"`
+	Status      string      `json:"status"`
+	CancelledAt int64       `json:"cancelled_at"`
+	CompletedAt int64       `json:"completed_at"`
+	ExpiredAt   int64       `json:"expired_at"`
+	FailedAt    int64       `json:"failed_at"`
+	LastError   string      `json:"last_error"`
+	StepDetails StepDetails `json:"step_details"`
+}
+
+type StepDetails struct {
+	Type            string                     `json:"type"`
+	MessageCreation MessageCreationStepDetails `json:"message_creation"`
+	ToolCalls       []ToolCallStepDetails      `json:"tool_calls"`
+}
+
+type MessageCreationStepDetails struct {
+	MessageID string `json:"message_id"`
+}
+
+type ToolCallStepDetails struct {
+	ID              string                             `json:"id"`
+	Type            string                             `json:"type"`
+	CodeInterpreter CodeInterpreterToolCallStepDetails `json:"code_interpreter"`
+	Retrieval       RetrievalToolCallStepDetails       `json:"retrieval"`
+}
+
+type CodeInterpreterToolCallStepDetails struct {
+	Input   string `json:"input"`
+	Outputs []struct {
+		Type string `json:"type"`
+		Logs string `json:"logs"`
+	} `json:"outputs"`
+}
+
+type RetrievalToolCallStepDetails struct {
+}
+
+type DeletedResponse struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	Deleted bool   `json:"deleted"`
+}
