@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
 	"talk2robots/m/v2/app/util"
@@ -16,6 +17,8 @@ import (
 	tu "github.com/mymmrac/telego/telegoutil"
 	log "github.com/sirupsen/logrus"
 )
+
+const OOPSIE = "Oopsie, it looks like my AI brain isn't working 🧠🔥. Please try again later."
 
 func ProcessStreamingMessage(
 	ctx context.Context,
@@ -29,7 +32,7 @@ func ProcessStreamingMessage(
 ) {
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
-	messages, err := prepareMessages(ctx, bot, message, seedData, userMessagePrimer, mode, engineModel)
+	messages, engineModel, err := prepareMessages(ctx, bot, message, seedData, userMessagePrimer, mode, engineModel)
 	if err != nil {
 		log.Errorf("Failed to prepare messages: %s", err)
 		return
@@ -46,7 +49,7 @@ func ProcessStreamingMessage(
 
 	if err != nil {
 		log.Errorf("Failed get streaming response from Open AI: %s", err)
-		_, err = bot.SendMessage(tu.Message(chatID, "Oopsie, it looks like my AI brain isn't working 🧠🔥. Please try again later."))
+		_, err = bot.SendMessage(tu.Message(chatID, OOPSIE))
 		if err != nil {
 			log.Errorf("Failed to send error message in chat: %s, %v", chatIDString, err)
 		}
@@ -112,6 +115,113 @@ func ProcessStreamingMessage(
 	}
 }
 
+func ProcessThreadedMessage(
+	ctx context.Context,
+	bot *telego.Bot,
+	message *telego.Message,
+	mode lib.ModeName,
+	engineModel models.Engine,
+) {
+	chatID := util.GetChatID(message)
+	chatIDString := util.GetChatIDString(message)
+
+	messages, engineModel, err := prepareMessages(ctx, bot, message, []models.Message{}, "", mode, engineModel)
+	if err != nil {
+		log.Errorf("Failed to prepare messages in chat %s: %s", chatIDString, err)
+		return
+	}
+	if len(messages) == 0 {
+		log.Errorf("No messages to send in chat: %s", chatIDString)
+		return
+	}
+
+	var threadRun *models.ThreadRunResponse
+	threadId := redis.RedisClient.Get(ctx, chatIDString+":current-thread").String()
+	if threadId == "" {
+		log.Infof("No thread found for chat %s, creating new thread", chatIDString)
+
+		threadRun, err = BOT.API.CreateThreadAndRun(ctx, models.AssistantIdForModel(engineModel), &models.ThreadRequest{
+			Messages: messages,
+		})
+		if err != nil {
+			log.Errorf("Failed to create thread: %s", err)
+			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			return
+		}
+		threadId = threadRun.ThreadID
+		redis.RedisClient.Set(ctx, chatIDString+":current-thread", threadId, 0)
+	} else {
+		log.Infof("Found thread %s for chat %s", threadId, chatIDString)
+
+		// check if thread is still running
+		threadRun, err = BOT.API.GetLastThreadRun(ctx, threadId)
+		if err != nil {
+			log.Errorf("Failed to get thread: %s", err)
+			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			return
+		}
+
+		if threadRun.Status == "in_process" {
+			threadRun, err = pollThreadRun(bot, ctx, threadRun, chatIDString, chatID)
+			if err != nil {
+				log.Errorf("Failed to poll thread: %s", err)
+				bot.SendMessage(tu.Message(chatID, OOPSIE))
+				return
+			}
+		}
+
+		// run completed, add messages and trigger run
+		for _, message := range messages {
+			_, err := BOT.API.CreateThreadMessage(ctx, threadId, &message)
+			if err != nil {
+				log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
+				bot.SendMessage(tu.Message(chatID, OOPSIE))
+				return
+			}
+		}
+
+		threadRun, err = BOT.API.CreateRun(ctx, models.AssistantIdForModel(engineModel), threadId)
+		if err != nil {
+			log.Errorf("Failed to create run in chat %s: %s", chatIDString, err)
+			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			return
+		}
+	}
+
+	threadRun, err = pollThreadRun(bot, ctx, threadRun, chatIDString, chatID)
+	if err != nil {
+		log.Errorf("Failed to final poll thread run in chat %s: %s", chatIDString, err)
+		bot.SendMessage(tu.Message(chatID, OOPSIE))
+		return
+	}
+
+	// get messages from thread
+	threadMessage, err := BOT.API.ListLastAssistantMessages(ctx, threadRun.ThreadID)
+	if err != nil {
+		log.Errorf("Failed to get messages from thread in chat %s: %s", chatIDString, err)
+		bot.SendMessage(tu.Message(chatID, OOPSIE))
+		return
+	}
+
+	// send message to telegram
+	content := "🧠: "
+	for _, message := range threadMessage.Content {
+		if message.Type == "text" {
+			content += message.Text
+			continue
+		}
+	}
+	messageParams := telego.SendMessageParams{
+		ChatID:      chatID,
+		Text:        content,
+		ReplyMarkup: getLikeDislikeReplyMarkup(),
+	}
+	_, err = bot.SendMessage(&messageParams)
+	if err != nil {
+		log.Errorf("Failed to send message to chat %s: %s", chatIDString, err)
+	}
+}
+
 func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *telego.Message, seedData []models.Message, userMessagePrimer string, mode lib.ModeName, engineModel models.Engine) {
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
@@ -157,9 +267,6 @@ func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *t
 	}
 }
 
-func ProcessThreadedMessage(ctx context.Context, bot *telego.Bot, message *telego.Message, seedData []models.Message, userMessagePrimer string, mode lib.ModeName, engineModel models.Engine) {
-}
-
 func getLikeDislikeReplyMarkup() *telego.InlineKeyboardMarkup {
 	// set up inline keyboard for like/dislike buttons
 	btnLike := telego.InlineKeyboardButton{Text: "👍", CallbackData: "like"}
@@ -181,9 +288,8 @@ func prepareMessages(
 	userMessagePrimer string,
 	mode lib.ModeName,
 	engineModel models.Engine,
-) (messages []models.MultimodalMessage, err error) {
+) (messages []models.MultimodalMessage, model models.Engine, err error) {
 	chatID := util.GetChatID(message)
-	chatIDString := util.GetChatIDString(message)
 	messages = util.MessagesToMultimodalMessages(seedData)
 
 	// check if message had an image attachments and pass it on in base64 format to the model
@@ -193,58 +299,24 @@ func prepareMessages(
 			Content: []models.MultimodalContent{{Type: "text", Text: userMessagePrimer + message.Text}},
 		},
 		)
-		return messages, nil
+		return messages, engineModel, nil
 	}
 
-	// photo message detected, check user's subscription status
-	if lib.IsUserFree(ctx) || lib.IsUserFreePlus(ctx) {
-		bot.SendMessage(&telego.SendMessageParams{
-			ChatID: chatID,
-			Text:   "Image vision is not currently available on free plans, since it's kinda expensive. Please /upgrade to use this feature.",
-		})
-		return nil, fmt.Errorf("user %s tried to use image vision on free plan", chatIDString)
-	}
-
-	engineModel = models.ChatGpt4TurboVision
-
-	// get the last image for now
-	photo := message.Photo
-	photoSize := photo[len(photo)-1]
-	var photoFile *telego.File
-	photoFile, err = bot.GetFile(&telego.GetFileParams{FileID: photoSize.FileID})
+	photoBase64, err := getPhotoBase64(message, ctx, bot)
 	if err != nil {
-		log.Errorf("Failed to get image file params from telegram: %s", err)
-		bot.SendMessage(&telego.SendMessageParams{
-			ChatID: chatID,
-			Text:   "😔 can't accept image messages at the moment",
-		})
-		return nil, fmt.Errorf("failed to get image file params from telegram: %s", err)
+		if strings.Contains(err.Error(), "free plan") {
+			bot.SendMessage(&telego.SendMessageParams{
+				ChatID: chatID,
+				Text:   "Image vision is not currently available on free plans, since it's kinda expensive. Please /upgrade to use this feature.",
+			})
+		} else {
+			bot.SendMessage(&telego.SendMessageParams{
+				ChatID: chatID,
+				Text:   "😔 can't accept image messages at the moment",
+			})
+		}
+		return nil, engineModel, err
 	}
-	fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token(), photoFile.FilePath)
-
-	var photoResponse *http.Response
-	photoResponse, err = http.Get(fileURL)
-	if err != nil {
-		log.Errorf("Error downloading image file in chat %s: %v", chatIDString, err)
-		bot.SendMessage(&telego.SendMessageParams{
-			ChatID: chatID,
-			Text:   "😔 can't accept image messages at the moment",
-		})
-		return
-	}
-	defer photoResponse.Body.Close()
-
-	photoBytes := make([]byte, photoResponse.ContentLength)
-	_, err = io.ReadFull(photoResponse.Body, photoBytes)
-	if err != nil {
-		log.Errorf("Error reading image file in chat %s: %v", chatIDString, err)
-		bot.SendMessage(&telego.SendMessageParams{
-			ChatID: chatID,
-			Text:   "😔 can't accept image messages at the moment",
-		})
-		return
-	}
-	photoBase64 := base64.StdEncoding.EncodeToString(photoBytes)
 
 	messages = append(messages, models.MultimodalMessage{
 		Role: "user",
@@ -264,5 +336,64 @@ func prepareMessages(
 		},
 	})
 
-	return messages, nil
+	return messages, models.ChatGpt4TurboVision, nil
+}
+
+func getPhotoBase64(message *telego.Message, ctx context.Context, bot *telego.Bot) (photoBase64 string, err error) {
+	chatIDString := util.GetChatIDString(message)
+	// photo message detected, check user's subscription status
+	if lib.IsUserFree(ctx) || lib.IsUserFreePlus(ctx) {
+		return "", fmt.Errorf("user %s tried to use image vision on free plan", chatIDString)
+	}
+
+	// get the last image for now
+	photo := message.Photo
+	photoSize := photo[len(photo)-1]
+	var photoFile *telego.File
+	photoFile, err = bot.GetFile(&telego.GetFileParams{FileID: photoSize.FileID})
+	if err != nil {
+		return "", fmt.Errorf("failed to get image file params in chat %s: %s", chatIDString, err)
+	}
+	fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token(), photoFile.FilePath)
+
+	var photoResponse *http.Response
+	photoResponse, err = http.Get(fileURL)
+	if err != nil {
+		return "", fmt.Errorf("error downloading image file in chat %s: %v", chatIDString, err)
+	}
+	defer photoResponse.Body.Close()
+
+	photoBytes := make([]byte, photoResponse.ContentLength)
+	_, err = io.ReadFull(photoResponse.Body, photoBytes)
+	if err != nil {
+		return "", fmt.Errorf("error reading image file in chat %s: %v", chatIDString, err)
+	}
+	return base64.StdEncoding.EncodeToString(photoBytes), nil
+}
+
+func pollThreadRun(bot *telego.Bot, ctx context.Context, threadRun *models.ThreadRunResponse, chatIDString string, chatID telego.ChatID) (*models.ThreadRunResponse, error) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			log.Infof("Context cancelled, closing streaming connection in chat: %s", chatIDString)
+			return nil, fmt.Errorf("context cancelled in chat %s", chatIDString)
+		case <-ticker.C:
+			threadRun, err := BOT.API.GetLastThreadRun(ctx, threadRun.ThreadID)
+			if err != nil {
+				return nil, err
+			}
+			// The status of the run, which can be either queued, in_progress, requires_action, cancelling, cancelled, failed, completed, or expired.
+			switch threadRun.Status {
+			case "in_progress":
+				continue
+			case "completed":
+				log.Infof("Thread %s completed for chat %s", threadRun.ThreadID, chatIDString)
+				return threadRun, nil
+			default:
+				return nil, fmt.Errorf("thread %s failed for chat %s with state %s", threadRun.ThreadID, chatIDString, threadRun.Status)
+			}
+		}
+	}
 }

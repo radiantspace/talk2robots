@@ -11,7 +11,7 @@ import (
 )
 
 // creates a thread and runs it in one request.
-func (a *API) CreateThreadRun(ctx context.Context, assistantId string, thread *models.ThreadRequest) (*models.ThreadRunResponse, error) {
+func (a *API) CreateThreadAndRun(ctx context.Context, assistantId string, thread *models.ThreadRequest) (*models.ThreadRunResponse, error) {
 	if assistantId == "" {
 		return nil, fmt.Errorf("assistantId is required")
 	}
@@ -41,6 +41,86 @@ func (a *API) CreateThreadRun(ctx context.Context, assistantId string, thread *m
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var threadRunResponse models.ThreadRunResponse
+	err = json.Unmarshal(body, &threadRunResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &threadRunResponse, nil
+}
+
+// create a run
+func (a *API) CreateRun(ctx context.Context, assistantId string, threadId string) (*models.ThreadRunResponse, error) {
+	if assistantId == "" {
+		return nil, fmt.Errorf("assistantId is required")
+	}
+
+	if threadId == "" {
+		return nil, fmt.Errorf("threadId is required")
+	}
+
+	requestBody := struct {
+		AssistantId string `json:"model"`
+		// model
+		// string or null
+		// Optional
+		// The ID of the Model to be used to execute this run. If a value is provided here, it will override the model associated with the assistant. If not, the model associated with the assistant will be used.
+
+		// instructions
+		// string or null
+		// Optional
+		// Overrides the instructions of the assistant. This is useful for modifying the behavior on a per-run basis.
+
+		// additional_instructions
+		// string or null
+		// Optional
+		// Appends additional instructions at the end of the instructions for the run. This is useful for modifying the behavior on a per-run basis without overriding other instructions.
+
+		// tools
+		// array or null
+		// Optional
+		// Override the tools the assistant can use for this run. This is useful for modifying the behavior on a per-run basis.
+
+		// Show possible types
+		// metadata
+		// map
+		// Optional
+		// Set of 16 key-value pairs that can be attached to an object. This can be useful for storing additional information about the object in a structured format. Keys can be a maximum of 64 characters long and values can be a maxium of 512 characters long.
+	}{
+		AssistantId: assistantId,
+	}
+
+	requestBodyJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/threads/"+threadId+"/runs", bytes.NewBuffer(requestBodyJSON))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("OpenAI-Beta", "assistants=v1")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, err
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -162,6 +242,50 @@ func (a *API) GetThreadRun(ctx context.Context, threadId, runId string) (*models
 	return &threadRunResponse, nil
 }
 
+// get last thread run by threadId.
+func (a *API) GetLastThreadRun(ctx context.Context, threadId string) (*models.ThreadRunResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/threads/"+threadId+"/runs", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("OpenAI-Beta", "assistants=v1")
+
+	q := req.URL.Query()
+	q.Add("limit", fmt.Sprintf("%d", 1))
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var threadRunResponse models.ThreadRunsResponse
+	err = json.Unmarshal(body, &threadRunResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(threadRunResponse.Data) == 0 {
+		return nil, fmt.Errorf("no runs found")
+	}
+
+	return &threadRunResponse.Data[0], nil
+}
+
 // List run steps by threadId and runId.
 func (a *API) ListThreadRunSteps(ctx context.Context, threadId, runId string) (*models.ThreadRunStepsResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/threads/"+threadId+"/runs/"+runId+"/steps", nil)
@@ -198,7 +322,7 @@ func (a *API) ListThreadRunSteps(ctx context.Context, threadId, runId string) (*
 }
 
 // create a message for threadId.
-func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message *models.Message) (*models.ThreadMessageResponse, error) {
+func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message *models.MultimodalMessage) (*models.ThreadMessageResponse, error) {
 	body, err := json.Marshal(message)
 	if err != nil {
 		return nil, err
@@ -315,4 +439,50 @@ func (a *API) DeleteThread(ctx context.Context, threadId string) (*models.Delete
 	}
 
 	return &threadDeletedResponse, nil
+}
+
+func (a *API) ListLastAssistantMessages(ctx context.Context, threadId string) (*models.ThreadMessageResponse, error) {
+	if threadId == "" {
+		return nil, fmt.Errorf("threadId is required")
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/threads/"+threadId+"/messages", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("OpenAI-Beta", "assistants=v1")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var threadMessagesResponse models.ThreadMessagesResponse
+	err = json.Unmarshal(body, &threadMessagesResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(threadMessagesResponse.Data) == 0 {
+		return nil, fmt.Errorf("no messages found")
+	}
+
+	if threadMessagesResponse.Data[len(threadMessagesResponse.Data)-1].Role != "assistant" {
+		return &models.ThreadMessageResponse{}, nil
+	}
+
+	return &threadMessagesResponse.Data[len(threadMessagesResponse.Data)-1], nil
 }

@@ -196,7 +196,9 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	// send typing action to show that bot is working
 	sendTypingAction(bot, chatID)
-	if mode == lib.ChatGPT || mode == lib.Summarize || mode == lib.Grammar {
+	if mode == lib.ChatGPT {
+		ProcessThreadedMessage(ctx, bot, &message, mode, engineModel)
+	} else if mode == lib.Summarize || mode == lib.Grammar {
 		ProcessStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel, cancelContext)
 	} else {
 		ProcessNonStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel)

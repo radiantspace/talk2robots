@@ -185,30 +185,17 @@ type ThreadResponse struct {
 }
 
 type ThreadMessageResponse struct {
+	AssistantID string              `json:"assistant_id"`
+	Content     []MultimodalContent `json:"content"`
+	CreatedAt   int64               `json:"created_at"`
+	FileIDs     []string            `json:"file_ids"`
 	ID          string              `json:"id"`
 	Object      string              `json:"object"`
-	CreatedAt   int64               `json:"created_at"`
-	ThreadID    string              `json:"thread_id"`
 	Role        string              `json:"role"`
-	Content     []MultimodalContent `json:"content"`
-	FileIDs     []string            `json:"file_ids"`
-	AssistantID string              `json:"assistant_id"`
 	RunID       string              `json:"run_id"`
+	ThreadID    string              `json:"thread_id"`
 	Metadata    struct {
 	} `json:"metadata"`
-}
-
-type ThreadMessage struct {
-	ID          string              `json:"id"`
-	Object      string              `json:"object"`
-	CreatedAt   int64               `json:"created_at"`
-	ThreadID    string              `json:"thread_id"`
-	Role        string              `json:"role"`
-	Content     []MultimodalContent `json:"content"`
-	FileIDs     []string            `json:"file_ids"`
-	AssistantID string              `json:"assistant_id"`
-	RunID       string              `json:"run_id"`
-	Metadata    string              `json:"metadata"`
 }
 
 type MessageFile struct {
@@ -265,6 +252,14 @@ type ThreadRunResponse struct {
 	Tools        []AssistantTool `json:"tools"`
 	FileIDs      []string        `json:"file_ids"`
 	Metadata     struct{}        `json:"metadata"`
+}
+
+type ThreadRunsResponse struct {
+	Object  string              `json:"object"`
+	Data    []ThreadRunResponse `json:"data"`
+	FirstID string              `json:"first_id"`
+	LastID  string              `json:"last_id"`
+	HasMore bool                `json:"has_more"`
 }
 
 type ThreadRunStepsResponse struct {
@@ -332,4 +327,12 @@ type AssistantListResponse struct {
 	FirstID string              `json:"first_id"`
 	LastID  string              `json:"last_id"`
 	HasMore bool                `json:"has_more"`
+}
+
+type ThreadMessagesResponse struct {
+	Object  string                  `json:"object"`
+	Data    []ThreadMessageResponse `json:"data"`
+	FirstID string                  `json:"first_id"`
+	LastID  string                  `json:"last_id"`
+	HasMore bool                    `json:"has_more"`
 }
