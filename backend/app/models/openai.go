@@ -201,16 +201,24 @@ type ThreadResponse struct {
 	} `json:"metadata"`
 }
 
+type ThreadMessageContent struct {
+	Type string `json:"type"`
+	Text struct {
+		Value       string        `json:"value"`
+		Annotations []interface{} `json:"annotations"` // TODO: can be file_citation or code_interpreter
+	} `json:"text"`
+}
+
 type ThreadMessageResponse struct {
-	AssistantID string              `json:"assistant_id"`
-	Content     []MultimodalContent `json:"content"`
-	CreatedAt   int64               `json:"created_at"`
-	FileIDs     []string            `json:"file_ids"`
-	ID          string              `json:"id"`
-	Object      string              `json:"object"`
-	Role        string              `json:"role"`
-	RunID       string              `json:"run_id"`
-	ThreadID    string              `json:"thread_id"`
+	AssistantID string                 `json:"assistant_id"`
+	Content     []ThreadMessageContent `json:"content"`
+	CreatedAt   int64                  `json:"created_at"`
+	FileIDs     []string               `json:"file_ids"`
+	ID          string                 `json:"id"`
+	Object      string                 `json:"object"`
+	Role        string                 `json:"role"`
+	RunID       string                 `json:"run_id"`
+	ThreadID    string                 `json:"thread_id"`
 	Metadata    struct {
 	} `json:"metadata"`
 }

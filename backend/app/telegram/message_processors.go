@@ -203,7 +203,7 @@ func ProcessThreadedMessage(
 	content := "🧠: "
 	for _, message := range threadMessage.Content {
 		if message.Type == "text" {
-			content += message.Text
+			content += message.Text.Value
 			continue
 		}
 	}
