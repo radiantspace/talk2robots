@@ -26,9 +26,9 @@ var ONBOARDING_TEXT = `Hi, I'm a bot powered by OpenAI! I can:
 - Default: chat with or answer any questions (/chatgpt)
 - Correct grammar (/grammar)
 - Explain grammar and mistakes (/teacher)
+- New feature ✨: remember context in /chatgpt mode (use /clear to clear current thread)
 - New feature ✨: transcribe voice/audio/video messages (/transcribe)
 - New feature ✨: summarize text/voice/audio/video messages (/summarize)
-- New feature ✨: explain pictures/photos in (/chatgpt) mode. That works for Basic subscription only, since it's expensive to run. Please /upgrade to use this feature.
 
 Also, I will never store your messages, or any other private information.`
 
@@ -102,7 +102,7 @@ func setupCommandHandlers() {
 		}),
 		newCommandHandler(EmiliCommand, getModeHandlerFunction(lib.Emili, "היי, אעזור עם הטקסטים והודעות בעברית."+"\n\n"+fmt.Sprintf("אגב, אני בת %.f שעות, כלומר %.f ימים, %.f שבועות, %.1f חודשים או %.1f שנים", time.Since(EMILY_BIRTHDAY).Hours(), time.Since(EMILY_BIRTHDAY).Hours()/24, time.Since(EMILY_BIRTHDAY).Hours()/24/7, 12*(time.Since(EMILY_BIRTHDAY).Hours()/24/365), time.Since(EMILY_BIRTHDAY).Hours()/24/365))),
 		newCommandHandler(VasilisaCommand, getModeHandlerFunction(lib.Vasilisa, "Привет, я помогу тебе с текстами и сообщениями на русском языке 😊\n\n"+fmt.Sprintf("Кстати, мне %.f часов, то есть %.f дней или %.1f лет", time.Since(VASILISA_BIRTHDAY).Hours(), time.Since(VASILISA_BIRTHDAY).Hours()/24, time.Since(VASILISA_BIRTHDAY).Hours()/24/365))),
-		newCommandHandler(ChatGPTCommand, getModeHandlerFunction(lib.ChatGPT, "🚀 ChatGPT is now fully unleashed! Just tell me or ask me anything you want. Previous messages will not be taken into account.")),
+		newCommandHandler(ChatGPTCommand, getModeHandlerFunction(lib.ChatGPT, "🚀 ChatGPT is now fully unleashed! Just tell me or ask me anything you want. I can now remember the context of our conversation. You can use /clear command anytime to wipe my memory and start a new thread.")),
 		newCommandHandler(GrammarCommand, getModeHandlerFunction(lib.Grammar, "Will only correct your grammar without any explainations. If you want to get explainations, use /teacher command.")),
 		newCommandHandler(TeacherCommand, getModeHandlerFunction(lib.Teacher, "Will correct your grammar and explain any mistakes found.")),
 		newCommandHandler(TranscribeCommand, getModeHandlerFunction(lib.Transcribe, "Will transcribe your voice/audio/video messages only.")),
