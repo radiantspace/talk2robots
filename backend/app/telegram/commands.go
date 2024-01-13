@@ -58,6 +58,7 @@ grammar - 👀 grammar checking mode only, no explanations
 teacher - 🧑‍🏫 grammar correction and explanations
 transcribe - 🎙 transcribe voice/audio/video
 summarize - 📝 summarize text/voice/audio/video
+status - 📊 subscription status
 support - 🤔 contact developer for support
 terms - 📜 usage terms
 `
