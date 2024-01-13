@@ -266,13 +266,13 @@ func (a *API) GetLastThreadRun(ctx context.Context, threadId string) (*models.Th
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, body)
 		return nil, err
 	}
 

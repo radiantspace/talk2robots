@@ -125,6 +125,15 @@ func ProcessThreadedMessage(
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
 
+	// usage := models.CostAndUsage{
+	// 	Engine:             engineModel,
+	// 	PricePerInputUnit:  pricePerInputToken(models.Engine(completion.Model)),
+	// 	PricePerOutputUnit: pricePerOutputToken(models.Engine(completion.Model)),
+	// 	Cost:               0,
+	// 	Usage:              models.Usage{},
+	// }
+	// go payments.Bill(ctx, usage)
+
 	var threadRun *models.ThreadRunResponse
 	threadId, err := redis.RedisClient.Get(ctx, chatIDString+":current-thread").Result()
 	if threadId == "" {
@@ -148,6 +157,9 @@ func ProcessThreadedMessage(
 	} else {
 		log.Infof("Found thread %s for chat %s", threadId, chatIDString)
 
+		// what 1 second to ensure previos message is processed
+		time.Sleep(1 * time.Second)
+
 		// check if thread is still running
 		threadRun, err = BOT.API.GetLastThreadRun(ctx, threadId)
 		if err != nil {
@@ -163,6 +175,8 @@ func ProcessThreadedMessage(
 				bot.SendMessage(tu.Message(chatID, OOPSIE))
 				return
 			}
+		} else {
+			log.Infof("Thread %s is not running in chat %s, creating a message..", threadId, chatIDString)
 		}
 
 		// run completed, add a message and trigger run
