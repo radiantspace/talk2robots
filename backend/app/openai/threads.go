@@ -350,7 +350,7 @@ func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message 
 		return nil, err
 	}
 
-	if resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
 		return nil, err
 	}
