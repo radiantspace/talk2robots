@@ -47,6 +47,7 @@ const (
 	VasilisaCommand           Command = "/vasilisa"
 	TranscribeCommand         Command = "/transcribe"
 	SummarizeCommand          Command = "/summarize"
+	ClearThreadCommand        Command = "/clear"
 
 	// commands setting for BotFather
 	Commands string = `
@@ -133,6 +134,7 @@ func setupCommandHandlers() {
 			}
 			bot.SendMessage(tu.Message(SystemBOT.ChatID, "Onboarding video saved"))
 		}),
+		newCommandHandler(ClearThreadCommand, clearThreadCommandHandler),
 	}
 }
 
@@ -312,5 +314,27 @@ func statusCommandHandler(ctx context.Context, bot *Bot, message *telego.Message
 	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), GetUserStatus(ctx)).WithReplyMarkup(GetStatusKeyboard(ctx)))
 	if err != nil {
 		log.Errorf("Failed to send StatusCommand message: %v", err)
+	}
+}
+
+func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
+	chatID := util.GetChatID(message)
+	chatIDString := util.GetChatIDString(message)
+	threadId, err := redis.RedisClient.Get(ctx, chatIDString+":current-thread").Result()
+	if threadId == "" {
+		_, err = bot.SendMessage(tu.Message(chatID, "There is no thread to clear."))
+		if err != nil {
+			log.Errorf("Failed to send ClearThreadCommand message: %v", err)
+		}
+		return
+	}
+
+	_, err = BOT.API.DeleteThread(ctx, threadId)
+	if err != nil {
+		log.Errorf("Failed to clear thread: %v", err)
+	}
+	_, err = bot.SendMessage(tu.Message(chatID, "Thread cleared."))
+	if err != nil {
+		log.Errorf("Failed to send ClearThreadCommand message: %v", err)
 	}
 }
