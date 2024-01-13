@@ -1,5 +1,5 @@
 # build API
-FROM golang:1.20-alpine as build-go
+FROM golang:1.21-alpine as build-go
 RUN apk --update add ca-certificates upx && update-ca-certificates
 RUN go env -w CGO_ENABLED="0"
 WORKDIR /
