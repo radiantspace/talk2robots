@@ -45,7 +45,7 @@ func setupAssistants() {
 
 func setupAssistantForModel(model models.Engine) string {
 	var id string
-	id = redis.RedisClient.Get(context.Background(), string(models.AssistantKeyForModel(model))).String()
+	id, err := redis.RedisClient.Get(context.Background(), string(models.AssistantKeyForModel(model))).Result()
 	if id != "" {
 		log.Infof("[onstart] found assistant %s for %s in Redis", id, model)
 

@@ -136,7 +136,7 @@ func ProcessThreadedMessage(
 	}
 
 	var threadRun *models.ThreadRunResponse
-	threadId := redis.RedisClient.Get(ctx, chatIDString+":current-thread").String()
+	threadId, err := redis.RedisClient.Get(ctx, chatIDString+":current-thread").Result()
 	if threadId == "" {
 		log.Infof("No thread found for chat %s, creating new thread", chatIDString)
 
