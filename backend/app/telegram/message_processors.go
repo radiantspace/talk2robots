@@ -192,7 +192,7 @@ func ProcessThreadedMessage(
 	}
 
 	// get messages from thread
-	threadMessage, err := BOT.API.ListLastAssistantMessages(ctx, threadRun.ThreadID)
+	threadMessage, err := BOT.API.ListLastThreadMessages(ctx, threadRun.ThreadID)
 	if err != nil {
 		log.Errorf("Failed to get messages from thread in chat %s: %s", chatIDString, err)
 		bot.SendMessage(tu.Message(chatID, OOPSIE))

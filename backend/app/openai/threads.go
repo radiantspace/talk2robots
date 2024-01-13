@@ -444,7 +444,7 @@ func (a *API) DeleteThread(ctx context.Context, threadId string) (*models.Delete
 	return &threadDeletedResponse, nil
 }
 
-func (a *API) ListLastAssistantMessages(ctx context.Context, threadId string) (*models.ThreadMessageResponse, error) {
+func (a *API) ListLastThreadMessages(ctx context.Context, threadId string) (*models.ThreadMessageResponse, error) {
 	if threadId == "" {
 		return nil, fmt.Errorf("threadId is required")
 	}
@@ -456,6 +456,10 @@ func (a *API) ListLastAssistantMessages(ctx context.Context, threadId string) (*
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
+
+	q := req.URL.Query()
+	q.Add("limit", fmt.Sprintf("%d", 1))
+	req.URL.RawQuery = q.Encode()
 
 	resp, err := a.client.Do(req)
 	if err != nil {
@@ -483,9 +487,9 @@ func (a *API) ListLastAssistantMessages(ctx context.Context, threadId string) (*
 		return nil, fmt.Errorf("no messages found")
 	}
 
-	if threadMessagesResponse.Data[len(threadMessagesResponse.Data)-1].Role != "assistant" {
+	if threadMessagesResponse.Data[0].Role != "assistant" {
 		return &models.ThreadMessageResponse{}, nil
 	}
 
-	return &threadMessagesResponse.Data[len(threadMessagesResponse.Data)-1], nil
+	return &threadMessagesResponse.Data[0], nil
 }
