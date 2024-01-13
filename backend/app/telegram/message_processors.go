@@ -157,34 +157,9 @@ func ProcessThreadedMessage(
 		threadId = threadRun.ThreadID
 		redis.RedisClient.Set(ctx, chatIDString+":current-thread", threadId, 0)
 	} else {
-		log.Infof("Found thread %s for chat %s", threadId, chatIDString)
+		log.Infof("Found thread %s for chat %s, adding a message..", threadId, chatIDString)
 
-		// check if thread is still running
-		threadRun, err = BOT.API.GetLastThreadRun(ctx, threadId)
-		if err != nil {
-			log.Errorf("Failed to get thread: %s", err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE))
-			return
-		} else {
-			log.Infof("Thread %s, run %+v", threadId, threadRun)
-		}
-
-		if threadRun.Status == "in_process" {
-			threadRun, err = pollThreadRun(bot, ctx, threadRun, chatIDString, chatID)
-			if err != nil {
-				log.Errorf("Failed to poll thread: %s", err)
-				bot.SendMessage(tu.Message(chatID, OOPSIE))
-				return
-			}
-		} else {
-			log.Infof("Thread %s is not running in chat %s, creating a message..", threadId, chatIDString)
-		}
-
-		// run completed, add a message and trigger run
-		_, err := BOT.API.CreateThreadMessage(ctx, threadId, &models.Message{
-			Content: message.Text,
-			Role:    "user",
-		})
+		err := createThreadMessageWithRetries(ctx, threadId, message.Text, chatIDString)
 		if err != nil {
 			log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
 			bot.SendMessage(tu.Message(chatID, OOPSIE))
@@ -199,7 +174,7 @@ func ProcessThreadedMessage(
 		}
 	}
 
-	threadRun, err = pollThreadRun(bot, ctx, threadRun, chatIDString, chatID)
+	threadRun, err = pollThreadRun(ctx, threadRun.ThreadID, chatIDString)
 	if err != nil {
 		log.Errorf("Failed to final poll thread run in chat %s: %s", chatIDString, err)
 		bot.SendMessage(tu.Message(chatID, OOPSIE))
@@ -386,7 +361,31 @@ func getPhotoBase64(message *telego.Message, ctx context.Context, bot *telego.Bo
 	return base64.StdEncoding.EncodeToString(photoBytes), nil
 }
 
-func pollThreadRun(bot *telego.Bot, ctx context.Context, threadRun *models.ThreadRunResponse, chatIDString string, chatID telego.ChatID) (*models.ThreadRunResponse, error) {
+func createThreadMessageWithRetries(
+	ctx context.Context,
+	threadId string,
+	message string,
+	chatIDString string,
+) error {
+	messageBody := &models.Message{
+		Content: message,
+		Role:    "user",
+	}
+	_, err := BOT.API.CreateThreadMessage(ctx, threadId, messageBody)
+	if err != nil {
+		if strings.Contains(err.Error(), "while a run") && strings.Contains(err.Error(), "is active") {
+			pollThreadRun(ctx, threadId, chatIDString)
+			_, err := BOT.API.CreateThreadMessage(ctx, threadId, messageBody)
+			return err
+		} else {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func pollThreadRun(ctx context.Context, threadId string, chatIDString string) (*models.ThreadRunResponse, error) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -395,7 +394,7 @@ func pollThreadRun(bot *telego.Bot, ctx context.Context, threadRun *models.Threa
 			log.Infof("Context cancelled, closing streaming connection in chat: %s", chatIDString)
 			return nil, fmt.Errorf("context cancelled in chat %s", chatIDString)
 		case <-ticker.C:
-			threadRun, err := BOT.API.GetLastThreadRun(ctx, threadRun.ThreadID)
+			threadRun, err := BOT.API.GetLastThreadRun(ctx, threadId)
 			if err != nil {
 				return nil, err
 			}
