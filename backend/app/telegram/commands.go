@@ -52,7 +52,8 @@ const (
 	// commands setting for BotFather
 	Commands string = `
 start - 🚀 onboarding instructions
-chatgpt - 🧠 ask AI anything
+chatgpt - 🧠 ask AI anything (with memory)
+clear - 🧹 clear current conversation memory
 grammar - 👀 grammar checking mode only, no explanations
 teacher - 🧑‍🏫 grammar correction and explanations
 transcribe - 🎙 transcribe voice/audio/video
