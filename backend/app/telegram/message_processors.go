@@ -137,6 +137,7 @@ func ProcessThreadedMessage(
 	usage.Usage.PromptTokens = int(openai.ApproximateTokensCount(message.Text))
 
 	var threadRun *models.ThreadRunResponse
+	threadRunId := ""
 	threadId, err := redis.RedisClient.Get(ctx, chatIDString+":current-thread").Result()
 	if threadId == "" {
 		log.Infof("No thread found for chat %s, creating new thread", chatIDString)
@@ -155,11 +156,12 @@ func ProcessThreadedMessage(
 			return
 		}
 		threadId = threadRun.ThreadID
+		threadRunId = threadRun.ID
 		redis.RedisClient.Set(ctx, chatIDString+":current-thread", threadId, 0)
 	} else {
 		log.Infof("Found thread %s for chat %s, adding a message..", threadId, chatIDString)
 
-		err := createThreadMessageWithRetries(ctx, threadId, message.Text, chatIDString)
+		err := createThreadMessageWithRetries(ctx, threadId, message.Text, chatIDString, threadRunId)
 		if err != nil {
 			log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
 			bot.SendMessage(tu.Message(chatID, OOPSIE))
@@ -172,9 +174,10 @@ func ProcessThreadedMessage(
 			bot.SendMessage(tu.Message(chatID, OOPSIE))
 			return
 		}
+		threadRunId = threadRun.ID
 	}
 
-	threadRun, err = pollThreadRun(ctx, threadRun.ThreadID, chatIDString)
+	_, err = pollThreadRun(ctx, threadRun.ThreadID, chatIDString, threadRunId)
 	if err != nil {
 		log.Errorf("Failed to final poll thread run in chat %s: %s", chatIDString, err)
 		bot.SendMessage(tu.Message(chatID, OOPSIE))
@@ -182,7 +185,7 @@ func ProcessThreadedMessage(
 	}
 
 	// get messages from thread
-	threadMessage, err := BOT.API.ListLastThreadMessages(ctx, threadRun.ThreadID)
+	threadMessage, err := BOT.API.ListThreadMessagesForARun(ctx, threadRun.ThreadID, threadRunId)
 	if err != nil {
 		log.Errorf("Failed to get messages from thread in chat %s: %s", chatIDString, err)
 		bot.SendMessage(tu.Message(chatID, OOPSIE))
@@ -190,26 +193,21 @@ func ProcessThreadedMessage(
 	}
 
 	// send message to telegram
-	content := "🧠: "
-	for _, message := range threadMessage.Content {
-		if message.Type == "text" {
-			usage.Usage.CompletionTokens += int(openai.ApproximateTokensCount(message.Text.Value))
-			content += message.Text.Value
+	totalContent := "🧠: "
+	for _, message := range threadMessage {
+		for _, content := range message.Content {
+			if content.Type == "text" {
+				usage.Usage.CompletionTokens += int(openai.ApproximateTokensCount(content.Text.Value))
+				totalContent += content.Text.Value
+			}
 		}
+		totalContent += "\n"
 	}
 
 	usage.Usage.TotalTokens = usage.Usage.PromptTokens + usage.Usage.CompletionTokens
 	go payments.Bill(ctx, usage)
 
-	messageParams := telego.SendMessageParams{
-		ChatID:      chatID,
-		Text:        content,
-		ReplyMarkup: getLikeDislikeReplyMarkup(),
-	}
-	_, err = bot.SendMessage(&messageParams)
-	if err != nil {
-		log.Errorf("Failed to send message to chat %s: %s", chatIDString, err)
-	}
+	util.TelegramChunkSendMessage(bot, chatID, totalContent)
 }
 
 func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *telego.Message, seedData []models.Message, userMessagePrimer string, mode lib.ModeName, engineModel models.Engine) {
@@ -364,6 +362,7 @@ func getPhotoBase64(message *telego.Message, ctx context.Context, bot *telego.Bo
 func createThreadMessageWithRetries(
 	ctx context.Context,
 	threadId string,
+	runId string,
 	message string,
 	chatIDString string,
 ) error {
@@ -374,7 +373,7 @@ func createThreadMessageWithRetries(
 	_, err := BOT.API.CreateThreadMessage(ctx, threadId, messageBody)
 	if err != nil {
 		if strings.Contains(err.Error(), "while a run") && strings.Contains(err.Error(), "is active") {
-			pollThreadRun(ctx, threadId, chatIDString)
+			pollThreadRun(ctx, threadId, chatIDString, runId)
 			_, err := BOT.API.CreateThreadMessage(ctx, threadId, messageBody)
 			return err
 		} else {
@@ -385,8 +384,15 @@ func createThreadMessageWithRetries(
 	return nil
 }
 
-func pollThreadRun(ctx context.Context, threadId string, chatIDString string) (*models.ThreadRunResponse, error) {
+func pollThreadRun(ctx context.Context, threadId string, chatIDString string, runId string) (*models.ThreadRunResponse, error) {
 	ticker := time.NewTicker(2 * time.Second)
+	if runId == "" {
+		threadRun, err := BOT.API.GetLastThreadRun(ctx, threadId)
+		if err != nil {
+			return nil, err
+		}
+		runId = threadRun.ID
+	}
 	defer ticker.Stop()
 	for {
 		select {
@@ -394,7 +400,7 @@ func pollThreadRun(ctx context.Context, threadId string, chatIDString string) (*
 			log.Infof("Context cancelled, closing streaming connection in chat: %s", chatIDString)
 			return nil, fmt.Errorf("context cancelled in chat %s", chatIDString)
 		case <-ticker.C:
-			threadRun, err := BOT.API.GetLastThreadRun(ctx, threadId)
+			threadRun, err := BOT.API.GetThreadRun(ctx, threadId, runId)
 			if err != nil {
 				return nil, err
 			}

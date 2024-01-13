@@ -519,7 +519,7 @@ func (a *API) DeleteThread(ctx context.Context, threadId string) (*models.Delete
 	return &threadDeletedResponse, nil
 }
 
-func (a *API) ListLastThreadMessages(ctx context.Context, threadId string) (*models.ThreadMessageResponse, error) {
+func (a *API) ListThreadMessagesForARun(ctx context.Context, threadId string, runId string) ([]models.ThreadMessageResponse, error) {
 	if threadId == "" {
 		return nil, fmt.Errorf("threadId is required")
 	}
@@ -533,7 +533,7 @@ func (a *API) ListLastThreadMessages(ctx context.Context, threadId string) (*mod
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	q := req.URL.Query()
-	q.Add("limit", fmt.Sprintf("%d", 1))
+	q.Add("limit", fmt.Sprintf("%d", 10))
 	req.URL.RawQuery = q.Encode()
 
 	timeNow := time.Now()
@@ -570,9 +570,12 @@ func (a *API) ListLastThreadMessages(ctx context.Context, threadId string) (*mod
 		return nil, fmt.Errorf("no messages found")
 	}
 
-	if threadMessagesResponse.Data[0].Role != "assistant" {
-		return &models.ThreadMessageResponse{}, nil
+	messages := []models.ThreadMessageResponse{}
+	for _, message := range threadMessagesResponse.Data {
+		if message.RunID == runId {
+			messages = append(messages, message)
+		}
 	}
 
-	return &threadMessagesResponse.Data[0], nil
+	return messages, nil
 }
