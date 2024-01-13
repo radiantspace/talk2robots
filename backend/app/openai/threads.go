@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/models"
+	"time"
 )
 
 // creates a thread and runs it in one request.
@@ -36,6 +38,13 @@ func (a *API) CreateThreadAndRun(ctx context.Context, assistantId string, thread
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
+	timeNow := time.Now()
+	status := fmt.Sprintf("status:%d", 0)
+	api_name := "api:create_thread_and_run"
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
+	}()
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -47,6 +56,7 @@ func (a *API) CreateThreadAndRun(ctx context.Context, assistantId string, thread
 		return nil, err
 	}
 
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, body)
 	}
@@ -115,11 +125,19 @@ func (a *API) CreateRun(ctx context.Context, assistantId string, threadId string
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
+	timeNow := time.Now()
+	status := fmt.Sprintf("status:%d", 0)
+	api_name := "api:create_run"
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
+	}()
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -150,11 +168,20 @@ func (a *API) GetThread(ctx context.Context, threadId string) (*models.ThreadRes
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
+	timeNow := time.Now()
+	status := fmt.Sprintf("status:%d", 0)
+	api_name := "api:get_thread"
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
+	}()
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -220,11 +247,19 @@ func (a *API) GetThreadRun(ctx context.Context, threadId, runId string) (*models
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
+	timeNow := time.Now()
+	status := fmt.Sprintf("status:%d", 0)
+	api_name := "api:get_thread_run"
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
+	}()
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -260,11 +295,19 @@ func (a *API) GetLastThreadRun(ctx context.Context, threadId string) (*models.Th
 	q.Add("limit", fmt.Sprintf("%d", 1))
 	req.URL.RawQuery = q.Encode()
 
+	timeNow := time.Now()
+	status := fmt.Sprintf("status:%d", 0)
+	api_name := "api:get_last_thread_run"
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
+	}()
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -299,11 +342,19 @@ func (a *API) ListThreadRunSteps(ctx context.Context, threadId, runId string) (*
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
+	timeNow := time.Now()
+	status := fmt.Sprintf("status:%d", 0)
+	api_name := "api:list_thread_run_steps"
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
+	}()
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -339,11 +390,19 @@ func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message 
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
+	timeNow := time.Now()
+	status := fmt.Sprintf("status:%d", 0)
+	api_name := "api:create_thread_message"
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
+	}()
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
@@ -381,11 +440,19 @@ func (a *API) GetThreadMessage(ctx context.Context, threadId, messageId string) 
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
+	timeNow := time.Now()
+	status := fmt.Sprintf("status:%d", 0)
+	api_name := "api:get_thread_message"
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
+	}()
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -419,11 +486,19 @@ func (a *API) DeleteThread(ctx context.Context, threadId string) (*models.Delete
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
+	timeNow := time.Now()
+	status := fmt.Sprintf("status:%d", 0)
+	api_name := "api:delete_thread"
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
+	}()
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -461,11 +536,19 @@ func (a *API) ListLastThreadMessages(ctx context.Context, threadId string) (*mod
 	q.Add("limit", fmt.Sprintf("%d", 1))
 	req.URL.RawQuery = q.Encode()
 
+	timeNow := time.Now()
+	status := fmt.Sprintf("status:%d", 0)
+	api_name := "api:list_last_thread_messages"
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
+	}()
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
