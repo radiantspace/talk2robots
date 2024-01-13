@@ -140,7 +140,7 @@ func ProcessThreadedMessage(
 	if threadId == "" {
 		log.Infof("No thread found for chat %s, creating new thread", chatIDString)
 
-		threadRun, err = BOT.API.CreateThreadAndRun(ctx, models.AssistantIdForModel(engineModel), &models.ThreadRequest{
+		threadRun, err = BOT.API.CreateThreadAndRun(ctx, models.AssistantIdForModel(engineModel), &models.Thread{
 			Messages: messages,
 		})
 		if err != nil {

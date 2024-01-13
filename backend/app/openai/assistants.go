@@ -15,20 +15,20 @@ func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRe
 		assistant.Model = string(models.ChatGpt4TurboVision)
 	}
 	if assistant.Name == "" {
-		assistant.Name = "General GPT-4 Assistant"
+		assistant.Name = "General Assistant On " + string(models.ChatGpt4TurboVision)
 	}
 	if assistant.Tools == nil {
-		assistant.Tools = []models.AssistantTool{
-			// {
-			// 	Type: "code_interpreter",
-			// },
-			// {
-			// 	Type: "retrieval",
-			// },
-		}
+		// assistant.Tools = []models.AssistantTool{
+		// {
+		// 	Type: "code_interpreter",
+		// },
+		// {
+		// 	Type: "retrieval",
+		// },
+		// }
 	}
 	if assistant.Instructions == "" {
-		assistant.Instructions = "You are general GPT-4 assistant. Do your best and Buddhas do the rest. Remember, highest truth is highest joy and highest compassion."
+		assistant.Instructions = "You are general assistant. Do your best and Buddhas do the rest. Remember, highest truth is highest joy and highest compassion."
 	}
 
 	body, err := json.Marshal(assistant)

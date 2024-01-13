@@ -170,10 +170,26 @@ type Usage struct {
 	AudioDuration    float64 `json:"audio_duration"` // only for whisper API
 }
 
-type ThreadRequest struct {
+// -d '{
+// 	"assistant_id": "asst_abc123",
+// 	"thread": {
+// 	  "messages": [
+// 		{"role": "user", "content": "Explain deep learning to a 5 year old."}
+// 	  ]
+// 	}
+//   }'
+
+type ThreadRunRequest struct {
+	AssistantID string  `json:"assistant_id"`
+	Thread      *Thread `json:"thread"`
+	Metadata    struct {
+	} `json:"metadata,omitempty"`
+}
+
+type Thread struct {
 	Messages []MultimodalMessage `json:"messages"`
 	Metadata struct {
-	} `json:"metadata"`
+	} `json:"metadata,omitempty"`
 }
 
 type ThreadResponse struct {
@@ -208,12 +224,12 @@ type MessageFile struct {
 
 type AssistantRequest struct {
 	Model        string          `json:"model"`
-	Name         string          `json:"name"`
-	Tools        []AssistantTool `json:"tools"`
-	Instructions string          `json:"instructions"`
-	FileIDs      []string        `json:"file_ids"`
-	Metadata     struct{}        `json:"metadata"`
-	Description  string          `json:"description"`
+	Name         string          `json:"name,omitempty"`
+	Tools        []AssistantTool `json:"tools,omitempty"`
+	Instructions string          `json:"instructions,omitempty"`
+	FileIDs      []string        `json:"file_ids,omitempty"`
+	Metadata     struct{}        `json:"metadata,omitempty"`
+	Description  string          `json:"description,omitempty"`
 }
 
 type AssistantTool struct {

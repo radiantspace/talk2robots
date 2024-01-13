@@ -11,16 +11,19 @@ import (
 )
 
 // creates a thread and runs it in one request.
-func (a *API) CreateThreadAndRun(ctx context.Context, assistantId string, thread *models.ThreadRequest) (*models.ThreadRunResponse, error) {
+func (a *API) CreateThreadAndRun(ctx context.Context, assistantId string, thread *models.Thread) (*models.ThreadRunResponse, error) {
 	if assistantId == "" {
 		return nil, fmt.Errorf("assistantId is required")
 	}
 
 	if thread == nil {
-		return nil, fmt.Errorf("req is required")
+		return nil, fmt.Errorf("thread is required")
 	}
 
-	reqBody, err := json.Marshal(thread)
+	reqBody, err := json.Marshal(&models.ThreadRunRequest{
+		AssistantID: assistantId,
+		Thread:      thread,
+	})
 	if err != nil {
 		return nil, err
 	}
