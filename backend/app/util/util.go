@@ -2,8 +2,8 @@ package util
 
 import (
 	"fmt"
-	"math"
 	"os"
+	"strings"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/models"
 
@@ -57,9 +57,20 @@ func MessagesToMultimodalMessages(messages []models.Message) []models.Multimodal
 
 func ChunkString(s string, chunkSize int) []string {
 	chunks := []string{}
-	runes := []rune(s)
-	for i := 0; i < len(runes); i += chunkSize {
-		chunks = append(chunks, string(runes[i:int(math.Min(float64(i+chunkSize), float64(len(runes))))]))
+	words := strings.Fields(s)
+	currentChunk := ""
+	for _, word := range words {
+		if len(currentChunk)+len(word)+1 > chunkSize {
+			chunks = append(chunks, currentChunk)
+			currentChunk = ""
+		}
+		if currentChunk != "" {
+			currentChunk += " "
+		}
+		currentChunk += word
+	}
+	if currentChunk != "" {
+		chunks = append(chunks, currentChunk)
 	}
 	return chunks
 }

@@ -162,7 +162,11 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", []string{"type:" + voice_type}, 1)
 
 		// send typing action to show that bot is working
-		sendTypingAction(bot, chatID)
+		if mode != lib.VoiceGPT {
+			sendTypingAction(bot, chatID)
+		} else {
+			sendAudioAction(bot, chatID)
+		}
 		voiceTranscriptionText = getVoiceTransript(ctx, bot, message)
 		// combine message text with transcription
 		if voiceTranscriptionText != "" {
@@ -180,7 +184,9 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 			return
 		}
 
-		util.TelegramChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
+		if mode != lib.VoiceGPT {
+			util.TelegramChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
+		}
 	}
 
 	if message.Photo != nil {
@@ -194,9 +200,13 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	log.Debugf("Received message: %d, in chat: %d, initiating request to OpenAI", message.MessageID, chatID.ID)
 	engineModel := redis.GetChatEngine(chatIDString)
 
-	// send typing action to show that bot is working
-	sendTypingAction(bot, chatID)
-	if mode == lib.ChatGPT {
+	// send action to show that bot is working
+	if mode != lib.VoiceGPT {
+		sendTypingAction(bot, chatID)
+	} else {
+		sendAudioAction(bot, chatID)
+	}
+	if mode == lib.ChatGPT || mode == lib.VoiceGPT {
 		ProcessThreadedMessage(ctx, bot, &message, mode, engineModel)
 	} else if mode == lib.Summarize || mode == lib.Grammar {
 		ProcessStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel, cancelContext)
@@ -405,6 +415,20 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 
 func sendTypingAction(bot *telego.Bot, chatID telego.ChatID) {
 	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionTyping})
+	if err != nil {
+		log.Errorf("Failed to send chat action: %v", err)
+	}
+}
+
+func sendAudioAction(bot *telego.Bot, chatID telego.ChatID) {
+	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionRecordVoice})
+	if err != nil {
+		log.Errorf("Failed to send chat action: %v", err)
+	}
+}
+
+func sendFindAction(bot *telego.Bot, chatID telego.ChatID) {
+	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionFindLocation})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %v", err)
 	}

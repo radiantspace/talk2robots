@@ -5,16 +5,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/models"
+	"talk2robots/m/v2/app/payments"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
-func (a *API) CreateSpeech(ctx context.Context, tts models.TTSRequest) ([]byte, error) {
+func (a *API) CreateSpeech(ctx context.Context, tts *models.TTSRequest) ([]byte, error) {
 	if tts.Input == "" {
 		log.Warnf("input is required for tts")
 		return nil, errors.New("input is required for tts")
@@ -26,6 +28,11 @@ func (a *API) CreateSpeech(ctx context.Context, tts models.TTSRequest) ([]byte, 
 
 	if tts.Model == "" {
 		tts.Model = "tts-1"
+	}
+
+	if len(tts.Input) > 4096 {
+		log.Warnf("trimming input for tts")
+		tts.Input = tts.Input[:4096]
 	}
 
 	timeNow := time.Now()
@@ -42,7 +49,7 @@ func (a *API) CreateSpeech(ctx context.Context, tts models.TTSRequest) ([]byte, 
 		Input:          tts.Input,
 		Voice:          tts.Voice,
 		ResponseFormat: "opus",
-		Speed:          1.25,
+		Speed:          1.00,
 	}
 
 	// Convert the request body to JSON
@@ -61,6 +68,15 @@ func (a *API) CreateSpeech(ctx context.Context, tts models.TTSRequest) ([]byte, 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 
+	usage := models.CostAndUsage{
+		Engine:            tts.Model,
+		PricePerInputUnit: 0.015 / 1000,
+		Cost:              0,
+		Usage: models.Usage{
+			PromptTokens: len(tts.Input),
+		},
+	}
+
 	// Send the HTTP request
 	client := http.DefaultClient
 	resp, err := client.Do(req)
@@ -69,18 +85,18 @@ func (a *API) CreateSpeech(ctx context.Context, tts models.TTSRequest) ([]byte, 
 	}
 	defer resp.Body.Close()
 
-	// TODO: billing
-
-	// Check the response status code
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("failed to generate speech")
-	}
-
 	// Read the response body
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
+
+	// Check the response status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, responseBody)
+	}
+
+	go payments.Bill(ctx, usage)
 
 	config.CONFIG.DataDogClient.Timing("openai.tts.latency", time.Since(timeNow), []string{"model:" + string(tts.Model)}, 1)
 

@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"talk2robots/m/v2/app/util"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
 	log "github.com/sirupsen/logrus"
@@ -192,8 +194,11 @@ func ProcessThreadedMessage(
 		return
 	}
 
-	// send message to telegram
-	totalContent := "🧠: "
+	totalContent := ""
+	if mode != lib.VoiceGPT {
+		totalContent = "🧠: "
+	}
+
 	for _, message := range threadMessage {
 		for _, content := range message.Content {
 			if content.Type == "text" {
@@ -207,7 +212,11 @@ func ProcessThreadedMessage(
 	usage.Usage.TotalTokens = usage.Usage.PromptTokens + usage.Usage.CompletionTokens
 	go payments.Bill(ctx, usage)
 
-	util.TelegramChunkSendMessage(bot, chatID, totalContent)
+	if mode != lib.VoiceGPT {
+		util.TelegramChunkSendMessage(bot, chatID, totalContent)
+	} else {
+		TelegramChunkSendVoice(ctx, bot, chatID, totalContent)
+	}
 }
 
 func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *telego.Message, seedData []models.Message, userMessagePrimer string, mode lib.ModeName, engineModel models.Engine) {
@@ -414,6 +423,46 @@ func pollThreadRun(ctx context.Context, threadId string, chatIDString string, ru
 			default:
 				return nil, fmt.Errorf("thread %s failed for chat %s with state %s", threadRun.ThreadID, chatIDString, threadRun.Status)
 			}
+		}
+	}
+}
+
+type NamedReader struct {
+	io.Reader
+	name string
+}
+
+func (nr NamedReader) Name() string {
+	return nr.name
+}
+
+func TelegramChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, text string) {
+	for _, chunk := range util.ChunkString(text, 4000) {
+		voiceBytes, err := BOT.API.CreateSpeech(ctx, &models.TTSRequest{
+			Model: models.TTS,
+			Input: chunk,
+		})
+		if err != nil {
+			log.Errorf("Failed to get voice bytes: %s", err)
+			continue
+		}
+
+		temporaryFileName := uuid.New().String()
+		voiceFile := telego.InputFile{
+			File: NamedReader{
+				Reader: bytes.NewReader(voiceBytes),
+				name:   temporaryFileName + ".ogg",
+			},
+		}
+
+		_, err = bot.SendVoice(&telego.SendVoiceParams{
+			ChatID:  chatID,
+			Voice:   voiceFile,
+			Caption: chunk,
+		})
+		if err != nil {
+			log.Errorf("Failed to send voice message: %s", err)
+			continue
 		}
 	}
 }

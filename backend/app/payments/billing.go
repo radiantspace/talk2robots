@@ -110,8 +110,7 @@ func Bill(ctx context.Context, usage models.CostAndUsage) models.CostAndUsage {
 		config.CONFIG.DataDogClient.Distribution("billing.audio_minutes", usage.Usage.AudioDuration, []string{"engine:" + string(usage.Engine), "user_type:" + userType}, 1)
 	}
 
-	redis.RedisClient.IncrByFloat(ctx, lib.UserTotalCostKey(usage.User), usage.Cost)
-	userTotalCost, err := redis.RedisClient.Get(ctx, lib.UserTotalCostKey(usage.User)).Float64()
+	userTotalCost, err := redis.RedisClient.IncrByFloat(ctx, lib.UserTotalCostKey(usage.User), usage.Cost).Result()
 	if err != nil {
 		log.Errorf("Error getting user total cost: %s", err)
 	} else {

@@ -152,13 +152,13 @@ func (uw *whisper) onWhispered(reader io.Reader, fileName string) (string, error
 
 	writer.WriteField("model", "whisper-1")
 
-	if uw.mode == "transcriptions" {
-		language := uw.WhisperConfig.Language
-		if language == "" {
-			language = "en"
-		}
-		writer.WriteField("language", language)
-	}
+	// if uw.mode == "transcriptions" {
+	// 	language := uw.WhisperConfig.Language
+	// 	if language == "" {
+	// 		language = "en"
+	// 	}
+	// 	writer.WriteField("language", language)
+	// }
 
 	if uw.WhisperConfig.Prompt != "" {
 		writer.WriteField("prompt", uw.WhisperConfig.Prompt)

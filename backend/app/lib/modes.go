@@ -17,6 +17,7 @@ const (
 	Emili      ModeName = "emili"
 	Vasilisa   ModeName = "vasilisa"
 	ChatGPT    ModeName = "chatgpt"
+	VoiceGPT   ModeName = "voicegpt"
 	Transcribe ModeName = "transcribe"
 	Summarize  ModeName = "summarize"
 )
