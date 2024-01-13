@@ -125,23 +125,18 @@ func ProcessThreadedMessage(
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
 
-	messages, engineModel, err := prepareMessages(ctx, bot, message, []models.Message{}, "", mode, engineModel)
-	if err != nil {
-		log.Errorf("Failed to prepare messages in chat %s: %s", chatIDString, err)
-		return
-	}
-	if len(messages) == 0 {
-		log.Errorf("No messages to send in chat: %s", chatIDString)
-		return
-	}
-
 	var threadRun *models.ThreadRunResponse
 	threadId, err := redis.RedisClient.Get(ctx, chatIDString+":current-thread").Result()
 	if threadId == "" {
 		log.Infof("No thread found for chat %s, creating new thread", chatIDString)
 
 		threadRun, err = BOT.API.CreateThreadAndRun(ctx, models.AssistantIdForModel(engineModel), &models.Thread{
-			Messages: messages,
+			Messages: []models.Message{
+				{
+					Content: message.Text,
+					Role:    "user",
+				},
+			},
 		})
 		if err != nil {
 			log.Errorf("Failed to create thread: %s", err)
@@ -170,14 +165,15 @@ func ProcessThreadedMessage(
 			}
 		}
 
-		// run completed, add messages and trigger run
-		for _, message := range messages {
-			_, err := BOT.API.CreateThreadMessage(ctx, threadId, &message)
-			if err != nil {
-				log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
-				bot.SendMessage(tu.Message(chatID, OOPSIE))
-				return
-			}
+		// run completed, add a message and trigger run
+		_, err := BOT.API.CreateThreadMessage(ctx, threadId, &models.Message{
+			Content: message.Text,
+			Role:    "user",
+		})
+		if err != nil {
+			log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
+			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			return
 		}
 
 		threadRun, err = BOT.API.CreateRun(ctx, models.AssistantIdForModel(engineModel), threadId)

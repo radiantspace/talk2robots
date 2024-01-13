@@ -325,7 +325,7 @@ func (a *API) ListThreadRunSteps(ctx context.Context, threadId, runId string) (*
 }
 
 // create a message for threadId.
-func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message *models.MultimodalMessage) (*models.ThreadMessageResponse, error) {
+func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message *models.Message) (*models.ThreadMessageResponse, error) {
 	body, err := json.Marshal(message)
 	if err != nil {
 		return nil, err
@@ -345,13 +345,13 @@ func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message 
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
-		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
 
-	body, err = io.ReadAll(resp.Body)
-	if err != nil {
+	if resp.StatusCode != http.StatusCreated {
+		err = fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
 		return nil, err
 	}
 

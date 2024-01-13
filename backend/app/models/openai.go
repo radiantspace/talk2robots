@@ -188,7 +188,7 @@ type ThreadRunRequest struct {
 }
 
 type Thread struct {
-	Messages []MultimodalMessage `json:"messages"`
+	Messages []Message `json:"messages"`
 	Metadata struct {
 	} `json:"metadata,omitempty"`
 }
