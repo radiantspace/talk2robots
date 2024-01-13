@@ -71,7 +71,7 @@ func (a *API) CreateRun(ctx context.Context, assistantId string, threadId string
 	}
 
 	requestBody := struct {
-		AssistantId string `json:"model"`
+		AssistantId string `json:"assistant_id"`
 		// model
 		// string or null
 		// Optional
@@ -121,13 +121,13 @@ func (a *API) CreateRun(ctx context.Context, assistantId string, threadId string
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, body)
 		return nil, err
 	}
 
