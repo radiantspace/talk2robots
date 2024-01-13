@@ -37,7 +37,7 @@ func migrateFreePlus() {
 func setupAssistants() {
 	log.Info("[onstart] setting up assistants..")
 
-	config.CONFIG.AssistantGpt4Id = setupAssistantForModel(models.ChatGpt4TurboVision)
+	config.CONFIG.AssistantGpt4Id = setupAssistantForModel(models.ChatGpt4Turbo)
 	config.CONFIG.AssistantGpt35Id = setupAssistantForModel(models.ChatGpt35Turbo)
 
 	log.Infof("[onstart] finished setting up assistants (gpt4: %s, gpt35: %s)", config.CONFIG.AssistantGpt4Id, config.CONFIG.AssistantGpt35Id)

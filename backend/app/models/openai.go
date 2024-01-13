@@ -16,6 +16,7 @@ const (
 	ChatGpt35Turbo      Engine = "gpt-3.5-turbo-1106"
 	ChatGpt4            Engine = "gpt-4"
 	ChatGpt4TurboVision Engine = "gpt-4-vision-preview"
+	ChatGpt4Turbo       Engine = "gpt-4-1106-preview"
 	Whisper             Engine = "whisper-1"
 	TTS                 Engine = "tts-1"
 
@@ -26,7 +27,7 @@ const (
 
 func AssistantKeyForModel(model Engine) AssistantKey {
 	switch model {
-	case ChatGpt4, ChatGpt4TurboVision:
+	case ChatGpt4, ChatGpt4TurboVision, ChatGpt4Turbo:
 		return AssistantGpt4
 	case ChatGpt35Turbo:
 		return AssistantGpt35

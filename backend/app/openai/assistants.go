@@ -12,7 +12,7 @@ import (
 
 func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRequest) (*models.AssistantResponse, error) {
 	if assistant.Model == "" {
-		assistant.Model = string(models.ChatGpt4TurboVision)
+		assistant.Model = string(models.ChatGpt4Turbo)
 	}
 	if assistant.Name == "" {
 		assistant.Name = "General Assistant On " + string(models.ChatGpt4TurboVision)
