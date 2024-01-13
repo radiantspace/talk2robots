@@ -62,8 +62,8 @@ func (a *API) ChatComplete(ctx context.Context, completion models.ChatCompletion
 
 	usage := models.CostAndUsage{
 		Engine:             models.Engine(completion.Model),
-		PricePerInputUnit:  pricePerInputToken(models.Engine(completion.Model)),
-		PricePerOutputUnit: pricePerOutputToken(models.Engine(completion.Model)),
+		PricePerInputUnit:  PricePerInputToken(models.Engine(completion.Model)),
+		PricePerOutputUnit: PricePerOutputToken(models.Engine(completion.Model)),
 		Cost:               0,
 		Usage:              models.Usage{},
 	}
@@ -127,8 +127,8 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 
 	usage := models.CostAndUsage{
 		Engine:             models.Engine(completion.Model),
-		PricePerInputUnit:  pricePerInputToken(models.Engine(completion.Model)),
-		PricePerOutputUnit: pricePerOutputToken(models.Engine(completion.Model)),
+		PricePerInputUnit:  PricePerInputToken(models.Engine(completion.Model)),
+		PricePerOutputUnit: PricePerOutputToken(models.Engine(completion.Model)),
 		Cost:               0,
 		Usage: models.Usage{
 			PromptTokens: int(promptTokens),
@@ -203,22 +203,22 @@ func ApproximateTokensCount(message string) float64 {
 	return math.Max(float64(len(strings.Split(message, " ")))/WORDS_PER_TOKEN, 1)
 }
 
-func pricePerInputToken(model models.Engine) float64 {
+func PricePerInputToken(model models.Engine) float64 {
 	switch model {
 	case models.ChatGpt4:
 		return CHAT_GPT4_INPUT_PRICE
-	case models.ChatGpt4TurboVision:
+	case models.ChatGpt4TurboVision, models.ChatGpt4Turbo:
 		return CHAT_GPT4_TURBO_VISION_INPUT_PRICE
 	default:
 		return CHAT_INPUT_PRICE
 	}
 }
 
-func pricePerOutputToken(model models.Engine) float64 {
+func PricePerOutputToken(model models.Engine) float64 {
 	switch model {
 	case models.ChatGpt4:
 		return CHAT_GPT4_OUTPUT_PRICE
-	case models.ChatGpt4TurboVision:
+	case models.ChatGpt4TurboVision, models.ChatGpt4Turbo:
 		return CHAT_GPT4_TURBO_VISION_OUTPUT_PRICE
 	default:
 		return CHAT_OUTPUT_PRICE

@@ -10,6 +10,8 @@ import (
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
+	"talk2robots/m/v2/app/openai"
+	"talk2robots/m/v2/app/payments"
 	"talk2robots/m/v2/app/util"
 	"time"
 
@@ -125,14 +127,14 @@ func ProcessThreadedMessage(
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
 
-	// usage := models.CostAndUsage{
-	// 	Engine:             engineModel,
-	// 	PricePerInputUnit:  pricePerInputToken(models.Engine(completion.Model)),
-	// 	PricePerOutputUnit: pricePerOutputToken(models.Engine(completion.Model)),
-	// 	Cost:               0,
-	// 	Usage:              models.Usage{},
-	// }
-	// go payments.Bill(ctx, usage)
+	usage := models.CostAndUsage{
+		Engine:             engineModel,
+		PricePerInputUnit:  openai.PricePerInputToken(engineModel),
+		PricePerOutputUnit: openai.PricePerOutputToken(engineModel),
+		Cost:               0,
+		Usage:              models.Usage{},
+	}
+	usage.Usage.PromptTokens = int(openai.ApproximateTokensCount(message.Text))
 
 	var threadRun *models.ThreadRunResponse
 	threadId, err := redis.RedisClient.Get(ctx, chatIDString+":current-thread").Result()
@@ -157,15 +159,14 @@ func ProcessThreadedMessage(
 	} else {
 		log.Infof("Found thread %s for chat %s", threadId, chatIDString)
 
-		// what 1 second to ensure previos message is processed
-		time.Sleep(1 * time.Second)
-
 		// check if thread is still running
 		threadRun, err = BOT.API.GetLastThreadRun(ctx, threadId)
 		if err != nil {
 			log.Errorf("Failed to get thread: %s", err)
 			bot.SendMessage(tu.Message(chatID, OOPSIE))
 			return
+		} else {
+			log.Infof("Thread %s, run %+v", threadId, threadRun)
 		}
 
 		if threadRun.Status == "in_process" {
@@ -217,10 +218,14 @@ func ProcessThreadedMessage(
 	content := "🧠: "
 	for _, message := range threadMessage.Content {
 		if message.Type == "text" {
+			usage.Usage.CompletionTokens += int(openai.ApproximateTokensCount(message.Text.Value))
 			content += message.Text.Value
-			continue
 		}
 	}
+
+	usage.Usage.TotalTokens = usage.Usage.PromptTokens + usage.Usage.CompletionTokens
+	go payments.Bill(ctx, usage)
+
 	messageParams := telego.SendMessageParams{
 		ChatID:      chatID,
 		Text:        content,
