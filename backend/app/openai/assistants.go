@@ -50,13 +50,13 @@ func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRe
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
 
-	body, err = io.ReadAll(resp.Body)
-	if err != nil {
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
 		return nil, err
 	}
 
@@ -85,13 +85,13 @@ func (a *API) GetAssistant(ctx context.Context, assistantID string) (*models.Ass
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
 		return nil, err
 	}
 
