@@ -161,7 +161,7 @@ func ProcessThreadedMessage(
 	} else {
 		log.Infof("Found thread %s for chat %s, adding a message..", threadId, chatIDString)
 
-		err := createThreadMessageWithRetries(ctx, threadId, message.Text, chatIDString, threadRunId)
+		err := createThreadMessageWithRetries(ctx, threadId, threadRunId, message.Text, chatIDString)
 		if err != nil {
 			log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
 			bot.SendMessage(tu.Message(chatID, OOPSIE))
