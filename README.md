@@ -41,9 +41,9 @@ in Slack:
 - [x] Video/Audio transcription
 - [x] Video/Audio summary
 - [x] Voice response (OpenAI TTS)
-- [x] Threads, i.e. context awareness and memory (Langchain/OpenAI threads)
+- [x] Threads, i.e. context awareness and memory (OpenAI Assistant Threads)
 - [ ] Image recognition (OpenAI Multimodal gpt-4-vision-preview)
-- [ ] Image generation
+- [ ] Image generation (DALL-E)
 
 
 ## Telegram Features
