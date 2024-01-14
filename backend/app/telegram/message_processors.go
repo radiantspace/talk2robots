@@ -455,10 +455,14 @@ func TelegramChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.
 			},
 		}
 
+		trimmedChunk := chunk
+		if len(chunk) > 1000 {
+			trimmedChunk = chunk[:1000] + "..."
+		}
 		_, err = bot.SendVoice(&telego.SendVoiceParams{
 			ChatID:  chatID,
 			Voice:   voiceFile,
-			Caption: chunk,
+			Caption: trimmedChunk,
 		})
 		if err != nil {
 			log.Errorf("Failed to send voice message: %s", err)
