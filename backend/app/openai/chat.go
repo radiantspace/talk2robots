@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -87,11 +88,16 @@ func (a *API) ChatComplete(ctx context.Context, completion models.ChatCompletion
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 
+	status := fmt.Sprintf("status:%d", 0)
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.chat_complete.latency", time.Since(timeNow), []string{status, "model:" + completion.Model}, 1)
+		config.CONFIG.DataDogClient.Timing("openai.chat_complete.latency_per_token", time.Since(timeNow), []string{status, "model:" + completion.Model}, float64(usage.Usage.CompletionTokens))
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", errors.New("ChatComplete: " + resp.Status)
@@ -106,8 +112,6 @@ func (a *API) ChatComplete(ctx context.Context, completion models.ChatCompletion
 	}
 	usage.Usage = response.Usage
 	go payments.Bill(ctx, usage)
-	config.CONFIG.DataDogClient.Timing("openai.chat_complete.latency", time.Since(timeNow), []string{"model:" + completion.Model}, 1)
-	config.CONFIG.DataDogClient.Timing("openai.chat_complete.latency_per_token", time.Since(timeNow), []string{"model:" + completion.Model}, float64(usage.Usage.CompletionTokens))
 	return response.Choices[0].Message.Content, nil
 }
 
@@ -200,7 +204,7 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 // if this snippet will make too much mistakes, we can use this
 // https://github.com/pkoukk/tiktoken-go
 func ApproximateTokensCount(message string) float64 {
-	return math.Max(float64(len(strings.Split(message, " ")))/WORDS_PER_TOKEN, 1)
+	return math.Max(float64(len(strings.Fields(message)))/WORDS_PER_TOKEN, 1)
 }
 
 func PricePerInputToken(model models.Engine) float64 {

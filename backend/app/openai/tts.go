@@ -16,7 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (a *API) CreateSpeech(ctx context.Context, tts *models.TTSRequest) ([]byte, error) {
+func (a *API) CreateSpeech(ctx context.Context, tts *models.TTSRequest) (io.ReadCloser, error) {
 	if tts.Input == "" {
 		log.Warnf("input is required for tts")
 		return nil, errors.New("input is required for tts")
@@ -76,6 +76,10 @@ func (a *API) CreateSpeech(ctx context.Context, tts *models.TTSRequest) ([]byte,
 			PromptTokens: len(tts.Input),
 		},
 	}
+	status := fmt.Sprintf("status:%d", 0)
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.tts.latency", time.Since(timeNow), []string{status, "model:" + string(tts.Model)}, 1)
+	}()
 
 	// Send the HTTP request
 	client := http.DefaultClient
@@ -83,22 +87,21 @@ func (a *API) CreateSpeech(ctx context.Context, tts *models.TTSRequest) ([]byte,
 	if err != nil {
 		return nil, err
 	}
+	status = fmt.Sprintf("status:%d", resp.StatusCode)
 	defer resp.Body.Close()
-
-	// Read the response body
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
 
 	// Check the response status code
 	if resp.StatusCode != http.StatusOK {
+		// Read the response body
+		responseBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+
 		return nil, fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, responseBody)
 	}
 
 	go payments.Bill(ctx, usage)
 
-	config.CONFIG.DataDogClient.Timing("openai.tts.latency", time.Since(timeNow), []string{"model:" + string(tts.Model)}, 1)
-
-	return responseBody, nil
+	return resp.Body, nil
 }

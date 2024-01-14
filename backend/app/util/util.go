@@ -58,16 +58,40 @@ func MessagesToMultimodalMessages(messages []models.Message) []models.Multimodal
 func ChunkString(s string, chunkSize int) []string {
 	chunks := []string{}
 	lines := strings.Split(s, "\n")
+	if len(lines) == 0 {
+		return chunks
+	}
+
 	currentChunk := ""
-	for _, line := range lines {
-		if len(currentChunk)+len(line)+1 > chunkSize {
+	for i_line, line := range lines {
+		if len(currentChunk)+len(line)+1 > chunkSize && currentChunk != "" {
 			chunks = append(chunks, currentChunk)
 			currentChunk = ""
 		}
-		if currentChunk != "" {
+		if currentChunk != "" && i_line < len(lines)-1 {
 			currentChunk += "\n"
 		}
-		currentChunk += line
+
+		if len(line) > chunkSize {
+			// split current line by words
+			words := strings.Fields(line)
+			currentChunk = ""
+			for _, word := range words {
+				if len(currentChunk)+len(word)+1 > chunkSize {
+					chunks = append(chunks, currentChunk)
+					currentChunk = ""
+				}
+				if currentChunk != "" {
+					currentChunk += " "
+				}
+				currentChunk += word
+			}
+			if currentChunk != "" && i_line < len(lines)-1 {
+				currentChunk += "\n"
+			}
+		} else {
+			currentChunk += line
+		}
 	}
 	if currentChunk != "" {
 		chunks = append(chunks, currentChunk)

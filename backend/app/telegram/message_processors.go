@@ -1,7 +1,6 @@
 package telegram
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -60,7 +59,7 @@ func ProcessStreamingMessage(
 		return
 	}
 
-	responseText := ""
+	responseText := "..."
 	responseMessage, err := bot.SendMessage(tu.Message(chatID, responseText).WithReplyMarkup(
 		getPendingReplyMarkup(),
 	))
@@ -96,7 +95,7 @@ func ProcessStreamingMessage(
 				continue
 			}
 			previousMessageLength = len(responseText)
-			trimmedResponseText := responseText
+			trimmedResponseText := strings.TrimPrefix(responseText, "...")
 			if mode == lib.Teacher || mode == lib.Grammar {
 				// drop primer from response if it was used
 				trimmedResponseText = strings.TrimPrefix(responseText, userMessagePrimer)
@@ -105,8 +104,9 @@ func ProcessStreamingMessage(
 			var nextMessageObject *telego.Message
 			if len(trimmedResponseText) > 4000 {
 				currentMessage := trimmedResponseText[:4000]
-				nextMessage := trimmedResponseText[4000:]
-				nextMessageObject, err = bot.SendMessage(tu.Message(chatID, nextMessage).WithReplyMarkup(
+				responseText := trimmedResponseText[4000:]
+				previousMessageLength = len(responseText)
+				nextMessageObject, err = bot.SendMessage(tu.Message(chatID, responseText).WithReplyMarkup(
 					getPendingReplyMarkup(),
 				))
 				if err != nil {
@@ -122,6 +122,7 @@ func ProcessStreamingMessage(
 			})
 			if nextMessageObject != nil {
 				responseMessage = nextMessageObject
+				nextMessageObject = nil
 			}
 			if err != nil {
 				log.Errorf("Failed to edit message in chat: %s, %v", chatIDString, err)
@@ -271,7 +272,7 @@ func getLikeDislikeReplyMarkup() *telego.InlineKeyboardMarkup {
 
 func getPendingReplyMarkup() *telego.InlineKeyboardMarkup {
 	// set up inline keyboard for like/dislike buttons
-	btnPending := telego.InlineKeyboardButton{Text: "🧠...", CallbackData: "pending"}
+	btnPending := telego.InlineKeyboardButton{Text: "🧠", CallbackData: "pending"}
 	return &telego.InlineKeyboardMarkup{InlineKeyboard: [][]telego.InlineKeyboardButton{{btnPending}}}
 }
 
@@ -447,19 +448,19 @@ func (nr NamedReader) Name() string {
 func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, text string) {
 	for _, chunk := range util.ChunkString(text, 1000) {
 		sendAudioAction(bot, chatID)
-		voiceBytes, err := BOT.API.CreateSpeech(ctx, &models.TTSRequest{
+		voiceReader, err := BOT.API.CreateSpeech(ctx, &models.TTSRequest{
 			Model: models.TTS,
 			Input: chunk,
 		})
 		if err != nil {
-			log.Errorf("Failed to get voice bytes: %s", err)
+			log.Errorf("Failed to get voice message: %v for chatID: %d", err, chatID.ID)
 			continue
 		}
 
 		temporaryFileName := uuid.New().String()
 		voiceFile := telego.InputFile{
 			File: NamedReader{
-				Reader: bytes.NewReader(voiceBytes),
+				Reader: voiceReader,
 				name:   temporaryFileName + ".ogg",
 			},
 		}
@@ -475,7 +476,7 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, 
 		}
 		_, err = bot.SendVoice(voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup()))
 		if err != nil {
-			log.Errorf("Failed to send voice message: %s", err)
+			log.Errorf("Failed to send voice message: %v in chatID: %d", err, chatID.ID)
 			continue
 		}
 	}
