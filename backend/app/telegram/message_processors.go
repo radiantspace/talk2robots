@@ -60,12 +60,14 @@ func ProcessStreamingMessage(
 		return
 	}
 
-	responseText := "🧠: "
+	responseText := ""
 	responseMessage, err := bot.SendMessage(tu.Message(chatID, responseText).WithReplyMarkup(
 		getPendingReplyMarkup(),
 	))
 	if err != nil {
 		log.Errorf("Failed to send primer message in chat: %s, %v", chatIDString, err)
+		bot.SendMessage(tu.Message(chatID, OOPSIE))
+		return
 	}
 	// only update message every 5 seconds to prevent rate limiting from telegram
 	ticker := time.NewTicker(5 * time.Second)
@@ -99,9 +101,18 @@ func ProcessStreamingMessage(
 				// drop primer from response if it was used
 				trimmedResponseText = strings.TrimPrefix(responseText, userMessagePrimer)
 			}
-			// TODO: split into multiple messages if too long
+
+			var nextMessageObject *telego.Message
 			if len(trimmedResponseText) > 4000 {
-				trimmedResponseText = trimmedResponseText[:4000] + "... (truncated, since telegram has a 4096 character limit)"
+				currentMessage := trimmedResponseText[:4000]
+				nextMessage := trimmedResponseText[4000:]
+				nextMessageObject, err = bot.SendMessage(tu.Message(chatID, nextMessage).WithReplyMarkup(
+					getPendingReplyMarkup(),
+				))
+				if err != nil {
+					log.Errorf("Failed to send next message in chat: %s, %v", chatIDString, err)
+				}
+				trimmedResponseText = currentMessage
 			}
 			_, err = bot.EditMessageText(&telego.EditMessageTextParams{
 				ChatID:      chatID,
@@ -109,6 +120,9 @@ func ProcessStreamingMessage(
 				Text:        trimmedResponseText,
 				ReplyMarkup: getPendingReplyMarkup(),
 			})
+			if nextMessageObject != nil {
+				responseMessage = nextMessageObject
+			}
 			if err != nil {
 				log.Errorf("Failed to edit message in chat: %s, %v", chatIDString, err)
 			}
@@ -195,10 +209,6 @@ func ProcessThreadedMessage(
 	}
 
 	totalContent := ""
-	if mode != lib.VoiceGPT {
-		totalContent = "🧠: "
-	}
-
 	for _, message := range threadMessage {
 		for _, content := range message.Content {
 			if content.Type == "text" {
@@ -213,15 +223,14 @@ func ProcessThreadedMessage(
 	go payments.Bill(ctx, usage)
 
 	if mode != lib.VoiceGPT {
-		util.TelegramChunkSendMessage(bot, chatID, totalContent)
+		ChunkSendMessage(bot, chatID, totalContent)
 	} else {
-		TelegramChunkSendVoice(ctx, bot, chatID, totalContent)
+		ChunkSendVoice(ctx, bot, chatID, totalContent)
 	}
 }
 
 func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *telego.Message, seedData []models.Message, userMessagePrimer string, mode lib.ModeName, engineModel models.Engine) {
 	chatID := util.GetChatID(message)
-	chatIDString := util.GetChatIDString(message)
 	response, err := BOT.API.ChatComplete(ctx, models.ChatCompletion{
 		Model: string(engineModel),
 		Messages: []models.Message(append(
@@ -234,7 +243,7 @@ func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *t
 	})
 	if err != nil {
 		log.Errorf("Failed get response from Open AI: %s", err)
-		bot.SendMessage(tu.Message(chatID, "Oopsie, it looks like my AI brain isn't working 🧠🔥. Please try again later 🕜."))
+		bot.SendMessage(tu.Message(chatID, OOPSIE))
 		return
 	}
 
@@ -245,22 +254,11 @@ func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *t
 		// split response into two parts: corrected message and explanation, using Explanation: as a separator
 		separator := "Explanation:"
 		parts := strings.Split(response, separator)
-		for i, part := range parts {
-			if len(part) > 4000 {
-				part = part[:4000] + "... (truncated, since telegram has a 4096 character limit)"
-			}
-			log.Debugf("Sending part %d: %s", i, part)
-			message := tu.Message(chatID, strings.Trim(part, "\n")).WithReplyMarkup(getLikeDislikeReplyMarkup())
-			_, err = bot.SendMessage(message)
-		}
-		if err != nil {
-			log.Errorf("Failed to send message in chat %s: %s", chatIDString, err)
+		for _, part := range parts {
+			ChunkSendMessage(bot, chatID, part)
 		}
 	} else {
-		if len(response) > 4000 {
-			response = response[:4000] + "... (truncated, since telegram has a 4096 character limit)"
-		}
-		bot.SendMessage(tu.Message(chatID, "🧠: "+response).WithReplyMarkup(getLikeDislikeReplyMarkup()))
+		ChunkSendMessage(bot, chatID, response)
 	}
 }
 
@@ -273,7 +271,7 @@ func getLikeDislikeReplyMarkup() *telego.InlineKeyboardMarkup {
 
 func getPendingReplyMarkup() *telego.InlineKeyboardMarkup {
 	// set up inline keyboard for like/dislike buttons
-	btnPending := telego.InlineKeyboardButton{Text: "...", CallbackData: "pending"}
+	btnPending := telego.InlineKeyboardButton{Text: "🧠...", CallbackData: "pending"}
 	return &telego.InlineKeyboardMarkup{InlineKeyboard: [][]telego.InlineKeyboardButton{{btnPending}}}
 }
 
@@ -427,6 +425,16 @@ func pollThreadRun(ctx context.Context, threadId string, chatIDString string, ru
 	}
 }
 
+// sends a message in up to 4000 chars chunks
+func ChunkSendMessage(bot *telego.Bot, chatID telego.ChatID, text string) {
+	for _, chunk := range util.ChunkString(text, 4000) {
+		_, err := bot.SendMessage(tu.Message(chatID, chunk).WithReplyMarkup(getLikeDislikeReplyMarkup()))
+		if err != nil {
+			log.Errorf("Failed to send message to telegram: %s, chatID: %s", err, chatID)
+		}
+	}
+}
+
 type NamedReader struct {
 	io.Reader
 	name string
@@ -436,7 +444,7 @@ func (nr NamedReader) Name() string {
 	return nr.name
 }
 
-func TelegramChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, text string) {
+func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, text string) {
 	for _, chunk := range util.ChunkString(text, 4000) {
 		voiceBytes, err := BOT.API.CreateSpeech(ctx, &models.TTSRequest{
 			Model: models.TTS,
@@ -459,11 +467,12 @@ func TelegramChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.
 		if len(chunk) > 1000 {
 			trimmedChunk = chunk[:1000] + "..."
 		}
-		_, err = bot.SendVoice(&telego.SendVoiceParams{
+		voiceParams := &telego.SendVoiceParams{
 			ChatID:  chatID,
 			Voice:   voiceFile,
 			Caption: trimmedChunk,
-		})
+		}
+		_, err = bot.SendVoice(voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup()))
 		if err != nil {
 			log.Errorf("Failed to send voice message: %s", err)
 			continue

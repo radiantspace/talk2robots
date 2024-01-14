@@ -180,12 +180,12 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		}
 
 		if mode == lib.Transcribe {
-			util.TelegramChunkSendMessage(bot, chatID, voiceTranscriptionText)
+			ChunkSendMessage(bot, chatID, voiceTranscriptionText)
 			return
 		}
 
 		if mode != lib.VoiceGPT {
-			util.TelegramChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
+			ChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
 		}
 	}
 

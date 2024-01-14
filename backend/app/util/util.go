@@ -74,16 +74,3 @@ func ChunkString(s string, chunkSize int) []string {
 	}
 	return chunks
 }
-
-// TelegramChunkSendMessage sends a message in 4000 chars chunks to Telegram
-func TelegramChunkSendMessage(bot *telego.Bot, chatID telego.ChatID, text string) {
-	for _, chunk := range ChunkString(text, 4000) {
-		_, err := bot.SendMessage(&telego.SendMessageParams{
-			ChatID: chatID,
-			Text:   chunk,
-		})
-		if err != nil {
-			log.Errorf("Failed to send message to telegram: %s, chatID: %s", err, chatID)
-		}
-	}
-}

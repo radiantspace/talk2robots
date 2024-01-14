@@ -49,11 +49,11 @@ func ProcessStreamingMessage(
 		return
 	}
 
-	responseText := "🧠: "
+	responseText := ""
 	if mode == lib.Teacher || mode == lib.Emili || mode == lib.Vasilisa {
-		responseText = "👩‍🏫: "
+		responseText = "👩‍🏫:\n"
 	} else if mode == lib.Grammar {
-		responseText = "👀: "
+		responseText = "👀:\n"
 	}
 	messageOptions := []slack.MsgOption{
 		slack.MsgOptionText(responseText, false),
