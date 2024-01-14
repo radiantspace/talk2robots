@@ -31,7 +31,7 @@ var ONBOARDING_TEXT = `Hi, I'm a bot powered by OpenAI! I can:
 - ✨ New feature: transcribe voice/audio/video messages (/transcribe)
 - ✨ New feature: summarize text/voice/audio/video messages (/summarize)
 
-Also, I will never store your messages, or any other private information.`
+Enjoy and let me know if any /support is needed!`
 
 const (
 	CancelSubscriptionCommand Command = "/downgrade"
