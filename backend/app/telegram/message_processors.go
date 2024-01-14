@@ -445,7 +445,8 @@ func (nr NamedReader) Name() string {
 }
 
 func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, text string) {
-	for _, chunk := range util.ChunkString(text, 4000) {
+	for _, chunk := range util.ChunkString(text, 1000) {
+		sendAudioAction(bot, chatID)
 		voiceBytes, err := BOT.API.CreateSpeech(ctx, &models.TTSRequest{
 			Model: models.TTS,
 			Input: chunk,
