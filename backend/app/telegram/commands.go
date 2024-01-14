@@ -23,12 +23,13 @@ type Command string
 var EMILY_BIRTHDAY = time.Date(2023, 5, 25, 0, 18, 0, 0, time.FixedZone("UTC+3", 3*60*60))
 var VASILISA_BIRTHDAY = time.Date(2007, 12, 13, 23, 45, 0, 0, time.FixedZone("UTC+3", 3*60*60))
 var ONBOARDING_TEXT = `Hi, I'm a bot powered by OpenAI! I can:
-- Default: chat with or answer any questions (/chatgpt)
-- Correct grammar (/grammar)
-- Explain grammar and mistakes (/teacher)
-- New feature ✨: remember context in /chatgpt mode (use /clear to clear current thread)
-- New feature ✨: transcribe voice/audio/video messages (/transcribe)
-- New feature ✨: summarize text/voice/audio/video messages (/summarize)
+- Default 🧠: chat with or answer any questions (/chatgpt)
+- ✨ New feature 🎙️: talk to AI using voice messages (/voicegpt)
+- Correct grammar: (/grammar)
+- Explain grammar and mistakes: (/teacher)
+- ✨ New feature: remember context in /chatgpt and /voicegpt modes (use /clear to clear current thread)
+- ✨ New feature: transcribe voice/audio/video messages (/transcribe)
+- ✨ New feature: summarize text/voice/audio/video messages (/summarize)
 
 Also, I will never store your messages, or any other private information.`
 

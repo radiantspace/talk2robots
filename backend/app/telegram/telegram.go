@@ -234,7 +234,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Thanks for your feedback!",
 		})
-	case string(lib.ChatGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe):
+	case string(lib.ChatGPT), string(lib.VoiceGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe):
 		handleCommandsInCallbackQuery(callbackQuery)
 	case string(models.ChatGpt35Turbo), string(models.ChatGpt4):
 		handleEngineSwitchCallbackQuery(callbackQuery)
