@@ -38,17 +38,19 @@ in Slack:
 - [x] Alarm system/notifications integration (Telegram System Bot, DataDog)
 - [x] Support/feedback system (likes/dislikes)
 - [x] Payment system integration (Stripe)
-- [x] Image recognition (OpenAI Multimodal gpt-4-vision-preview)
-- [ ] Image generation
 - [x] Video/Audio transcription
 - [x] Video/Audio summary
-- [ ] Voice response (OpenAI TTS)
-- [ ] Threads, i.e. context awareness and memory (Langchain/OpenAI threads)
+- [x] Voice response (OpenAI TTS)
+- [x] Threads, i.e. context awareness and memory (Langchain/OpenAI threads)
+- [ ] Image recognition (OpenAI Multimodal gpt-4-vision-preview)
+- [ ] Image generation
+
 
 ## Telegram Features
 
-- [x] Chat with GPT-3.5 or GPT-4 `/chatgpt`, responses are streamed as the OpenAI API is streaming
-- [x] Voice support, just send a voice message in any language and get a reply. Replies are in English at the moment.
+- [x] Chat with GPT-3.5 or GPT-4 `/chatgpt`. The bot remembers the context of the conversation until you say `/clear`.
+- [x] Voice support, just send a voice message in any popular language
+- [x] `/voicegpt` for full voice experience, i.e. voice prompt and voice reply (with OpenAI TTS)
 - [x] `/grammar` mode just to correct grammar
 - [x] `/teacher` mode to correct and explain grammar
 - [x] `/transcribe` voice/audio/video messages
@@ -69,7 +71,7 @@ https://github.com/radiantspace/talk2robots/assets/8243681/3cfd47c4-55ed-4eb3-9f
 ## Slack Features
 
 - [x] Chat in DM, private and public channels and/or threads
-- [x] Chat with GPT-3.5 `/chatgpt`, responses are streamed as the OpenAI API is streaming
+- [x] Chat with GPT-3.5 `/chatgpt`. The bot remembers the context of the conversation until you say `/clear`.
 - [x] Use `/grammar` mode just to correct grammar, you can also add :eyeglasses: emoji to a message to get grammar correction reply
 - [x] Summarize message thread by adding :memo: emoji to a message
 - [ ] Use `/teacher` mode to correct and explain grammar
