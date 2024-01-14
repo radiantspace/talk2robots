@@ -30,7 +30,9 @@ func (m *MockRedisClient) IncrByFloat(ctx context.Context, key string, value flo
 	} else {
 		m.data[key] = value
 	}
-	return nil
+	cmd := r.NewFloatCmd(ctx)
+	cmd.SetVal(m.data[key].(float64))
+	return cmd
 }
 
 func (m *MockRedisClient) IncrBy(ctx context.Context, key string, value int64) *r.IntCmd {

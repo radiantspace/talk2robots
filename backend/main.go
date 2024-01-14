@@ -138,7 +138,7 @@ func main() {
 	}
 
 	// run onstart worker once
-	onstart.Run()
+	onstart.Run(config.CONFIG)
 
 	// create status worker
 	status.WORKER = workers.NewWorker(telegramBot.API, systemBot.Bot, config.CONFIG, config.CONFIG.StatusWorkerInterval, status.Run, false)

@@ -23,20 +23,22 @@ type Command string
 var EMILY_BIRTHDAY = time.Date(2023, 5, 25, 0, 18, 0, 0, time.FixedZone("UTC+3", 3*60*60))
 var VASILISA_BIRTHDAY = time.Date(2007, 12, 13, 23, 45, 0, 0, time.FixedZone("UTC+3", 3*60*60))
 var ONBOARDING_TEXT = `Hi, I'm a bot powered by OpenAI! I can:
-- Default: chat with or answer any questions (/chatgpt)
-- Correct grammar (/grammar)
-- Explain grammar and mistakes (/teacher)
-- New feature ✨: transcribe voice/audio/video messages (/transcribe)
-- New feature ✨: summarize text/voice/audio/video messages (/summarize)
-- New feature ✨: explain pictures/photos in (/chatgpt) mode. That works for Basic subscription only, since it's expensive to run. Please /upgrade to use this feature.
+- Default 🧠: chat with or answer any questions (/chatgpt)
+- ✨ New feature 🎙️: talk to AI using voice messages (/voicegpt)
+- Correct grammar: (/grammar)
+- Explain grammar and mistakes: (/teacher)
+- ✨ New feature: remember context in /chatgpt and /voicegpt modes (use /clear to clear current thread)
+- ✨ New feature: transcribe voice/audio/video messages (/transcribe)
+- ✨ New feature: summarize text/voice/audio/video messages (/summarize)
 
-Also, I will never store your messages, or any other private information.`
+Enjoy and let me know if any /support is needed!`
 
 const (
 	CancelSubscriptionCommand Command = "/downgrade"
 	EmiliCommand              Command = "/emily"
 	EmptyCommand              Command = ""
 	ChatGPTCommand            Command = "/chatgpt"
+	VoiceGPTCommand           Command = "/voicegpt"
 	GrammarCommand            Command = "/grammar"
 	StartCommand              Command = "/start"
 	StatusCommand             Command = "/status"
@@ -47,15 +49,19 @@ const (
 	VasilisaCommand           Command = "/vasilisa"
 	TranscribeCommand         Command = "/transcribe"
 	SummarizeCommand          Command = "/summarize"
+	ClearThreadCommand        Command = "/clear"
 
 	// commands setting for BotFather
 	Commands string = `
 start - 🚀 onboarding instructions
-chatgpt - 🧠 ask AI anything
+chatgpt - 🧠 ask AI anything (with memory)
+voicegpt - 🎙 talk to AI using voice messages (with memory)
+clear - 🧹 clear current conversation memory
 grammar - 👀 grammar checking mode only, no explanations
 teacher - 🧑‍🏫 grammar correction and explanations
 transcribe - 🎙 transcribe voice/audio/video
 summarize - 📝 summarize text/voice/audio/video
+status - 📊 subscription status
 support - 🤔 contact developer for support
 terms - 📜 usage terms
 `
@@ -99,11 +105,12 @@ func setupCommandHandlers() {
 		}),
 		newCommandHandler(EmiliCommand, getModeHandlerFunction(lib.Emili, "היי, אעזור עם הטקסטים והודעות בעברית."+"\n\n"+fmt.Sprintf("אגב, אני בת %.f שעות, כלומר %.f ימים, %.f שבועות, %.1f חודשים או %.1f שנים", time.Since(EMILY_BIRTHDAY).Hours(), time.Since(EMILY_BIRTHDAY).Hours()/24, time.Since(EMILY_BIRTHDAY).Hours()/24/7, 12*(time.Since(EMILY_BIRTHDAY).Hours()/24/365), time.Since(EMILY_BIRTHDAY).Hours()/24/365))),
 		newCommandHandler(VasilisaCommand, getModeHandlerFunction(lib.Vasilisa, "Привет, я помогу тебе с текстами и сообщениями на русском языке 😊\n\n"+fmt.Sprintf("Кстати, мне %.f часов, то есть %.f дней или %.1f лет", time.Since(VASILISA_BIRTHDAY).Hours(), time.Since(VASILISA_BIRTHDAY).Hours()/24, time.Since(VASILISA_BIRTHDAY).Hours()/24/365))),
-		newCommandHandler(ChatGPTCommand, getModeHandlerFunction(lib.ChatGPT, "🚀 ChatGPT is now fully unleashed! Just tell me or ask me anything you want. Previous messages will not be taken into account.")),
+		newCommandHandler(ChatGPTCommand, getModeHandlerFunction(lib.ChatGPT, "🚀 ChatGPT is now fully unleashed! Just tell me or ask me anything you want. I can now remember the context of our conversation. You can use /clear command anytime to wipe my memory and start a new thread.")),
 		newCommandHandler(GrammarCommand, getModeHandlerFunction(lib.Grammar, "Will only correct your grammar without any explainations. If you want to get explainations, use /teacher command.")),
 		newCommandHandler(TeacherCommand, getModeHandlerFunction(lib.Teacher, "Will correct your grammar and explain any mistakes found.")),
 		newCommandHandler(TranscribeCommand, getModeHandlerFunction(lib.Transcribe, "Will transcribe your voice/audio/video messages only.")),
 		newCommandHandler(SummarizeCommand, getModeHandlerFunction(lib.Summarize, "Will summarize your text/voice/audio/video messages.")),
+		newCommandHandler(VoiceGPTCommand, getModeHandlerFunction(lib.VoiceGPT, "🚀 now I'm like ChatGPT with memory and all, but will respond with voice messages. What do you want to talk about? Use /clear command anytime to wipe my memory and start a new thread.\n\nNote, that this mode is more expensive than regular /chatgpt mode.")),
 		newCommandHandler(StatusCommand, statusCommandHandler),
 		newCommandHandler(UpgradeCommand, upgradeCommandHandler),
 		newCommandHandler(CancelSubscriptionCommand, cancelSubscriptionCommandHandler),
@@ -133,6 +140,7 @@ func setupCommandHandlers() {
 			}
 			bot.SendMessage(tu.Message(SystemBOT.ChatID, "Onboarding video saved"))
 		}),
+		newCommandHandler(ClearThreadCommand, clearThreadCommandHandler),
 	}
 }
 
@@ -312,5 +320,29 @@ func statusCommandHandler(ctx context.Context, bot *Bot, message *telego.Message
 	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), GetUserStatus(ctx)).WithReplyMarkup(GetStatusKeyboard(ctx)))
 	if err != nil {
 		log.Errorf("Failed to send StatusCommand message: %v", err)
+	}
+}
+
+func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
+	chatID := util.GetChatID(message)
+	chatIDString := util.GetChatIDString(message)
+	threadId, err := redis.RedisClient.Get(ctx, chatIDString+":current-thread").Result()
+	if threadId == "" {
+		_, err = bot.SendMessage(tu.Message(chatID, "There is no thread to clear."))
+		if err != nil {
+			log.Errorf("Failed to send ClearThreadCommand message: %v", err)
+		}
+		return
+	}
+
+	redis.RedisClient.Del(ctx, chatIDString+":current-thread")
+	redis.RedisClient.Del(ctx, chatIDString+":current-thread-prompt-tokens")
+	_, err = BOT.API.DeleteThread(ctx, threadId)
+	if err != nil {
+		log.Errorf("Failed to clear thread: %v", err)
+	}
+	_, err = bot.SendMessage(tu.Message(chatID, "Thread cleared."))
+	if err != nil {
+		log.Errorf("Failed to send ClearThreadCommand message: %v", err)
 	}
 }

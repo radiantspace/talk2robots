@@ -2,8 +2,8 @@ package util
 
 import (
 	"fmt"
-	"math"
 	"os"
+	"strings"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/models"
 
@@ -57,22 +57,44 @@ func MessagesToMultimodalMessages(messages []models.Message) []models.Multimodal
 
 func ChunkString(s string, chunkSize int) []string {
 	chunks := []string{}
-	runes := []rune(s)
-	for i := 0; i < len(runes); i += chunkSize {
-		chunks = append(chunks, string(runes[i:int(math.Min(float64(i+chunkSize), float64(len(runes))))]))
+	lines := strings.Split(s, "\n")
+	if len(lines) == 0 {
+		return chunks
 	}
-	return chunks
-}
 
-// TelegramChunkSendMessage sends a message in 4000 chars chunks to Telegram
-func TelegramChunkSendMessage(bot *telego.Bot, chatID telego.ChatID, text string) {
-	for _, chunk := range ChunkString(text, 4000) {
-		_, err := bot.SendMessage(&telego.SendMessageParams{
-			ChatID: chatID,
-			Text:   chunk,
-		})
-		if err != nil {
-			log.Errorf("Failed to send message to telegram: %s, chatID: %s", err, chatID)
+	currentChunk := ""
+	for i_line, line := range lines {
+		if len(currentChunk)+len(line)+1 > chunkSize && currentChunk != "" {
+			chunks = append(chunks, currentChunk)
+			currentChunk = ""
+		}
+		if currentChunk != "" && i_line < len(lines)-1 {
+			currentChunk += "\n"
+		}
+
+		if len(line) > chunkSize {
+			// split current line by words
+			words := strings.Fields(line)
+			currentChunk = ""
+			for _, word := range words {
+				if len(currentChunk)+len(word)+1 > chunkSize {
+					chunks = append(chunks, currentChunk)
+					currentChunk = ""
+				}
+				if currentChunk != "" {
+					currentChunk += " "
+				}
+				currentChunk += word
+			}
+			if currentChunk != "" && i_line < len(lines)-1 {
+				currentChunk += "\n"
+			}
+		} else {
+			currentChunk += line
 		}
 	}
+	if currentChunk != "" {
+		chunks = append(chunks, currentChunk)
+	}
+	return chunks
 }

@@ -45,6 +45,10 @@ func GetStatusKeyboard(ctx context.Context) telego.ReplyMarkup {
 					Text:         "ChatGPT",
 					CallbackData: string(lib.ChatGPT),
 				},
+				{
+					Text:         "VoiceGPT",
+					CallbackData: string(lib.VoiceGPT),
+				},
 			},
 			{
 				{
@@ -68,11 +72,11 @@ func GetStatusKeyboard(ctx context.Context) telego.ReplyMarkup {
 			},
 			{
 				{
-					Text:         "Engine: 3.5",
+					Text:         "GPT 3.5 Turbo",
 					CallbackData: string(models.ChatGpt35Turbo),
 				},
 				{
-					Text:         "Engine: 4",
+					Text:         "GPT 4",
 					CallbackData: string(models.ChatGpt4),
 				},
 			},

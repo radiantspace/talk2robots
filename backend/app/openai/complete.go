@@ -13,7 +13,7 @@ import (
 	"talk2robots/m/v2/app/models"
 )
 
-// Complete completes text
+// completes a prompt
 func (a *API) Complete(ctx context.Context, completion models.Completion) (string, error) {
 	if completion.Engine == "" {
 		completion.Engine = models.Davinci

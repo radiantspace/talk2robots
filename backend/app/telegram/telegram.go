@@ -82,6 +82,13 @@ func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Updat
 		"/bot"+bot.Token(),
 		telego.WithWebhookSet(&telego.SetWebhookParams{
 			URL: util.Env("BACKEND_BASE_URL") + "/bot" + bot.Token(),
+			AllowedUpdates: []string{
+				"message",
+				"callback_query",
+				// TODO: uncomment these when https://github.com/mymmrac/telego/pull/157/files lands
+				// "message_reaction",
+				// "message_reaction_count",
+			},
 		}),
 		telego.WithWebhookServer(telego.FastHTTPWebhookServer{
 			Logger: log.StandardLogger(),
@@ -155,7 +162,11 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", []string{"type:" + voice_type}, 1)
 
 		// send typing action to show that bot is working
-		sendTypingAction(bot, chatID)
+		if mode != lib.VoiceGPT {
+			sendTypingAction(bot, chatID)
+		} else {
+			sendAudioAction(bot, chatID)
+		}
 		voiceTranscriptionText = getVoiceTransript(ctx, bot, message)
 		// combine message text with transcription
 		if voiceTranscriptionText != "" {
@@ -169,11 +180,13 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		}
 
 		if mode == lib.Transcribe {
-			util.TelegramChunkSendMessage(bot, chatID, voiceTranscriptionText)
+			ChunkSendMessage(bot, chatID, voiceTranscriptionText)
 			return
 		}
 
-		util.TelegramChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
+		if mode != lib.VoiceGPT {
+			ChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
+		}
 	}
 
 	if message.Photo != nil {
@@ -187,9 +200,15 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	log.Debugf("Received message: %d, in chat: %d, initiating request to OpenAI", message.MessageID, chatID.ID)
 	engineModel := redis.GetChatEngine(chatIDString)
 
-	// send typing action to show that bot is working
-	sendTypingAction(bot, chatID)
-	if mode == lib.ChatGPT || mode == lib.Summarize || mode == lib.Grammar {
+	// send action to show that bot is working
+	if mode != lib.VoiceGPT {
+		sendTypingAction(bot, chatID)
+	} else {
+		sendAudioAction(bot, chatID)
+	}
+	if mode == lib.ChatGPT || mode == lib.VoiceGPT {
+		ProcessThreadedMessage(ctx, bot, &message, mode, engineModel)
+	} else if mode == lib.Summarize || mode == lib.Grammar {
 		ProcessStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel, cancelContext)
 	} else {
 		ProcessNonStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel)
@@ -215,7 +234,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Thanks for your feedback!",
 		})
-	case string(lib.ChatGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe):
+	case string(lib.ChatGPT), string(lib.VoiceGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe):
 		handleCommandsInCallbackQuery(callbackQuery)
 	case string(models.ChatGpt35Turbo), string(models.ChatGpt4):
 		handleEngineSwitchCallbackQuery(callbackQuery)
@@ -396,6 +415,20 @@ func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Mess
 
 func sendTypingAction(bot *telego.Bot, chatID telego.ChatID) {
 	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionTyping})
+	if err != nil {
+		log.Errorf("Failed to send chat action: %v", err)
+	}
+}
+
+func sendAudioAction(bot *telego.Bot, chatID telego.ChatID) {
+	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionRecordVoice})
+	if err != nil {
+		log.Errorf("Failed to send chat action: %v", err)
+	}
+}
+
+func sendFindAction(bot *telego.Bot, chatID telego.ChatID) {
+	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionFindLocation})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %v", err)
 	}

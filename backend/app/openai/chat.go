@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -62,8 +63,8 @@ func (a *API) ChatComplete(ctx context.Context, completion models.ChatCompletion
 
 	usage := models.CostAndUsage{
 		Engine:             models.Engine(completion.Model),
-		PricePerInputUnit:  pricePerInputToken(models.Engine(completion.Model)),
-		PricePerOutputUnit: pricePerOutputToken(models.Engine(completion.Model)),
+		PricePerInputUnit:  PricePerInputToken(models.Engine(completion.Model)),
+		PricePerOutputUnit: PricePerOutputToken(models.Engine(completion.Model)),
 		Cost:               0,
 		Usage:              models.Usage{},
 	}
@@ -87,11 +88,16 @@ func (a *API) ChatComplete(ctx context.Context, completion models.ChatCompletion
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+a.authToken)
 
+	status := fmt.Sprintf("status:%d", 0)
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
+	defer func() {
+		config.CONFIG.DataDogClient.Timing("openai.chat_complete.latency", time.Since(timeNow), []string{status, "model:" + completion.Model}, 1)
+		config.CONFIG.DataDogClient.Timing("openai.chat_complete.latency_per_token", time.Since(timeNow), []string{status, "model:" + completion.Model}, float64(usage.Usage.CompletionTokens))
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", errors.New("ChatComplete: " + resp.Status)
@@ -106,8 +112,6 @@ func (a *API) ChatComplete(ctx context.Context, completion models.ChatCompletion
 	}
 	usage.Usage = response.Usage
 	go payments.Bill(ctx, usage)
-	config.CONFIG.DataDogClient.Timing("openai.chat_complete.latency", time.Since(timeNow), []string{"model:" + completion.Model}, 1)
-	config.CONFIG.DataDogClient.Timing("openai.chat_complete.latency_per_token", time.Since(timeNow), []string{"model:" + completion.Model}, float64(usage.Usage.CompletionTokens))
 	return response.Choices[0].Message.Content, nil
 }
 
@@ -127,8 +131,8 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 
 	usage := models.CostAndUsage{
 		Engine:             models.Engine(completion.Model),
-		PricePerInputUnit:  pricePerInputToken(models.Engine(completion.Model)),
-		PricePerOutputUnit: pricePerOutputToken(models.Engine(completion.Model)),
+		PricePerInputUnit:  PricePerInputToken(models.Engine(completion.Model)),
+		PricePerOutputUnit: PricePerOutputToken(models.Engine(completion.Model)),
 		Cost:               0,
 		Usage: models.Usage{
 			PromptTokens: int(promptTokens),
@@ -200,28 +204,42 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 // if this snippet will make too much mistakes, we can use this
 // https://github.com/pkoukk/tiktoken-go
 func ApproximateTokensCount(message string) float64 {
-	return math.Max(float64(len(strings.Split(message, " ")))/WORDS_PER_TOKEN, 1)
+	return math.Max(float64(len(strings.Fields(message)))/WORDS_PER_TOKEN, 1)
 }
 
-func pricePerInputToken(model models.Engine) float64 {
+func PricePerInputToken(model models.Engine) float64 {
 	switch model {
 	case models.ChatGpt4:
 		return CHAT_GPT4_INPUT_PRICE
-	case models.ChatGpt4TurboVision:
+	case models.ChatGpt4TurboVision, models.ChatGpt4Turbo:
 		return CHAT_GPT4_TURBO_VISION_INPUT_PRICE
 	default:
 		return CHAT_INPUT_PRICE
 	}
 }
 
-func pricePerOutputToken(model models.Engine) float64 {
+func PricePerOutputToken(model models.Engine) float64 {
 	switch model {
 	case models.ChatGpt4:
 		return CHAT_GPT4_OUTPUT_PRICE
-	case models.ChatGpt4TurboVision:
+	case models.ChatGpt4TurboVision, models.ChatGpt4Turbo:
 		return CHAT_GPT4_TURBO_VISION_OUTPUT_PRICE
 	default:
 		return CHAT_OUTPUT_PRICE
+	}
+}
+
+func LimitPromptTokensForModel(model models.Engine, promptTokensCount float64) int {
+	// limit context to half of max tokens
+	switch model {
+	case models.ChatGpt4Turbo, models.ChatGpt4TurboVision:
+		return int(math.Min(128*1024/2, promptTokensCount))
+	case models.ChatGpt4:
+		return int(math.Min(8196/2, promptTokensCount))
+	case models.ChatGpt35Turbo:
+		return int(math.Min(16*1024/2, promptTokensCount))
+	default:
+		return int(math.Min(4096/2, promptTokensCount))
 	}
 }
 
