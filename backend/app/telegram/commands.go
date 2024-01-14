@@ -110,7 +110,7 @@ func setupCommandHandlers() {
 		newCommandHandler(TeacherCommand, getModeHandlerFunction(lib.Teacher, "Will correct your grammar and explain any mistakes found.")),
 		newCommandHandler(TranscribeCommand, getModeHandlerFunction(lib.Transcribe, "Will transcribe your voice/audio/video messages only.")),
 		newCommandHandler(SummarizeCommand, getModeHandlerFunction(lib.Summarize, "Will summarize your text/voice/audio/video messages.")),
-		newCommandHandler(VoiceGPTCommand, getModeHandlerFunction(lib.VoiceGPT, "🚀 now I'm like ChatGPT with memory and all, but will only respond with voice messages, what do you want to talk about? Use /clear command anytime to wipe my memory and start a new thread.")),
+		newCommandHandler(VoiceGPTCommand, getModeHandlerFunction(lib.VoiceGPT, "🚀 now I'm like ChatGPT with memory and all, but will respond with voice messages. What do you want to talk about? Use /clear command anytime to wipe my memory and start a new thread.\n\nNote, that this mode is more expensive than regular /chatgpt mode.")),
 		newCommandHandler(StatusCommand, statusCommandHandler),
 		newCommandHandler(UpgradeCommand, upgradeCommandHandler),
 		newCommandHandler(CancelSubscriptionCommand, cancelSubscriptionCommandHandler),
