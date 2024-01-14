@@ -82,31 +82,7 @@ func (a *API) CreateRun(ctx context.Context, assistantId string, threadId string
 
 	requestBody := struct {
 		AssistantId string `json:"assistant_id"`
-		// model
-		// string or null
-		// Optional
-		// The ID of the Model to be used to execute this run. If a value is provided here, it will override the model associated with the assistant. If not, the model associated with the assistant will be used.
-
-		// instructions
-		// string or null
-		// Optional
-		// Overrides the instructions of the assistant. This is useful for modifying the behavior on a per-run basis.
-
-		// additional_instructions
-		// string or null
-		// Optional
-		// Appends additional instructions at the end of the instructions for the run. This is useful for modifying the behavior on a per-run basis without overriding other instructions.
-
-		// tools
-		// array or null
-		// Optional
-		// Override the tools the assistant can use for this run. This is useful for modifying the behavior on a per-run basis.
-
-		// Show possible types
-		// metadata
-		// map
-		// Optional
-		// Set of 16 key-value pairs that can be attached to an object. This can be useful for storing additional information about the object in a structured format. Keys can be a maximum of 64 characters long and values can be a maxium of 512 characters long.
+		// model, instructions, tools and metadata can be overriden here if needed
 	}{
 		AssistantId: assistantId,
 	}

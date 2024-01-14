@@ -38,7 +38,7 @@ func AssistantKeyForModel(model Engine) AssistantKey {
 
 func AssistantIdForModel(model Engine) string {
 	switch model {
-	case ChatGpt4, ChatGpt4TurboVision:
+	case ChatGpt4, ChatGpt4TurboVision, ChatGpt4Turbo:
 		return config.CONFIG.AssistantGpt4Id
 	case ChatGpt35Turbo:
 		return config.CONFIG.AssistantGpt35Id
@@ -170,15 +170,6 @@ type Usage struct {
 	TotalTokens      int     `json:"total_tokens"`
 	AudioDuration    float64 `json:"audio_duration"` // only for Whisper API
 }
-
-// -d '{
-// 	"assistant_id": "asst_abc123",
-// 	"thread": {
-// 	  "messages": [
-// 		{"role": "user", "content": "Explain deep learning to a 5 year old."}
-// 	  ]
-// 	}
-//   }'
 
 type ThreadRunRequest struct {
 	AssistantID string  `json:"assistant_id"`
