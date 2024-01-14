@@ -29,7 +29,7 @@ datadog:
     app: kube_app
   nodeLabelsAsTags:
     kubernetes.io/role: kube_role
-  containerExcludeLogs: "name:k8s-sidecar"
+  containerExcludeLogs: "name:k8s-sidecar,name:proxy-agent,name:agent,name:coredns,name:do-csi-plugin"
   dogstatsd:
     port: 8125
     useSocketVolume: true
