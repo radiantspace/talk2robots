@@ -65,7 +65,7 @@ func ValidateUserUsage(ctx context.Context) bool {
 	currentSubscriptionName := ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName)
 	currentSubscription := Subscriptions[currentSubscriptionName]
 	if currentSubscription.MaximumUsage > 0 {
-		userTotalCost, err := redis.RedisClient.Get(ctx, UserTotalCostKey(userId)).Float64()
+		userTotalCost, err := redis.RedisClient.Get(context.Background(), UserTotalCostKey(userId)).Float64()
 		if err != nil {
 			log.Errorf("Error getting user total cost: %s", err)
 		}

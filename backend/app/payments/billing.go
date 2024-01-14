@@ -82,7 +82,10 @@ func Bill(ctx context.Context, usage models.CostAndUsage) models.CostAndUsage {
 		float64(usage.Usage.PromptTokens)*usage.PricePerInputUnit +
 			float64(usage.Usage.CompletionTokens)*usage.PricePerOutputUnit +
 			usage.Usage.AudioDuration*usage.PricePerInputUnit
-	redis.RedisClient.IncrByFloat(ctx, "system_totals:cost", usage.Cost)
+	_, err := redis.RedisClient.IncrByFloat(ctx, "system_totals:cost", usage.Cost).Result()
+	if err != nil {
+		log.Errorf("[billing] error incrementing system cost: %v", err)
+	}
 
 	usage.User = ctx.Value(models.UserContext{}).(string)
 	client := ctx.Value(models.ClientContext{}).(string)
@@ -96,25 +99,40 @@ func Bill(ctx context.Context, usage models.CostAndUsage) models.CostAndUsage {
 	config.CONFIG.DataDogClient.Distribution("billing.cost", usage.Cost, []string{"engine:" + string(usage.Engine), "user_type:" + userType, "client:" + client}, 1)
 	billBytes, _ := json.Marshal(usage)
 	billJson := string(billBytes)
-	log.Infof("Billing: %+v", billJson)
+	log.Infof("[billing] bill: %+v", billJson)
 
 	if usage.Usage.TotalTokens > 0 {
-		redis.RedisClient.IncrBy(ctx, lib.UserTotalTokensKey(usage.User), int64(usage.Usage.TotalTokens))
-		redis.RedisClient.IncrBy(ctx, "system_totals:tokens", int64(usage.Usage.TotalTokens))
+		_, err = redis.RedisClient.IncrBy(context.Background(), lib.UserTotalTokensKey(usage.User), int64(usage.Usage.TotalTokens)).Result()
+		if err != nil {
+			log.Errorf("[billing] error incrementing user total tokens: %v", err)
+		}
+		_, err = redis.RedisClient.IncrBy(context.Background(), "system_totals:tokens", int64(usage.Usage.TotalTokens)).Result()
+		if err != nil {
+			log.Errorf("[billing] error incrementing system total tokens: %v", err)
+		}
 		config.CONFIG.DataDogClient.Distribution("billing.tokens", float64(usage.Usage.TotalTokens), []string{"engine:" + string(usage.Engine), "user_type:" + userType}, 1)
 	}
 
 	if usage.Usage.AudioDuration > 0 {
-		redis.RedisClient.IncrByFloat(ctx, lib.UserTotalAudioMinutesKey(usage.User), usage.Usage.AudioDuration)
-		redis.RedisClient.IncrByFloat(ctx, "system_totals:audio_minutes", usage.Usage.AudioDuration)
+		_, err = redis.RedisClient.IncrByFloat(context.Background(), lib.UserTotalAudioMinutesKey(usage.User), usage.Usage.AudioDuration).Result()
+		if err != nil {
+			log.Errorf("[billing] error incrementing user total audio minutes: %v", err)
+		}
+		_, err = redis.RedisClient.IncrByFloat(context.Background(), "system_totals:audio_minutes", usage.Usage.AudioDuration).Result()
+		if err != nil {
+			log.Errorf("[billing] error incrementing system total audio minutes: %v", err)
+		}
 		config.CONFIG.DataDogClient.Distribution("billing.audio_minutes", usage.Usage.AudioDuration, []string{"engine:" + string(usage.Engine), "user_type:" + userType}, 1)
 	}
 
-	userTotalCost, err := redis.RedisClient.IncrByFloat(ctx, lib.UserTotalCostKey(usage.User), usage.Cost).Result()
+	userTotalCost, err := redis.RedisClient.IncrByFloat(context.Background(), lib.UserTotalCostKey(usage.User), usage.Cost).Result()
 	if err != nil {
-		log.Errorf("Error getting user total cost: %s", err)
+		log.Errorf("[billing] error getting user total cost: %s", err)
 	} else {
-		mongo.MongoDBClient.UpdateUserUsage(ctx, userTotalCost)
+		err = mongo.MongoDBClient.UpdateUserUsage(ctx, userTotalCost)
+		if err != nil {
+			log.Errorf("[billing] error updating user usage: %s", err)
+		}
 	}
 	return usage
 }
@@ -122,7 +140,7 @@ func Bill(ctx context.Context, usage models.CostAndUsage) models.CostAndUsage {
 func CheckThresholdsAndNotify(ctx context.Context, incomingCost float64) {
 	user := ctx.Value(models.UserContext{}).(string)
 	client := ctx.Value(models.ClientContext{}).(string)
-	currentCost, err := redis.RedisClient.Get(ctx, lib.UserTotalCostKey(user)).Float64()
+	currentCost, err := redis.RedisClient.Get(context.Background(), lib.UserTotalCostKey(user)).Float64()
 	if err != nil {
 		log.Errorf("CheckThresholdsAndNotify: error getting user total cost: %s", err)
 		return
@@ -152,7 +170,7 @@ func CheckThresholdsAndNotify(ctx context.Context, incomingCost float64) {
 				"threshold:" + strconv.FormatFloat(threshold.Percentage*100, 'f', 0, 64),
 				"client:" + client,
 			}, 1)
-			log.Infof("User %s has reached %.1f%% of their maximum usage for subscription %s. Sending notification..", user, threshold.Percentage*100, mongoUser.SubscriptionType.Name)
+			log.Infof("CheckThresholdsAndNotify: user %s has reached %.1f%% of their maximum usage for subscription %s. Sending notification..", user, threshold.Percentage*100, mongoUser.SubscriptionType.Name)
 			SendNotification(ctx, threshold.Message)
 		}
 	}
@@ -164,11 +182,17 @@ var SendNotification = func(ctx context.Context, message string) {
 	client := ctx.Value(models.ClientContext{}).(string)
 
 	if client == string(lib.TelegramClientName) {
-		PaymentsBot.SendMessage(tu.Message(tu.ID(userId), message))
+		_, err := PaymentsBot.SendMessage(tu.Message(tu.ID(userId), message))
+		if err != nil {
+			log.Errorf("[billing] error sending telegram message: %v", err)
+		}
 	}
 
 	if client == string(lib.SlackClientName) {
 		channel := ctx.Value(models.ChannelContext{}).(string)
-		PaymentsSlackClient.SendMessage(channel, slack.MsgOptionText(message, false), slack.MsgOptionPostEphemeral(userString))
+		_, _, _, err := PaymentsSlackClient.SendMessage(channel, slack.MsgOptionText(message, false), slack.MsgOptionPostEphemeral(userString))
+		if err != nil {
+			log.Errorf("[billing] error sending slack message: %v", err)
+		}
 	}
 }

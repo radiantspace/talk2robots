@@ -45,7 +45,9 @@ func (m *MockRedisClient) IncrBy(ctx context.Context, key string, value int64) *
 	} else {
 		m.data[key] = value
 	}
-	return nil
+	cmd := r.NewIntCmd(ctx)
+	cmd.SetVal(m.data[key].(int64))
+	return cmd
 }
 
 func (m *MockRedisClient) Get(ctx context.Context, key string) *r.StringCmd {
