@@ -88,7 +88,6 @@ func (a *API) CreateSpeech(ctx context.Context, tts *models.TTSRequest) (io.Read
 		return nil, err
 	}
 	status = fmt.Sprintf("status:%d", resp.StatusCode)
-	defer resp.Body.Close()
 
 	// Check the response status code
 	if resp.StatusCode != http.StatusOK {

@@ -151,7 +151,8 @@ func ProcessThreadedMessage(
 		Cost:               0,
 		Usage:              models.Usage{},
 	}
-	usage.Usage.PromptTokens = int(openai.ApproximateTokensCount(message.Text))
+	currentThreadPromptTokens, _ := redis.RedisClient.IncrBy(ctx, chatIDString+":current-thread-prompt-tokens", int64(openai.ApproximateTokensCount(message.Text))).Result()
+	usage.Usage.PromptTokens = openai.LimitPromptTokensForModel(engineModel, float64(currentThreadPromptTokens))
 
 	var threadRun *models.ThreadRunResponse
 	threadRunId := ""
@@ -456,6 +457,7 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, 
 			log.Errorf("Failed to get voice message: %v for chatID: %d", err, chatID.ID)
 			continue
 		}
+		defer voiceReader.Close()
 
 		temporaryFileName := uuid.New().String()
 		voiceFile := telego.InputFile{
