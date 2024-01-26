@@ -89,6 +89,10 @@ func main() {
 		_, _ = ctx.WriteString("❤️ from robots")
 	})
 
+	rtr.GET("/", func(ctx *fasthttp.RequestCtx) {
+		ctx.Redirect(config.CONFIG.BotUrl, fasthttp.StatusFound)
+	})
+
 	// stripe webhook
 	stripe.Key = config.CONFIG.StripeToken
 	stripe.SetAppInfo(&stripe.AppInfo{

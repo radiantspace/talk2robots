@@ -148,11 +148,18 @@ func StripeCancelSubscription(ctx context.Context, customerId string) error {
 	for i.Next() {
 		sub := i.Subscription()
 		if sub.Status == "active" {
-			// cancel subscription
-			_, err := subscription.Cancel(sub.ID, nil)
-			if err != nil {
-				log.Errorf("StripeCancelSubscription for customer %s error: %v", customerId, err)
+			cancelParams := &stripe.SubscriptionCancelParams{
+				Prorate: stripe.Bool(true),
 			}
+
+			_, err := subscription.Cancel(sub.ID, cancelParams)
+			if err != nil {
+				log.Errorf("Failed cancelling subscription for customer %s error: %v", customerId, err)
+			} else {
+				log.Infof("Canceled subscription for customer %s, sending refund if needed..", customerId)
+			}
+
+			// TODO: refund remaining balance
 		}
 	}
 	return nil
@@ -165,7 +172,7 @@ func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
 	chatIDInt64, err := strconv.ParseInt(chatIDString, 10, 64)
 	if err != nil {
-		log.Errorf("Failed to convert string to int64 and process successful payment: %v", err)
+		log.Errorf("Failed to convert string to int64 and process successful payment: %v, user_id: %s", err, chatIDString)
 		return
 	}
 	chatID := tu.ID(chatIDInt64)
@@ -176,29 +183,38 @@ func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 		return
 	}
 
-	// update subscription metadata to include telegram chat id
-	// this way we can immediately correlate subscription events to a user
-	params := &stripe.SubscriptionParams{}
-	params.AddMetadata("telegram_chat_id", chatIDString)
-	_, err = subscription.Update(session.Subscription.ID, params)
-	if err != nil {
-		log.Errorf("Failed to update subscription metadata to add telegram chat id: %v", err)
-	}
-
 	err = mongo.MongoDBClient.UpdateUserSubscription(ctx, lib.Subscriptions[lib.BasicSubscriptionName])
 	if err != nil {
-		log.Errorf("Failed to update MongoDB record and process successful payment: %v", err)
+		log.Errorf("Failed to update MongoDB record and process successful payment: %v, user_id: %s", err, chatIDString)
 		PaymentsBot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to basic paid plan. Please contact /support for help."))
 		return
 	}
 
-	if customerDetails := session.CustomerDetails; customerDetails != nil {
-		mongo.MongoDBClient.UpdateUserContacts(ctx, customerDetails.Name, customerDetails.Phone, customerDetails.Email)
-	}
-
 	PaymentsBot.SendMessage(tu.Message(chatID, "Your account has been upgraded to basic paid plan (/status)! Thanks for your support!"))
 
-	log.Infof("Successfully processed checkout session %s, user_id: %s", session.ID, chatIDString)
+	go func() {
+		// update subscription metadata to include telegram chat id
+		// this way we can immediately correlate subscription events to a user
+		params := &stripe.SubscriptionParams{}
+		params.AddMetadata("telegram_chat_id", chatIDString)
+		_, err = subscription.Update(session.Subscription.ID, params)
+		if err != nil {
+			log.Errorf("Failed to update subscription metadata to add telegram chat id: %v, user_id: %s", err, chatIDString)
+		}
+
+		if customerDetails := session.CustomerDetails; customerDetails != nil {
+			err = mongo.MongoDBClient.UpdateUserContacts(ctx, customerDetails.Name, customerDetails.Phone, customerDetails.Email)
+			if err != nil {
+				log.Errorf("Failed to update user contacts: %v, user_id: %s", err, chatIDString)
+			}
+		}
+
+		if err == nil {
+			log.Infof("Successfully processed checkout session %s, user_id: %s", session.ID, chatIDString)
+		} else {
+			log.Errorf("Failed to process checkout session %s, user_id: %s", session.ID, chatIDString)
+		}
+	}()
 }
 
 func handleCustomerSubscriptionDeleted(subscription stripe.Subscription) {
