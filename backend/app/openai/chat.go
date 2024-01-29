@@ -230,16 +230,16 @@ func PricePerOutputToken(model models.Engine) float64 {
 }
 
 func LimitPromptTokensForModel(model models.Engine, promptTokensCount float64) int {
-	// limit context to half of max tokens
+	// limit context to max - 1024 tokens
 	switch model {
 	case models.ChatGpt4Turbo, models.ChatGpt4TurboVision:
-		return int(math.Min(128*1024/2, promptTokensCount))
+		return int(math.Min(127*1024, promptTokensCount))
 	case models.ChatGpt4:
-		return int(math.Min(8196/2, promptTokensCount))
+		return int(math.Min(7*1024, promptTokensCount))
 	case models.ChatGpt35Turbo:
-		return int(math.Min(16*1024/2, promptTokensCount))
+		return int(math.Min(15*1024, promptTokensCount))
 	default:
-		return int(math.Min(4096/2, promptTokensCount))
+		return int(math.Min(3*1024, promptTokensCount))
 	}
 }
 

@@ -151,12 +151,18 @@ func ProcessThreadedMessage(
 		Cost:               0,
 		Usage:              models.Usage{},
 	}
-	currentThreadPromptTokens, _ := redis.RedisClient.IncrBy(ctx, chatIDString+":current-thread-prompt-tokens", int64(openai.ApproximateTokensCount(message.Text))).Result()
+	currentThreadPromptTokens, _ := redis.RedisClient.IncrBy(ctx, lib.UserCurrentThreadPromptKey(chatIDString), int64(openai.ApproximateTokensCount(message.Text))).Result()
 	usage.Usage.PromptTokens = openai.LimitPromptTokensForModel(engineModel, float64(currentThreadPromptTokens))
+
+	MAX_TOKENS_ALARM := 10 * 1024
+	if usage.Usage.PromptTokens > MAX_TOKENS_ALARM {
+		log.Warnf("Prompt tokens for chat %s exceeded max tokens alarm: %d", chatIDString, usage.Usage.PromptTokens)
+		bot.SendMessage(tu.Message(chatID, fmt.Sprintf("⚠️ Your prompt (including previous conversation) is very long. This may lead to increased costs and the bot timeouts.\nConsider /clear the memory to start a new thread and/or use shorter messages.\n\nRequest tokens - %d.\nProjected cost of the request - $%.3f", usage.Usage.PromptTokens, usage.PricePerInputUnit*float64(usage.Usage.PromptTokens))))
+	}
 
 	var threadRun *models.ThreadRunResponse
 	threadRunId := ""
-	threadId, err := redis.RedisClient.Get(ctx, chatIDString+":current-thread").Result()
+	threadId, err := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString)).Result()
 	if threadId == "" {
 		log.Infof("No thread found for chat %s, creating new thread", chatIDString)
 
@@ -175,7 +181,7 @@ func ProcessThreadedMessage(
 		}
 		threadId = threadRun.ThreadID
 		threadRunId = threadRun.ID
-		redis.RedisClient.Set(ctx, chatIDString+":current-thread", threadId, 0)
+		redis.RedisClient.Set(ctx, lib.UserCurrentThreadKey(chatIDString), threadId, 0)
 	} else {
 		log.Infof("Found thread %s for chat %s, adding a message..", threadId, chatIDString)
 
@@ -216,13 +222,23 @@ func ProcessThreadedMessage(
 			if content.Type == "text" {
 				usage.Usage.CompletionTokens += int(openai.ApproximateTokensCount(content.Text.Value))
 				totalContent += content.Text.Value
+
+				// increase also current-thread-prompt-tokens, cause it will be used in the next iteration
+				_, err := redis.RedisClient.IncrBy(ctx, lib.UserCurrentThreadPromptKey(chatIDString), int64(usage.Usage.CompletionTokens)).Result()
+				if err != nil {
+					log.Errorf("Failed to increment current-thread-prompt-tokens in chat %s: %s", chatIDString, err)
+				}
 			}
 		}
 		totalContent += "\n"
 	}
 
+	backgroundContext := context.WithValue(context.Background(), models.UserContext{}, ctx.Value(models.UserContext{}).(string))
+	backgroundContext = context.WithValue(backgroundContext, models.SubscriptionContext{}, ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName))
+	backgroundContext = context.WithValue(backgroundContext, models.ClientContext{}, ctx.Value(models.ClientContext{}).(string))
+	backgroundContext = context.WithValue(backgroundContext, models.ChannelContext{}, ctx.Value(models.ChannelContext{}).(string))
 	usage.Usage.TotalTokens = usage.Usage.PromptTokens + usage.Usage.CompletionTokens
-	go payments.Bill(ctx, usage)
+	go payments.Bill(backgroundContext, usage)
 
 	if mode != lib.VoiceGPT {
 		ChunkSendMessage(bot, chatID, totalContent)

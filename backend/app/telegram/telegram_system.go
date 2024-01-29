@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -154,7 +155,16 @@ func setupSystemCommandHandlers() {
 				bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get user: %s", err)))
 				return
 			}
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("User: %+v", user)))
+			userJson, err := json.Marshal(user)
+			userString := "DB:\n" + string(userJson) + "\n\n"
+
+			userString += "Redis:\ntotal cost            - " + redis.RedisClient.Get(ctx, lib.UserTotalCostKey(userId)).Val() + "\n"
+			userString += "total audio minutes   - " + redis.RedisClient.Get(ctx, lib.UserTotalAudioMinutesKey(userId)).Val() + "\n"
+			userString += "total tokens          - " + redis.RedisClient.Get(ctx, lib.UserTotalTokensKey(userId)).Val() + "\n\n"
+			userString += "current thread        - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(userId)).Val() + "\n"
+			userString += "current prompt tokens - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadPromptKey(userId)).Val()
+
+			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("User: %+v", userJson)))
 		}),
 		newCommandHandler(SYSTEMStripeResetCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
 			commandArray := strings.Split(message.Text, " ")

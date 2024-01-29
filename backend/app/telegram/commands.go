@@ -326,7 +326,7 @@ func statusCommandHandler(ctx context.Context, bot *Bot, message *telego.Message
 func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
-	threadId, err := redis.RedisClient.Get(ctx, chatIDString+":current-thread").Result()
+	threadId, err := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString)).Result()
 	if threadId == "" {
 		_, err = bot.SendMessage(tu.Message(chatID, "There is no thread to clear."))
 		if err != nil {
@@ -335,8 +335,8 @@ func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Me
 		return
 	}
 
-	redis.RedisClient.Del(ctx, chatIDString+":current-thread")
-	redis.RedisClient.Del(ctx, chatIDString+":current-thread-prompt-tokens")
+	redis.RedisClient.Del(ctx, lib.UserCurrentThreadKey(chatIDString))
+	redis.RedisClient.Del(ctx, lib.UserCurrentThreadPromptKey(chatIDString))
 	_, err = BOT.API.DeleteThread(ctx, threadId)
 	if err != nil {
 		log.Errorf("Failed to clear thread: %v", err)
