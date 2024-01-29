@@ -28,7 +28,15 @@ func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRe
 		// }
 	}
 	if assistant.Instructions == "" {
-		assistant.Instructions = "You are general assistant. Do your best and Buddhas do the rest. Remember, highest truth is highest joy and highest compassion."
+		assistant.Instructions = "Don't advice unless asked explicitly. You're Telegram chat bot that can:\n" +
+			`- Default 🧠: chat with or answer any questions /chatgpt
+- talk to AI using voice messages /voicegpt
+- Correct grammar: /grammar
+- Explain grammar and mistakes: /teacher
+- /transcribe voice/audio/video messages
+- /summarize text/voice/audio/video messages
+- remember context in /chatgpt and /voicegpt modes, use /clear to cleanup context memory (to avoid increased cost)`
+
 	}
 
 	body, err := json.Marshal(assistant)
