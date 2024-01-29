@@ -164,7 +164,7 @@ func setupSystemCommandHandlers() {
 			userString += "current thread        - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(userId)).Val() + "\n"
 			userString += "current prompt tokens - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadPromptKey(userId)).Val()
 
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("User: %+v", userJson)))
+			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("User: %+v", userString)))
 		}),
 		newCommandHandler(SYSTEMStripeResetCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
 			commandArray := strings.Split(message.Text, " ")
