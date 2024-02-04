@@ -62,7 +62,7 @@ func GetStatusKeyboard(ctx context.Context) telego.ReplyMarkup {
 			},
 			{
 				{
-					Text:         "Transribe",
+					Text:         "Transcribe",
 					CallbackData: string(lib.Transcribe),
 				},
 				{

@@ -167,7 +167,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		} else {
 			sendAudioAction(bot, chatID)
 		}
-		voiceTranscriptionText = getVoiceTransript(ctx, bot, message)
+		voiceTranscriptionText = getVoiceTranscript(ctx, bot, message)
 		// combine message text with transcription
 		if voiceTranscriptionText != "" {
 			message.Text = message.Text + "\n" + voiceTranscriptionText
@@ -313,7 +313,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 	log.Errorf("Unknown engine switch callback query: %s, user id: %s", callbackQuery.Data, chatIDString)
 }
 
-func getVoiceTransript(ctx context.Context, bot *telego.Bot, message telego.Message) string {
+func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Message) string {
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
 
