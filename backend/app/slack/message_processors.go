@@ -49,7 +49,7 @@ func ProcessStreamingMessage(
 		return
 	}
 
-	responseText := ""
+	responseText := "..."
 	if mode == lib.Teacher || mode == lib.Emili || mode == lib.Vasilisa {
 		responseText = "👩‍🏫:\n"
 	} else if mode == lib.Grammar {

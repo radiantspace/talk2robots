@@ -8,3 +8,24 @@ type UsageThreshold struct {
 	Percentage float64
 	Message    string
 }
+
+const (
+	FreeSubscriptionName     MongoSubscriptionName = "free"
+	FreePlusSubscriptionName MongoSubscriptionName = "free+"
+	BasicSubscriptionName    MongoSubscriptionName = "basic"
+)
+
+var Subscriptions = map[MongoSubscriptionName]MongoSubscription{
+	FreeSubscriptionName: {
+		Name:         FreeSubscriptionName,
+		MaximumUsage: 0.05,
+	},
+	FreePlusSubscriptionName: {
+		Name:         FreePlusSubscriptionName,
+		MaximumUsage: 0.25,
+	},
+	BasicSubscriptionName: {
+		Name:         BasicSubscriptionName,
+		MaximumUsage: 9.99,
+	},
+}

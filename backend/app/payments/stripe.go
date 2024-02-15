@@ -8,7 +8,6 @@ import (
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/db/mongo"
 	"talk2robots/m/v2/app/db/redis"
-	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
 	"talk2robots/m/v2/app/util"
 
@@ -183,7 +182,7 @@ func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 		return
 	}
 
-	err = mongo.MongoDBClient.UpdateUserSubscription(ctx, lib.Subscriptions[lib.BasicSubscriptionName])
+	err = mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.BasicSubscriptionName])
 	if err != nil {
 		log.Errorf("Failed to update MongoDB record and process successful payment: %v, user_id: %s", err, chatIDString)
 		PaymentsBot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to basic paid plan. Please contact /support for help."))
@@ -239,7 +238,7 @@ func handleCustomerSubscriptionDeleted(subscription stripe.Subscription) {
 	}
 	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
 	chatID := tu.ID(chatIDInt64)
-	err = mongo.MongoDBClient.UpdateUserSubscription(ctx, lib.Subscriptions[lib.FreePlusSubscriptionName])
+	err = mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 	if err != nil {
 		log.Errorf("handleCustomerSubscriptionDeleted: failed to update MongoDB record, user id: %s: %v", chatIDString, err)
 		PaymentsBot.SendMessage(tu.Message(chatID, "Failed to cancel your subscription. Please contact /support for help."))

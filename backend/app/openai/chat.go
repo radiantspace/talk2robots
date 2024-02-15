@@ -10,40 +10,32 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"strings"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/models"
 	"talk2robots/m/v2/app/openai/sse"
 	"talk2robots/m/v2/app/payments"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
 // https://openai.com/pricing
-// Multiple models, each with different capabilities and price points.
-// Prices are per 1,000 tokens. You can think of tokens as pieces of words, where 1,000 tokens is about 750 words.
-// This paragraph is 35 tokens.
-
-// Example for GPT-4:
-// $3 can buy you 50K tokens, which is ~37.5K words
-// $9 can buy you 150K tokens, which is ~112.5K words
-
 const (
-	// gpt-3.5-turbo-1106
-	CHAT_INPUT_PRICE  = 0.001 / 1000
-	CHAT_OUTPUT_PRICE = 0.002 / 1000
+	// gpt-3.5-turbo-0125
+	CHAT_INPUT_PRICE  = 0.0005 / 1000
+	CHAT_OUTPUT_PRICE = 0.0015 / 1000
 
 	// gpt-4
 	CHAT_GPT4_INPUT_PRICE  = 0.03 / 1000
 	CHAT_GPT4_OUTPUT_PRICE = 0.06 / 1000
 
-	// gpt-4-1106-vision-preview
-	CHAT_GPT4_TURBO_VISION_INPUT_PRICE  = 0.01 / 1000
-	CHAT_GPT4_TURBO_VISION_OUTPUT_PRICE = 0.02 / 1000
+	// gpt-4-turbo (-0125, -1106, -vision)
+	CHAT_GPT4_TURBO_INPUT_PRICE  = 0.01 / 1000
+	CHAT_GPT4_TURBO_OUTPUT_PRICE = 0.03 / 1000
 
-	WORDS_PER_TOKEN = 750.0 / 1000.0
+	CHARS_PER_TOKEN = 2.75 // average number of characters per token, must be tuned or moved to tiktoken
 )
 
 // Complete completes text
@@ -204,7 +196,7 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 // if this snippet will make too much mistakes, we can use this
 // https://github.com/pkoukk/tiktoken-go
 func ApproximateTokensCount(message string) float64 {
-	return math.Max(float64(len(strings.Fields(message)))/WORDS_PER_TOKEN, 1)
+	return math.Max(float64(utf8.RuneCountInString(message))/CHARS_PER_TOKEN, 1)
 }
 
 func PricePerInputToken(model models.Engine) float64 {
@@ -212,7 +204,7 @@ func PricePerInputToken(model models.Engine) float64 {
 	case models.ChatGpt4:
 		return CHAT_GPT4_INPUT_PRICE
 	case models.ChatGpt4TurboVision, models.ChatGpt4Turbo:
-		return CHAT_GPT4_TURBO_VISION_INPUT_PRICE
+		return CHAT_GPT4_TURBO_INPUT_PRICE
 	default:
 		return CHAT_INPUT_PRICE
 	}
@@ -223,7 +215,7 @@ func PricePerOutputToken(model models.Engine) float64 {
 	case models.ChatGpt4:
 		return CHAT_GPT4_OUTPUT_PRICE
 	case models.ChatGpt4TurboVision, models.ChatGpt4Turbo:
-		return CHAT_GPT4_TURBO_VISION_OUTPUT_PRICE
+		return CHAT_GPT4_TURBO_OUTPUT_PRICE
 	default:
 		return CHAT_OUTPUT_PRICE
 	}

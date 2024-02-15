@@ -153,10 +153,18 @@ func (c *Client) UpdateUserContacts(ctx context.Context, name, phone, email stri
 func (c *Client) MigrateUsersToSubscription(ctx context.Context, from, to string) error {
 	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
 	filter := bson.M{"subscription.name": from}
-	update := bson.M{
-		"$set": bson.M{
-			"subscription.name": to,
-		},
+
+	var update bson.M
+	if to != "" {
+		toName := models.MongoSubscriptionName(to)
+		toSubscription := models.Subscriptions[toName]
+		update = bson.M{
+			"$set": bson.M{
+				"subscription": toSubscription,
+			},
+		}
+	} else {
+		return nil
 	}
 
 	_, err := collection.UpdateMany(ctx, filter, update)

@@ -292,7 +292,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 			BOT.SendMessage(tu.Message(tu.ID(callbackQuery.From.ID), "Failed to switch to GPT model, please try again later"))
 			return
 		}
-		if user.SubscriptionType.Name == lib.FreeSubscriptionName || user.SubscriptionType.Name == lib.FreePlusSubscriptionName {
+		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
 			BOT.SendMessage(tu.Message(tu.ID(callbackQuery.From.ID), "You need to /upgrade your subscription to use GPT-4 engine! Meanwhile, you can still use GPT-3.5 Turbo model, it's fast, cheap and quite smart."))
 			return
 		}

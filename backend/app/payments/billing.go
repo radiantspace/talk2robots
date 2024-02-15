@@ -26,7 +26,7 @@ var (
 // At 50%, 80% and 100% of the maximum usage, the user will receive a notification
 // that they are approaching their maximum usage.
 var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
-	lib.FreeSubscriptionName: {
+	models.FreeSubscriptionName: {
 		Thresholds: []models.UsageThreshold{
 			{
 				Percentage: 0.5,
@@ -42,7 +42,7 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 			},
 		},
 	},
-	lib.FreePlusSubscriptionName: {
+	models.FreePlusSubscriptionName: {
 		Thresholds: []models.UsageThreshold{
 			{
 				Percentage: 0.5,
@@ -58,7 +58,7 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 			},
 		},
 	},
-	lib.BasicSubscriptionName: {
+	models.BasicSubscriptionName: {
 		Thresholds: []models.UsageThreshold{
 			{
 				Percentage: 0.5,
@@ -151,7 +151,7 @@ func CheckThresholdsAndNotify(ctx context.Context, incomingCost float64) {
 		return
 	}
 	// check if subscription name is in map
-	_, ok := lib.Subscriptions[mongoUser.SubscriptionType.Name]
+	_, ok := models.Subscriptions[mongoUser.SubscriptionType.Name]
 	if !ok {
 		log.Errorf("CheckThresholdsAndNotify: subscription name %s not found in map", mongoUser.SubscriptionType.Name)
 		return

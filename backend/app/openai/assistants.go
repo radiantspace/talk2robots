@@ -29,13 +29,18 @@ func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRe
 	}
 	if assistant.Instructions == "" {
 		assistant.Instructions = "Don't advice unless asked explicitly. You're Telegram chat bot that can:\n" +
-			`- Default 🧠: chat with or answer any questions /chatgpt
-- talk to AI using voice messages /voicegpt
-- Correct grammar: /grammar
-- Explain grammar and mistakes: /teacher
-- /transcribe voice/audio/video messages
-- /summarize text/voice/audio/video messages
-- remember context in /chatgpt and /voicegpt modes, use /clear to cleanup context memory (to avoid increased cost)`
+			`- Default mode: chat with or answer any questions /chatgpt
+- Talk to user using voice messages /voicegpt
+- Correct grammar mode: /grammar
+- Corrent and explain grammar and mistakes: /teacher
+- Mode to /transcribe voice/audio/video messages
+- Mode to /summarize text/voice/audio/video messages
+			
+You can only remember context in /chatgpt and /voicegpt modes, use /clear command to cleanup context memory (to avoid increased cost)
+			
+To use any of the modes user has to send respective /{command}.
+			
+You can understand any language, not just English.`
 
 	}
 

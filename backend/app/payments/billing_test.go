@@ -62,7 +62,7 @@ func TestCheckThresholdsAndNotify(t *testing.T) {
 			ID:    "123",
 			Usage: 0.1,
 			SubscriptionType: models.MongoSubscription{
-				Name:         lib.FreeSubscriptionName,
+				Name:         models.FreeSubscriptionName,
 				MaximumUsage: 0.1,
 			},
 		},
@@ -99,7 +99,7 @@ func TestCheckThresholdsAndNotifyMaximum(t *testing.T) {
 			ID:    "123",
 			Usage: 0.1,
 			SubscriptionType: models.MongoSubscription{
-				Name:         lib.FreeSubscriptionName,
+				Name:         models.FreeSubscriptionName,
 				MaximumUsage: 0.1,
 			},
 		},

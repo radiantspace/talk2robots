@@ -23,7 +23,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot) {
 		if err != nil {
 			log.Errorf("Failed to send upgrade message to user %s, %v", userString, err)
 		}
-		err = mongo.MongoDBClient.UpdateUserSubscription(ctx, lib.Subscriptions[lib.FreePlusSubscriptionName])
+		err = mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 		if err != nil {
 			log.Errorf("Failed to update user %s subscription: %v", userString, err)
 			bot.SendMessage(channelId,

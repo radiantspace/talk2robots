@@ -15,14 +15,14 @@ func GetUserStatus(ctx context.Context) string {
 	userIdString := ctx.Value(models.UserContext{}).(string)
 	mode := string(lib.GetMode(userIdString))
 	subscriptionName := ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName)
-	subscription := lib.Subscriptions[subscriptionName]
+	subscription := models.Subscriptions[subscriptionName]
 	usage := GetUserUsage(userIdString)
 	tokens := GetUserTokens(userIdString)
 	audioMinutes := GetUserAudioMinutes(userIdString)
 	usagePercent := usage / subscription.MaximumUsage * 100
 
 	subscriptionToDisplay := string(subscription.Name)
-	if subscription.Name == lib.BasicSubscriptionName {
+	if subscription.Name == models.BasicSubscriptionName {
 		subscriptionToDisplay = string(subscription.Name) + " ($9.99/month)"
 	}
 

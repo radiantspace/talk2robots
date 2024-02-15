@@ -39,8 +39,8 @@ func SetupUserAndContext(userId string, client ClientName, channelId string) (us
 	currentContext, cancelContext = context.WithTimeout(currentContext, TIMEOUT)
 
 	log.Infof("Fetching subscription from DB for user: %s", userId)
-	currentSubscriptionName := FreeSubscriptionName
-	defaultSubscription := Subscriptions[currentSubscriptionName]
+	currentSubscriptionName := models.FreeSubscriptionName
+	defaultSubscription := models.Subscriptions[currentSubscriptionName]
 	user, err = mongo.MongoDBClient.GetUser(currentContext)
 	if err != nil {
 		log.Warnf("Failed to get a user (%s): %v", userId, err)
@@ -63,7 +63,7 @@ func SetupUserAndContext(userId string, client ClientName, channelId string) (us
 func ValidateUserUsage(ctx context.Context) bool {
 	userId := ctx.Value(models.UserContext{}).(string)
 	currentSubscriptionName := ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName)
-	currentSubscription := Subscriptions[currentSubscriptionName]
+	currentSubscription := models.Subscriptions[currentSubscriptionName]
 	if currentSubscription.MaximumUsage > 0 {
 		userTotalCost, err := redis.RedisClient.Get(context.Background(), UserTotalCostKey(userId)).Float64()
 		if err != nil {

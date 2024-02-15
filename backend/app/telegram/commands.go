@@ -187,7 +187,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 		if err != nil {
 			log.Errorf("Failed to send upgrade message: %v", err)
 		}
-		err = mongo.MongoDBClient.UpdateUserSubscription(ctx, lib.Subscriptions[lib.FreePlusSubscriptionName])
+		err = mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 		if err != nil {
 			log.Errorf("Failed to update user subscription: %v", err)
 			bot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to free+ plan. Please try again later."))
@@ -262,7 +262,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 		return
 	}
 	if lib.IsUserFreePlus(ctx) {
-		err := mongo.MongoDBClient.UpdateUserSubscription(ctx, lib.Subscriptions[lib.FreeSubscriptionName])
+		err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreeSubscriptionName])
 		if err != nil {
 			log.Errorf("Failed to downgrade user subscription: to free %v", err)
 			bot.SendMessage(tu.Message(chatID, "Failed to downgrade your account to free plan. Please try again later."))
@@ -279,7 +279,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 		}
 		stripeCustomerId := user.StripeCustomerId
 		if stripeCustomerId == "" {
-			err := mongo.MongoDBClient.UpdateUserSubscription(ctx, lib.Subscriptions[lib.FreePlusSubscriptionName])
+			err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 			if err != nil {
 				log.Errorf("Failed to downgrade user subscription: to free+ %v", err)
 				bot.SendMessage(tu.Message(chatID, "Failed to downgrade your account to free+ plan. Please try again later."))

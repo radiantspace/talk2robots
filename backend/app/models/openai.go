@@ -13,10 +13,10 @@ const (
 	Babbage             Engine = "babbage"
 	Curie               Engine = "curie"
 	Davinci             Engine = "davinci"
-	ChatGpt35Turbo      Engine = "gpt-3.5-turbo-1106"
+	ChatGpt35Turbo      Engine = "gpt-3.5-turbo-0125"
 	ChatGpt4            Engine = "gpt-4"
 	ChatGpt4TurboVision Engine = "gpt-4-vision-preview"
-	ChatGpt4Turbo       Engine = "gpt-4-1106-preview"
+	ChatGpt4Turbo       Engine = "gpt-4-turbo-preview"
 	Whisper             Engine = "whisper-1"
 	TTS                 Engine = "tts-1"
 

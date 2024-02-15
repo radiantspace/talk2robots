@@ -19,6 +19,7 @@ func Run(cfg *config.Config) {
 
 	// this was one time migration, but keeping it here for future reference
 	// migrateFreePlus()
+	migrateAll()
 
 	setupAssistants()
 }
@@ -32,6 +33,20 @@ func migrateFreePlus() {
 		return
 	}
 	log.Info("[onstart] finished migrating free_plus to free+")
+}
+
+func migrateAll() {
+	log.Info("[onstart] migrating all users..")
+
+	// that is needed to update limits on all subscriptions
+	for _, subscription := range models.Subscriptions {
+		err := mongo.MongoDBClient.MigrateUsersToSubscription(context.Background(), string(subscription.Name), string(subscription.Name))
+		if err != nil {
+			log.Errorf("[onstart] failed to update limits for %s: %s", subscription.Name, err)
+		}
+
+	}
+	log.Info("[onstart] finished migrating all users")
 }
 
 func setupAssistants() {

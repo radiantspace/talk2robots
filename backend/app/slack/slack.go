@@ -206,7 +206,7 @@ func handleAppHomeOpenedEvent(ev *slackevents.AppHomeOpenedEvent) {
 
 	usage := user.Usage
 	productName := user.SubscriptionType.Name
-	hasFreePlan := productName == lib.FreeSubscriptionName // TODO: basic subscription: || productName == lib.FreePlusSubscriptionName
+	hasFreePlan := productName == models.FreeSubscriptionName // TODO: basic subscription: || productName == lib.FreePlusSubscriptionName
 
 	// Row 1: Current Plan and Upgrade Button
 	currentPlanSection := slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", fmt.Sprintf("✅ *%s*", productName), false, false), nil, nil)

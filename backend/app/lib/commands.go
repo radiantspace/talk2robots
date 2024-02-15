@@ -7,15 +7,15 @@ import (
 
 func IsUserFree(ctx context.Context) bool {
 	subscription := ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName)
-	return subscription == FreeSubscriptionName
+	return subscription == models.FreeSubscriptionName
 }
 
 func IsUserFreePlus(ctx context.Context) bool {
 	subscription := ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName)
-	return subscription == FreePlusSubscriptionName
+	return subscription == models.FreePlusSubscriptionName
 }
 
 func IsUserBasic(ctx context.Context) bool {
 	subscription := ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName)
-	return subscription == BasicSubscriptionName
+	return subscription == models.BasicSubscriptionName
 }
