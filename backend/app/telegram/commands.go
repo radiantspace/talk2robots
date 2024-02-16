@@ -153,7 +153,7 @@ func newCommandHandler(command Command, handler func(context.Context, *Bot, *tel
 
 func (c CommandHandlers) handleCommand(ctx context.Context, bot *Bot, message *telego.Message) {
 	commandArray := strings.Split(message.Text, " ")
-	command := Command(strings.ReplaceAll(commandArray[0], "@"+bot.Name, ""))
+	command := Command(strings.ReplaceAll(commandArray[0], "@"+bot.Name+"bot", ""))
 
 	commandHandler := c.getCommandHandler(command)
 	if commandHandler != nil {
