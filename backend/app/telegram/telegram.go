@@ -102,16 +102,9 @@ func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Updat
 }
 
 func handleMessage(bot *telego.Bot, message telego.Message) {
-	// ignore messages from channels
-	if message.Chat.Type != "private" {
-		chatJson, _ := json.Marshal(message.Chat)
-		log.Warnf("Ignoring non-private message from channel: %s", chatJson)
-		return
-	}
-
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
-	_, ctx, cancelContext, err := lib.SetupUserAndContext(chatIDString, "telegram", "")
+	_, ctx, cancelContext, err := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString)
 	if err != nil {
 		if err == lib.ErrUserBanned {
 			log.Infof("User %s is banned", chatIDString)
@@ -140,13 +133,13 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	ok := lib.ValidateUserUsage(ctx)
 	if !ok {
 		bot.SendMessage(tu.Message(chatID, "Your monthly usage limit has been exceeded. Check /status and /upgrade your subscription to continue using the bot."))
-		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram"}, 1)
+		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
 		return
 	}
 
 	mode := lib.GetMode(chatIDString)
 	if message.Text != "" {
-		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", nil, 1)
+		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
 		if mode == lib.Transcribe {
 			bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
 			return
@@ -167,7 +160,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		case message.Document != nil:
 			voice_type = "document"
 		}
-		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", []string{"type:" + voice_type}, 1)
+		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", []string{"type:" + voice_type, "channel_type:" + message.Chat.Type}, 1)
 
 		// send typing action to show that bot is working
 		if mode != lib.VoiceGPT {
@@ -198,7 +191,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	}
 
 	if message.Photo != nil {
-		config.CONFIG.DataDogClient.Incr("telegram.photo_message_received", nil, 1)
+		config.CONFIG.DataDogClient.Incr("telegram.photo_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
 	}
 
 	var seedData []models.Message
