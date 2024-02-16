@@ -216,19 +216,21 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	userId := callbackQuery.From.ID
-	log.Infof("Received callback query: %s, for user: %d", callbackQuery.Data, userId)
-	config.CONFIG.DataDogClient.Incr("telegram.callback_query", []string{"data:" + callbackQuery.Data}, 1)
+	chatId := callbackQuery.Message.Chat.ID
+	chatType := callbackQuery.Message.Chat.Type
+	log.Infof("Received callback query: %s, for user: %d in chat %d", callbackQuery.Data, userId, chatId)
+	config.CONFIG.DataDogClient.Incr("telegram.callback_query", []string{"data:" + callbackQuery.Data, "channel_type:" + chatType}, 1)
 	switch callbackQuery.Data {
 	case "like":
-		log.Infof("User %d liked a message.", userId)
-		config.CONFIG.DataDogClient.Incr("telegram.like", nil, 1)
+		log.Infof("User %d liked a message in chat %d.", userId, chatId)
+		config.CONFIG.DataDogClient.Incr("telegram.like", []string{"channel_type:" + chatType}, 1)
 		bot.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Thanks for your feedback! 👍",
 		})
 	case "dislike":
-		log.Infof("User %d disliked a message.", userId)
-		config.CONFIG.DataDogClient.Incr("telegram.dislike", nil, 1)
+		log.Infof("User %d disliked a message in chat %d.", userId, chatId)
+		config.CONFIG.DataDogClient.Incr("telegram.dislike", []string{"channel_type:" + chatType}, 1)
 		bot.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Thanks for your feedback!",
@@ -243,18 +245,23 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 }
 
 func handleCommandsInCallbackQuery(callbackQuery telego.CallbackQuery) {
-	chatIDString := fmt.Sprint(callbackQuery.From.ID)
+	chatIDString := fmt.Sprint(callbackQuery.Message.Chat.ID)
 	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
 	ctx = context.WithValue(ctx, models.ClientContext{}, "telegram")
 	message := telego.Message{
-		Chat: telego.Chat{ID: callbackQuery.From.ID},
+		Chat: telego.Chat{ID: callbackQuery.Message.Chat.ID},
 		Text: "/" + callbackQuery.Data,
 	}
 	AllCommandHandlers.handleCommand(ctx, BOT, &message)
 }
 
 func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
-	chatIDString := fmt.Sprint(callbackQuery.From.ID)
+	chatID := callbackQuery.From.ID
+	if callbackQuery.Message != nil && callbackQuery.Message.Chat.ID != chatID {
+		log.Infof("Callback query message in chat ID: %d, user ID: %d", callbackQuery.Message.Chat.ID, chatID)
+		chatID = callbackQuery.Message.Chat.ID
+	}
+	chatIDString := fmt.Sprint(chatID)
 	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
 	ctx = context.WithValue(ctx, models.ClientContext{}, "telegram")
 	currentEngine := redis.GetChatEngine(chatIDString)
@@ -270,7 +277,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 	}
 	if callbackQuery.Data == string(models.ChatGpt35Turbo) {
 		redis.SaveEngine(chatIDString, models.ChatGpt35Turbo)
-		_, err := BOT.SendMessage(tu.Message(tu.ID(callbackQuery.From.ID), "Switched to GPT-3.5 Turbo model, fast and cheap!"))
+		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-3.5 Turbo model, fast and cheap!"))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-3.5 message: %v", err)
 		}
@@ -288,15 +295,15 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {
 			log.Errorf("Failed to get user: %v", err)
-			BOT.SendMessage(tu.Message(tu.ID(callbackQuery.From.ID), "Failed to switch to GPT model, please try again later"))
+			BOT.SendMessage(tu.Message(tu.ID(chatID), "Failed to switch to GPT model, please try again later"))
 			return
 		}
 		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
-			BOT.SendMessage(tu.Message(tu.ID(callbackQuery.From.ID), "You need to /upgrade your subscription to use GPT-4 engine! Meanwhile, you can still use GPT-3.5 Turbo model, it's fast, cheap and quite smart."))
+			BOT.SendMessage(tu.Message(tu.ID(chatID), "You need to /upgrade your subscription to use GPT-4 engine! Meanwhile, you can still use GPT-3.5 Turbo model, it's fast, cheap and quite smart."))
 			return
 		}
 		redis.SaveEngine(chatIDString, models.ChatGpt4)
-		_, err = BOT.SendMessage(tu.Message(tu.ID(callbackQuery.From.ID), "Switched to GPT-4 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap."))
+		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-4 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap."))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-4 message: %v", err)
 		}
@@ -309,7 +316,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 		}
 		return
 	}
-	log.Errorf("Unknown engine switch callback query: %s, user id: %s", callbackQuery.Data, chatIDString)
+	log.Errorf("Unknown engine switch callback query: %s, chat id: %s", callbackQuery.Data, chatIDString)
 }
 
 func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Message) string {
