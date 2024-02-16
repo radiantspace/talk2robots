@@ -4,6 +4,7 @@ package telegram
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -58,6 +59,7 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 	}
 	bh.HandleMessage(handleMessage)
 	bh.HandleCallbackQuery(handleCallbackQuery)
+	bh.HandleChannelPost(handleChannelPost)
 	go bh.Start()
 
 	BOT = &Bot{
@@ -100,6 +102,13 @@ func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Updat
 }
 
 func handleMessage(bot *telego.Bot, message telego.Message) {
+	// ignore messages from channels
+	if message.Chat.Type != "private" {
+		chatJson, _ := json.Marshal(message.Chat)
+		log.Warnf("Ignoring non-private message from channel: %s", chatJson)
+		return
+	}
+
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
 	_, ctx, cancelContext, err := lib.SetupUserAndContext(chatIDString, "telegram", "")
@@ -138,9 +147,8 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	mode := lib.GetMode(chatIDString)
 	if message.Text != "" {
 		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", nil, 1)
-
 		if mode == lib.Transcribe {
-			bot.SendMessage(tu.Message(chatID, "Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
+			bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
 			return
 		}
 	}
@@ -198,6 +206,126 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	seedData, userMessagePrimer = lib.GetSeedDataAndPrimer(mode)
 
 	log.Debugf("Received message: %d, in chat: %d, initiating request to OpenAI", message.MessageID, chatID.ID)
+	engineModel := redis.GetChatEngine(chatIDString)
+
+	// send action to show that bot is working
+	if mode != lib.VoiceGPT {
+		sendTypingAction(bot, chatID)
+	} else {
+		sendAudioAction(bot, chatID)
+	}
+	if mode == lib.ChatGPT || mode == lib.VoiceGPT {
+		ProcessThreadedMessage(ctx, bot, &message, mode, engineModel)
+	} else if mode == lib.Summarize || mode == lib.Grammar {
+		ProcessStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel, cancelContext)
+	} else {
+		ProcessNonStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel)
+	}
+}
+
+func handleChannelPost(bot *telego.Bot, message telego.Message) {
+	chatID := util.GetChatID(&message)
+	chatIDString := util.GetChatIDString(&message)
+
+	if message.Chat.Type != "channel" && message.Chat.Type != "group" && message.Chat.Type != "supergroup" {
+		chatJson, _ := json.Marshal(message.Chat)
+		log.Warnf("Ignoring non-public message from channel: %s", chatJson)
+		return
+	}
+
+	// ignore messages from self
+	if message.Chat.Username == config.CONFIG.BotName {
+		chatJson, _ := json.Marshal(message.Chat)
+		log.Infof("Ignoring message from self: %s", chatJson)
+		return
+	}
+
+	// ignore messages w/o bot mention
+	if !strings.Contains(message.Text, "@"+config.CONFIG.BotName) {
+		chatJson, _ := json.Marshal(message.Chat)
+
+		// TODO: remove this log after testing
+		log.Infof("Ignoring message without bot mention in chat: %s", chatJson)
+		return
+	}
+
+	_, ctx, cancelContext, err := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString)
+	if err != nil {
+		if err == lib.ErrUserBanned {
+			log.Infof("Chat %s is banned", chatIDString)
+			return
+		}
+
+		log.Errorf("Error setting up chat and context: %v", err)
+		return
+	}
+	defer cancelContext()
+
+	// process commands
+	if message.Voice == nil && message.Audio == nil && message.Video == nil && message.VideoNote == nil && message.Document == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
+		AllCommandHandlers.handleCommand(ctx, BOT, &message)
+		return
+	}
+
+	// chat usage exceeded monthly limit, send message and return
+	ok := lib.ValidateUserUsage(ctx)
+	if !ok {
+		bot.SendMessage(tu.Message(chatID, "Monthly usage limit in this chat has been exceeded. Check /status and /upgrade your subscription to continue using the bot."))
+		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
+		return
+	}
+
+	mode := lib.GetMode(chatIDString)
+	if message.Text != "@"+config.CONFIG.BotName {
+		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
+	}
+
+	voiceTranscriptionText := ""
+	// if the message is voice/audio/video message, process it to upload to WhisperAI API and get the transcription
+	if message.Voice != nil || message.Audio != nil || message.Video != nil || message.VideoNote != nil || message.Document != nil {
+		voice_type := "voice"
+		switch {
+		case message.Audio != nil:
+			voice_type = "audio"
+		case message.Video != nil:
+			voice_type = "video"
+		case message.VideoNote != nil:
+			voice_type = "note"
+		case message.Document != nil:
+			voice_type = "document"
+		}
+		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", []string{"type:" + voice_type, "channel_type:" + message.Chat.Type}, 1)
+
+		// send typing action to show that bot is working
+		if mode != lib.VoiceGPT {
+			sendTypingAction(bot, chatID)
+		} else {
+			sendAudioAction(bot, chatID)
+		}
+		voiceTranscriptionText = getVoiceTranscript(ctx, bot, message)
+		// combine message text with transcription
+		if voiceTranscriptionText != "" {
+			message.Text = message.Text + "\n" + voiceTranscriptionText
+		}
+
+		if mode == lib.Transcribe {
+			ChunkSendMessage(bot, chatID, message.Chat.Username+": "+voiceTranscriptionText)
+			return
+		}
+
+		if mode != lib.VoiceGPT {
+			ChunkSendMessage(bot, chatID, message.Chat.Username+" 🗣: "+voiceTranscriptionText)
+		}
+	}
+
+	if message.Photo != nil {
+		config.CONFIG.DataDogClient.Incr("telegram.photo_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
+	}
+
+	var seedData []models.Message
+	var userMessagePrimer string
+	seedData, userMessagePrimer = lib.GetSeedDataAndPrimer(mode)
+
 	engineModel := redis.GetChatEngine(chatIDString)
 
 	// send action to show that bot is working
