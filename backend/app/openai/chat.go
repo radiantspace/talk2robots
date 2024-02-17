@@ -35,7 +35,7 @@ const (
 	CHAT_GPT4_TURBO_INPUT_PRICE  = 0.01 / 1000
 	CHAT_GPT4_TURBO_OUTPUT_PRICE = 0.03 / 1000
 
-	CHARS_PER_TOKEN = 2.75 // average number of characters per token, must be tuned or moved to tiktoken
+	CHARS_PER_TOKEN = 2.0 // average number of characters per token, must be tuned or moved to tiktoken
 )
 
 // Complete completes text
