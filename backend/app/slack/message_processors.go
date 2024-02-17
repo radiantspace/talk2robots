@@ -93,6 +93,7 @@ func ProcessStreamingMessage(
 			}
 		case message := <-messageChannel:
 			log.Debugf("Sending message: %s, in chat: %s", message, channelId)
+			responseText = strings.TrimPrefix(responseText, "...")
 			responseText += message
 
 			if mode == lib.Grammar || mode == lib.Teacher || mode == lib.Emili || mode == lib.Vasilisa {

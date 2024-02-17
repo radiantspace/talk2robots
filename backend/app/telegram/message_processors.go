@@ -129,6 +129,7 @@ func ProcessStreamingMessage(
 			}
 		case message := <-messageChannel:
 			log.Debugf("Sending message: %s, in chat: %s", message, chatIDString)
+			responseText = strings.TrimPrefix(responseText, "...")
 			responseText += message
 		}
 	}
@@ -162,11 +163,11 @@ func ProcessThreadedMessage(
 
 	var threadRun *models.ThreadRunResponse
 	threadRunId := ""
-	threadId, err := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString)).Result()
+	threadId, _ := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString)).Result()
 	if threadId == "" {
 		log.Infof("No thread found for chat %s, creating new thread", chatIDString)
 
-		threadRun, err = BOT.API.CreateThreadAndRun(ctx, models.AssistantIdForModel(engineModel), &models.Thread{
+		threadRun, err := BOT.API.CreateThreadAndRun(ctx, models.AssistantIdForModel(engineModel), &models.Thread{
 			Messages: []models.Message{
 				{
 					Content: message.Text,
@@ -201,7 +202,7 @@ func ProcessThreadedMessage(
 		threadRunId = threadRun.ID
 	}
 
-	_, err = pollThreadRun(ctx, threadRun.ThreadID, chatIDString, threadRunId)
+	_, err := pollThreadRun(ctx, threadRun.ThreadID, chatIDString, threadRunId)
 	if err != nil {
 		log.Errorf("Failed to final poll thread run in chat %s: %s", chatIDString, err)
 		bot.SendMessage(tu.Message(chatID, OOPSIE))
