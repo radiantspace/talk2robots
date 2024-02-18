@@ -202,7 +202,7 @@ func ProcessThreadedMessage(
 		threadRunId = threadRun.ID
 	}
 
-	_, err := pollThreadRun(ctx, threadRun.ThreadID, chatIDString, threadRunId)
+	_, err := pollThreadRun(ctx, threadId, chatIDString, threadRunId)
 	if err != nil {
 		log.Errorf("Failed to final poll thread run in chat %s: %s", chatIDString, err)
 		bot.SendMessage(tu.Message(chatID, OOPSIE))
@@ -210,7 +210,7 @@ func ProcessThreadedMessage(
 	}
 
 	// get messages from thread
-	threadMessage, err := BOT.API.ListThreadMessagesForARun(ctx, threadRun.ThreadID, threadRunId)
+	threadMessage, err := BOT.API.ListThreadMessagesForARun(ctx, threadId, threadRunId)
 	if err != nil {
 		log.Errorf("Failed to get messages from thread in chat %s: %s", chatIDString, err)
 		bot.SendMessage(tu.Message(chatID, OOPSIE))
