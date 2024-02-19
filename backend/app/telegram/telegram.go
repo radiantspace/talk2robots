@@ -120,6 +120,17 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		return
 	}
 
+	mode := lib.GetMode(chatIDString)
+	// while in channels, only react to @mentions or audio messages in /transcribe mode
+	if message.Chat.Type == "channel" || message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
+		if mode == lib.Transcribe && message.Voice == nil && message.Audio == nil && message.Video == nil && message.VideoNote == nil && message.Document == nil {
+			return
+		}
+		if !strings.Contains(message.Text, "@"+BOT.Name+"bot") {
+			return
+		}
+	}
+
 	if message.Video != nil && strings.HasPrefix(message.Caption, string(SYSTEMSetOnboardingVideoCommand)) {
 		log.Infof("System command received: %+v", message) // audit
 		message.Text = string(SYSTEMSetOnboardingVideoCommand)
@@ -135,7 +146,6 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		return
 	}
 
-	mode := lib.GetMode(chatIDString)
 	if message.Text != "" {
 		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
 		if mode == lib.Transcribe {
