@@ -116,19 +116,19 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	// process commands
 	if message.Voice == nil && message.Audio == nil && message.Video == nil && message.VideoNote == nil && message.Document == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
+		if message.Chat.Type != "private" && !strings.Contains(message.Text, "@"+BOT.Name+"bot") {
+			log.Infof("Ignoring public command w/o @mention in channel: %s", chatIDString)
+			return
+		}
 		AllCommandHandlers.handleCommand(ctx, BOT, &message)
 		return
 	}
 
 	mode := lib.GetMode(chatIDString)
 	// while in channels, only react to @mentions or audio messages in /transcribe mode
-	if message.Chat.Type == "channel" || message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
-		if mode == lib.Transcribe && message.Voice == nil && message.Audio == nil && message.Video == nil && message.VideoNote == nil && message.Document == nil {
-			return
-		}
-		if !strings.Contains(message.Text, "@"+BOT.Name+"bot") {
-			return
-		}
+	if message.Chat.Type != "private" && mode != lib.Transcribe && !strings.Contains(message.Text, "@"+BOT.Name+"bot") {
+		log.Infof("Ignoring public message w/o @mention and not in transcribe mode in channel: %s", chatIDString)
+		return
 	}
 
 	if message.Video != nil && strings.HasPrefix(message.Caption, string(SYSTEMSetOnboardingVideoCommand)) {
