@@ -34,7 +34,7 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 			},
 			{
 				Percentage: 0.8,
-				Message:    "⚠️ You are 80%% through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
+				Message:    "⚠️ You are 80% through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
 			},
 			{
 				Percentage: 1.0,
@@ -50,7 +50,7 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 			},
 			{
 				Percentage: 0.8,
-				Message:    "⚠️ You are 80%% through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
+				Message:    "⚠️ You are 80% through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
 			},
 			{
 				Percentage: 1.0,
@@ -66,7 +66,7 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 			},
 			{
 				Percentage: 0.8,
-				Message:    "⚠️ You are 80%% through your paid monthly usage. Use /status to track your current usage.",
+				Message:    "⚠️ You are 80% through your paid monthly usage. Use /status to track your current usage.",
 			},
 			{
 				Percentage: 1.0,

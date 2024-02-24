@@ -126,7 +126,7 @@ func TestCheckThresholdsAndNotifyMaximum(t *testing.T) {
 	// Verify that the expected notification was sent
 	expectedNotifications := []string{
 		"⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
-		"⚠️ You are 80%% through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
+		"⚠️ You are 80% through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
 		"🚫 You have reached your free monthly usage limit. Further requests may not be served until the next month. If you find this bot useful, please consider an /upgrade to a paid plan.",
 	}
 	assert.Equal(t, expectedNotifications, notifications, "Unexpected notifications sent")
