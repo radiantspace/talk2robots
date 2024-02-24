@@ -43,7 +43,12 @@ func SetupUserAndContext(userId string, client ClientName, channelId string) (us
 	defaultSubscription := models.Subscriptions[currentSubscriptionName]
 	user, err = mongo.MongoDBClient.GetUser(currentContext)
 	if err != nil {
-		log.Warnf("Failed to get a user (%s): %v", userId, err)
+		if err.Error() == "mongo: no documents in result" {
+			log.Infof("User %s not found, creating a new one", userId)
+		} else {
+			log.Errorf("Failed to get a user (%s): %v", userId, err)
+			return nil, nil, nil, err
+		}
 	}
 	// No user found, create a new one
 	if user == nil || user.SubscriptionType.Name == "" {
@@ -66,8 +71,8 @@ func ValidateUserUsage(ctx context.Context) bool {
 	currentSubscription := models.Subscriptions[currentSubscriptionName]
 	if currentSubscription.MaximumUsage > 0 {
 		userTotalCost, err := redis.RedisClient.Get(context.Background(), UserTotalCostKey(userId)).Float64()
-		if err != nil {
-			log.Warnf("Error getting user %s total cost: %v", userId, err)
+		if err != nil && err.Error() != "redis: nil" {
+			log.Errorf("Error getting user %s total cost: %v", userId, err)
 		}
 		if userTotalCost >= currentSubscription.MaximumUsage {
 			log.Infof("User %s usage limit exceeded", userId)

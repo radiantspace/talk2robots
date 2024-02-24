@@ -145,8 +145,8 @@ func CheckThresholdsAndNotify(ctx context.Context, incomingCost float64) {
 	user := ctx.Value(models.UserContext{}).(string)
 	client := ctx.Value(models.ClientContext{}).(string)
 	currentCost, err := redis.RedisClient.Get(context.Background(), lib.UserTotalCostKey(user)).Float64()
-	if err != nil {
-		log.Warnf("CheckThresholdsAndNotify: error getting user %s total cost: %s", user, err)
+	if err != nil && err.Error() != "redis: nil" {
+		log.Errorf("CheckThresholdsAndNotify: error getting user %s total cost: %s", user, err)
 	}
 	mongoUser, err := mongo.MongoDBClient.GetUser(ctx)
 	if err != nil {
