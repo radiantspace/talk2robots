@@ -350,6 +350,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 }
 
 func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Message) string {
+	startTime := time.Now()
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
 
@@ -399,7 +400,8 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 		temporaryFileExtension = ".oga"
 	}
 	sourceFile := "/data/" + temporaryFileName + temporaryFileExtension
-	whisperFile := "/data/" + temporaryFileName + ".ogg"
+	whisperFileExtension := ".ogg"
+	whisperFile := "/data/" + temporaryFileName + whisperFileExtension
 
 	// save response.Body to a temporary file
 	f, err := os.Create(sourceFile)
@@ -417,7 +419,7 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 		return ""
 	}
 
-	// convert .oga audio format into one of ['m4a', 'mp3', 'webm', 'mp4', 'mpga', 'wav', 'mpeg']
+	// convert .oga audio format into one of ['m4a', 'mp3', 'webm', 'mp4', 'mpga', 'wav', 'mpeg', 'ogg']
 	duration, err := converters.ConvertWithFFMPEG(sourceFile, whisperFile)
 	defer safeOsDelete(whisperFile)
 	if err != nil {
@@ -425,9 +427,11 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 		return ""
 	}
 	log.Infof("Parsed voice message in chat %s, duration: %s", chatIDString, duration)
+	config.CONFIG.DataDogClient.Timing("transcribe.ffmpeg", time.Since(startTime), []string{"format:" + temporaryFileExtension}, 1)
+	config.CONFIG.DataDogClient.Timing("transcribe.ffmpeg.per_duration", time.Since(startTime), []string{"format:" + temporaryFileExtension}, duration.Seconds())
 
 	// read the converted file
-	webmBuffer, err := os.ReadFile(whisperFile)
+	whisperBuffer, err := os.ReadFile(whisperFile)
 	if err != nil {
 		log.Errorf("Error reading voice message in chat %s: %v", chatIDString, err)
 		return ""
@@ -437,8 +441,11 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 	whisper.Whisper(
 		context.WithValue(ctx, models.WhisperDurationContext{}, duration),
 		BOT.WhisperConfig,
-		io.NopCloser(bytes.NewReader(webmBuffer)),
-		temporaryFileName+".webm")
+		io.NopCloser(bytes.NewReader(whisperBuffer)),
+		temporaryFileName+whisperFileExtension)
+
+	config.CONFIG.DataDogClient.Timing("transcribe.total", time.Since(startTime), []string{"format:" + temporaryFileExtension}, 1)
+	config.CONFIG.DataDogClient.Timing("transcribe.total.per_duration", time.Since(startTime), []string{"format:" + temporaryFileExtension}, duration.Seconds())
 
 	if whisper.Transcript().Text == "" {
 		log.Warnf("Failed to transcribe voice message in chat %s from %s, size %d", chatIDString, fileData.FilePath, fileData.FileSize)
