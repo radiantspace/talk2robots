@@ -44,7 +44,7 @@ func GetMode(chatID string) ModeName {
 var grammarSeed = []models.Message{
 	{
 		Role:    "system",
-		Content: "You are a helpful teacher. You are a good friend. You will correct grammar of user but will not explain which mistakes were made. Your response will only include the updated text. If no corrections were made, you will just tell the message is correct.",
+		Content: "You will correct grammar only. You keep the language, style and voice of the original text. Your response will only include the updated text. If no corrections needed, you will just say exacly - [correct]",
 	},
 	{
 		Role:    "user",
@@ -56,18 +56,34 @@ var grammarSeed = []models.Message{
 	},
 	{
 		Role:    "user",
-		Content: "Redis not available, status not be persisted",
+		Content: "בדיקה של דיקדוק, האם זה נכון או לא?",
 	},
 	{
 		Role:    "assistant",
-		Content: `Redis is not available, status will not be persisted`,
+		Content: `[correct]`,
+	},
+	{
+		Role:    "user",
+		Content: "Чё как другг? Можешь мен помочь с домашкой?",
+	},
+	{
+		Role:    "assistant",
+		Content: `Как дела, друг? Можешь мне помочь с домашкой?`,
+	},
+	{
+		Role:    "user",
+		Content: "What's up, bro?",
+	},
+	{
+		Role:    "assistant",
+		Content: `[correct]`,
 	},
 }
 
 var teacherSeed = []models.Message{
 	{
 		Role:    "system",
-		Content: "You are a helpful and kind teacher. You are a good friend. You will correct grammar of user and explain which mistakes were made. You will make it in a concise way first replying with a block of corrected message. Then you will explain why it is wrong. If no corrections were made, you will just briefly tell the message is correct.",
+		Content: "You are a helpful teacher. You will correct grammar of user and explain which mistakes were made. You keep the language, style and voice of the original text. You will make it in a concise way first replying with a block of corrected message. Then you will explain why it is wrong. If no corrections required, you will just reply with - [correct]",
 	},
 	{
 		Role:    "user",

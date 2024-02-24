@@ -74,13 +74,34 @@ func ProcessStreamingMessage(
 	defer func() {
 		log.Infof("Finalizing message for streaming connection for chat: %s", chatIDString)
 		ticker.Stop()
-		finalMessageParams := telego.EditMessageTextParams{
-			ChatID:      chatID,
-			MessageID:   responseMessage.MessageID,
-			Text:        responseText,
-			ReplyMarkup: getLikeDislikeReplyMarkup(),
+		finalMessageString := postprocessMessage(responseText, mode, userMessagePrimer)
+
+		if finalMessageString == "✅" {
+			// if the final message is just a checkmark, delete response and add thumbs up reaction to original message
+			err = bot.DeleteMessage(&telego.DeleteMessageParams{
+				ChatID:    chatID,
+				MessageID: responseMessage.MessageID,
+			})
+			if err != nil {
+				log.Errorf("Failed to delete message in chat: %s, %v", chatIDString, err)
+			}
+			err = bot.SetMessageReaction(&telego.SetMessageReactionParams{
+				ChatID:    chatID,
+				MessageID: message.MessageID,
+				Reaction:  []telego.ReactionType{&telego.ReactionTypeEmoji{Type: "emoji", Emoji: "👍"}},
+			})
+			if err != nil {
+				log.Errorf("Failed to add reaction to message in chat: %s, %v", chatIDString, err)
+			}
+		} else {
+			finalMessageParams := telego.EditMessageTextParams{
+				ChatID:      chatID,
+				MessageID:   responseMessage.MessageID,
+				Text:        finalMessageString,
+				ReplyMarkup: getLikeDislikeReplyMarkup(),
+			}
+			_, err = bot.EditMessageText(&finalMessageParams)
 		}
-		_, err = bot.EditMessageText(&finalMessageParams)
 		if err != nil {
 			log.Errorf("Failed to add reply markup to message in chat: %s, %v", chatIDString, err)
 		}
@@ -95,11 +116,7 @@ func ProcessStreamingMessage(
 				continue
 			}
 			previousMessageLength = len(responseText)
-			trimmedResponseText := strings.TrimPrefix(responseText, "...")
-			if mode == lib.Teacher || mode == lib.Grammar {
-				// drop primer from response if it was used
-				trimmedResponseText = strings.TrimPrefix(responseText, userMessagePrimer)
-			}
+			trimmedResponseText := postprocessMessage(responseText, mode, userMessagePrimer)
 
 			var nextMessageObject *telego.Message
 			if len(trimmedResponseText) > 4000 {
@@ -234,12 +251,8 @@ func ProcessThreadedMessage(
 		totalContent += "\n"
 	}
 
-	backgroundContext := context.WithValue(context.Background(), models.UserContext{}, ctx.Value(models.UserContext{}).(string))
-	backgroundContext = context.WithValue(backgroundContext, models.SubscriptionContext{}, ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName))
-	backgroundContext = context.WithValue(backgroundContext, models.ClientContext{}, ctx.Value(models.ClientContext{}).(string))
-	backgroundContext = context.WithValue(backgroundContext, models.ChannelContext{}, ctx.Value(models.ChannelContext{}).(string))
 	usage.Usage.TotalTokens = usage.Usage.PromptTokens + usage.Usage.CompletionTokens
-	go payments.Bill(backgroundContext, usage)
+	go payments.Bill(ctx, usage)
 
 	if mode != lib.VoiceGPT {
 		ChunkSendMessage(bot, chatID, totalContent)
@@ -250,6 +263,7 @@ func ProcessThreadedMessage(
 
 func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *telego.Message, seedData []models.Message, userMessagePrimer string, mode lib.ModeName, engineModel models.Engine) {
 	chatID := util.GetChatID(message)
+	isPrivate := message.Chat.Type == "private"
 	response, err := BOT.API.ChatComplete(ctx, models.ChatCompletion{
 		Model: string(engineModel),
 		Messages: []models.Message(append(
@@ -261,14 +275,28 @@ func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *t
 		)),
 	})
 	if err != nil {
-		log.Errorf("Failed get response from Open AI: %s", err)
-		bot.SendMessage(tu.Message(chatID, OOPSIE))
+		log.Errorf("Failed get response from Open AI in chat %s: %s", chatID, err)
+
+		if isPrivate {
+			bot.SendMessage(tu.Message(chatID, OOPSIE))
+		}
 		return
 	}
 
 	if mode == lib.Teacher || mode == lib.Grammar {
-		// drop primer from response if it was used
-		response = strings.TrimPrefix(response, userMessagePrimer)
+		if strings.Contains(response, "[correct]") {
+			log.Infof("Correct message in chat %s 👍", chatID)
+			err = bot.SetMessageReaction(&telego.SetMessageReactionParams{
+				ChatID:    chatID,
+				MessageID: message.MessageID,
+				Reaction:  []telego.ReactionType{&telego.ReactionTypeEmoji{Type: "emoji", Emoji: "👍"}},
+			})
+			if err != nil {
+				log.Errorf("Failed to set reaction for message in chat %s: %s", chatID, err)
+			}
+			return
+		}
+		response = postprocessMessage(response, mode, userMessagePrimer)
 
 		// split response into two parts: corrected message and explanation, using Explanation: as a separator
 		separator := "Explanation:"
@@ -499,4 +527,16 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, 
 			continue
 		}
 	}
+}
+
+func postprocessMessage(message string, mode lib.ModeName, userMessagePrimer string) string {
+	trimmedResponseText := strings.TrimPrefix(message, "...")
+	if mode == lib.Teacher || mode == lib.Grammar {
+		// drop primer from response if it was used
+		trimmedResponseText = strings.TrimPrefix(trimmedResponseText, userMessagePrimer)
+
+		// change [correct] to ✅
+		trimmedResponseText = strings.ReplaceAll(trimmedResponseText, "[correct]", "✅")
+	}
+	return trimmedResponseText
 }

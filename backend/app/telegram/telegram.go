@@ -47,6 +47,15 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create bot: %w", err)
 	}
+
+	botInfo, err := bot.GetMe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get bot info: %w", err)
+	} else {
+		log.Infof("Bot info: %+v", botInfo)
+		cfg.BotName = botInfo.Username
+	}
+
 	setupCommandHandlers()
 	updates, err := signBotForUpdates(bot, rtr)
 	if err != nil {
@@ -102,6 +111,7 @@ func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Updat
 func handleMessage(bot *telego.Bot, message telego.Message) {
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
+	isPrivate := message.Chat.Type == "private"
 	_, ctx, cancelContext, err := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString)
 	if err != nil {
 		if err == lib.ErrUserBanned {
@@ -116,7 +126,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	// process commands
 	if message.Voice == nil && message.Audio == nil && message.Video == nil && message.VideoNote == nil && message.Document == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
-		if message.Chat.Type != "private" && !strings.Contains(message.Text, "@"+BOT.Name+"bot") {
+		if !isPrivate && !strings.Contains(message.Text, "@"+BOT.Name) {
 			log.Infof("Ignoring public command w/o @mention in channel: %s", chatIDString)
 			return
 		}
@@ -125,9 +135,12 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	}
 
 	mode := lib.GetMode(chatIDString)
-	// while in channels, only react to @mentions or audio messages in /transcribe mode
-	if message.Chat.Type != "private" && mode != lib.Transcribe && !strings.Contains(message.Text, "@"+BOT.Name+"bot") {
-		log.Infof("Ignoring public message w/o @mention and not in transcribe mode in channel: %s", chatIDString)
+	// while in channels, only react to
+	// 1. @mentions
+	// 2. audio messages in /transcribe mode
+	// 3. /grammar fixes
+	if !isPrivate && mode != lib.Transcribe && mode != lib.Grammar && !strings.Contains(message.Text, "@"+BOT.Name) {
+		log.Infof("Ignoring public message w/o @mention and not in transcribe or grammar mode in channel: %s", chatIDString)
 		return
 	}
 
@@ -149,7 +162,9 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	if message.Text != "" {
 		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
 		if mode == lib.Transcribe {
-			bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
+			if isPrivate {
+				bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
+			}
 			return
 		}
 	}
@@ -193,7 +208,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 			return
 		}
 
-		if mode != lib.VoiceGPT {
+		if mode != lib.VoiceGPT && !(mode == lib.Grammar && !isPrivate) {
 			ChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
 		}
 	}
@@ -217,7 +232,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	}
 	if mode == lib.ChatGPT || mode == lib.VoiceGPT {
 		ProcessThreadedMessage(ctx, bot, &message, mode, engineModel)
-	} else if mode == lib.Summarize || mode == lib.Grammar {
+	} else if mode == lib.Summarize || (mode == lib.Grammar && isPrivate) {
 		ProcessStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel, cancelContext)
 	} else {
 		ProcessNonStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel)
@@ -226,8 +241,9 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	userId := callbackQuery.From.ID
-	chatId := callbackQuery.Message.Chat.ID
-	chatType := callbackQuery.Message.Chat.Type
+	chat := callbackQuery.Message.GetChat()
+	chatId := chat.ID
+	chatType := chat.Type
 	log.Infof("Received callback query: %s, for user: %d in chat %d", callbackQuery.Data, userId, chatId)
 	config.CONFIG.DataDogClient.Incr("telegram.callback_query", []string{"data:" + callbackQuery.Data, "channel_type:" + chatType}, 1)
 	switch callbackQuery.Data {
@@ -255,21 +271,23 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 }
 
 func handleCommandsInCallbackQuery(callbackQuery telego.CallbackQuery) {
-	chatIDString := fmt.Sprint(callbackQuery.Message.Chat.ID)
+	chat := callbackQuery.Message.GetChat()
+	chatIDString := fmt.Sprint(chat.ID)
 	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
 	ctx = context.WithValue(ctx, models.ClientContext{}, "telegram")
 	message := telego.Message{
-		Chat: telego.Chat{ID: callbackQuery.Message.Chat.ID},
+		Chat: telego.Chat{ID: chat.ID},
 		Text: "/" + callbackQuery.Data,
 	}
 	AllCommandHandlers.handleCommand(ctx, BOT, &message)
 }
 
 func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
+	chat := callbackQuery.Message.GetChat()
 	chatID := callbackQuery.From.ID
-	if callbackQuery.Message != nil && callbackQuery.Message.Chat.ID != chatID {
-		log.Infof("Callback query message in chat ID: %d, user ID: %d", callbackQuery.Message.Chat.ID, chatID)
-		chatID = callbackQuery.Message.Chat.ID
+	if callbackQuery.Message != nil && chat.ID != chatID {
+		log.Infof("Callback query message in chat ID: %d, user ID: %d", chat.ID, chatID)
+		chatID = chat.ID
 	}
 	chatIDString := fmt.Sprint(chatID)
 	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
@@ -379,7 +397,7 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 		temporaryFileExtension = ".oga"
 	}
 	sourceFile := "/data/" + temporaryFileName + temporaryFileExtension
-	webmFile := "/data/" + temporaryFileName + ".webm"
+	whisperFile := "/data/" + temporaryFileName + ".ogg"
 
 	// save response.Body to a temporary file
 	f, err := os.Create(sourceFile)
@@ -398,8 +416,8 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 	}
 
 	// convert .oga audio format into one of ['m4a', 'mp3', 'webm', 'mp4', 'mpga', 'wav', 'mpeg']
-	duration, err := converters.ConvertWithFFMPEG(sourceFile, webmFile)
-	defer safeOsDelete(webmFile)
+	duration, err := converters.ConvertWithFFMPEG(sourceFile, whisperFile)
+	defer safeOsDelete(whisperFile)
 	if err != nil {
 		log.Errorf("Error converting voice message in chat %s: %v", chatIDString, err)
 		return ""
@@ -407,7 +425,7 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 	log.Infof("Parsed voice message in chat %s, duration: %s", chatIDString, duration)
 
 	// read the converted file
-	webmBuffer, err := os.ReadFile(webmFile)
+	webmBuffer, err := os.ReadFile(whisperFile)
 	if err != nil {
 		log.Errorf("Error reading voice message in chat %s: %v", chatIDString, err)
 		return ""

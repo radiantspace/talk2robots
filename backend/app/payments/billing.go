@@ -76,7 +76,11 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 	},
 }
 
-func Bill(ctx context.Context, usage models.CostAndUsage) models.CostAndUsage {
+func Bill(originalContext context.Context, usage models.CostAndUsage) models.CostAndUsage {
+	ctx := context.WithValue(context.Background(), models.UserContext{}, originalContext.Value(models.UserContext{}).(string))
+	ctx = context.WithValue(ctx, models.SubscriptionContext{}, originalContext.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName))
+	ctx = context.WithValue(ctx, models.ClientContext{}, originalContext.Value(models.ClientContext{}).(string))
+	ctx = context.WithValue(ctx, models.ChannelContext{}, originalContext.Value(models.ChannelContext{}).(string))
 	defer ctx.Done()
 	usage.Cost =
 		float64(usage.Usage.PromptTokens)*usage.PricePerInputUnit +
@@ -142,12 +146,11 @@ func CheckThresholdsAndNotify(ctx context.Context, incomingCost float64) {
 	client := ctx.Value(models.ClientContext{}).(string)
 	currentCost, err := redis.RedisClient.Get(context.Background(), lib.UserTotalCostKey(user)).Float64()
 	if err != nil {
-		log.Errorf("CheckThresholdsAndNotify: error getting user total cost: %s", err)
-		return
+		log.Warnf("CheckThresholdsAndNotify: error getting user %s total cost: %s", user, err)
 	}
 	mongoUser, err := mongo.MongoDBClient.GetUser(ctx)
 	if err != nil {
-		log.Errorf("CheckThresholdsAndNotify: error getting user from mongo: %s", err)
+		log.Errorf("CheckThresholdsAndNotify: error getting user %s from mongo: %s", user, err)
 		return
 	}
 	// check if subscription name is in map

@@ -20,7 +20,7 @@ import (
 
 type Command string
 
-var EMILY_BIRTHDAY = time.Date(2023, 5, 25, 0, 18, 0, 0, time.FixedZone("UTC+3", 3*60*60))
+var EMILY_BIRTHDAY = time.Date(2023, 5, 25, 0, 18, 0, 0, time.FixedZone("UTC+2", 3*60*60))
 var VASILISA_BIRTHDAY = time.Date(2007, 12, 13, 23, 45, 0, 0, time.FixedZone("UTC+3", 3*60*60))
 var ONBOARDING_TEXT = `Hi, I'm a bot powered by OpenAI! I can:
 - Default 🧠: chat with or answer any questions (/chatgpt)
@@ -153,7 +153,9 @@ func newCommandHandler(command Command, handler func(context.Context, *Bot, *tel
 
 func (c CommandHandlers) handleCommand(ctx context.Context, bot *Bot, message *telego.Message) {
 	commandArray := strings.Split(message.Text, " ")
-	command := Command(strings.ReplaceAll(commandArray[0], "@"+bot.Name+"bot", ""))
+	commandString := strings.ReplaceAll(commandArray[0], "@"+bot.Name+"bot", "")
+	commandString = strings.ReplaceAll(commandString, "@"+bot.Name, "")
+	command := Command(commandString)
 
 	commandHandler := c.getCommandHandler(command)
 	if commandHandler != nil {

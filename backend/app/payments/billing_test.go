@@ -35,6 +35,8 @@ func TestBill(t *testing.T) {
 	)
 	ctx := context.WithValue(context.Background(), models.UserContext{}, "123")
 	ctx = context.WithValue(ctx, models.ClientContext{}, "telegram")
+	ctx = context.WithValue(ctx, models.ChannelContext{}, "123")
+	ctx = context.WithValue(ctx, models.SubscriptionContext{}, models.FreeSubscriptionName)
 
 	usage := models.CostAndUsage{
 		Usage: models.Usage{

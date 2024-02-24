@@ -34,16 +34,16 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
+	env := util.Env("ENV", "dev")
 	dataDogClient, err := statsd.New("datadog-agent.default.svc.cluster.local:8125", statsd.WithNamespace("talk2robots."))
-	if err != nil {
+	if err != nil && env == "production" {
 		log.Fatalf("error creating main DataDog client: %v", err)
 	}
 
 	config.CONFIG = &config.Config{
-		BotName:       "gienji",
 		BotUrl:        "https://t.me/gienjibot",
 		DataDogClient: dataDogClient,
-		Environment:   util.Env("ENV", "dev"),
+		Environment:   env,
 		OpenAIAPIKey:  util.Env("OPENAI_API_KEY"),
 		Redis: config.Redis{
 			Host:     util.Env("REDIS_HOST"),
@@ -133,12 +133,14 @@ func main() {
 
 	// create system bot for alerts, etc
 	var systemBot *telegram.Bot
-	if config.CONFIG.TelegramSystemBotToken != "" {
+	if env == "production" {
 		systemBot, err = telegram.NewSystemBot(rtr, config.CONFIG)
 		if err != nil && config.CONFIG.Environment != "production" {
 			log.Errorf("ERROR creating system bot: %v, creating stub bot instead", err)
 			systemBot = telegram.NewStubSystemBot(config.CONFIG)
 		}
+	} else {
+		systemBot = telegramBot
 	}
 
 	// run onstart worker once

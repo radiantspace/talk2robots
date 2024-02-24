@@ -67,7 +67,7 @@ func ValidateUserUsage(ctx context.Context) bool {
 	if currentSubscription.MaximumUsage > 0 {
 		userTotalCost, err := redis.RedisClient.Get(context.Background(), UserTotalCostKey(userId)).Float64()
 		if err != nil {
-			log.Errorf("Error getting user total cost: %s", err)
+			log.Warnf("Error getting user %s total cost: %v", userId, err)
 		}
 		if userTotalCost >= currentSubscription.MaximumUsage {
 			log.Infof("User %s usage limit exceeded", userId)

@@ -68,6 +68,8 @@ func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
 	}
 	openAIContext := context.WithValue(context.Background(), models.UserContext{}, "SYSTEM:STATUS")
 	openAIContext = context.WithValue(openAIContext, models.ClientContext{}, "none")
+	openAIContext = context.WithValue(openAIContext, models.SubscriptionContext{}, models.FreeSubscriptionName)
+	openAIContext = context.WithValue(openAIContext, models.ChannelContext{}, "none")
 	status := SystemStatus{
 		MongoDB: &Status{
 			Available: mongoAvailable,

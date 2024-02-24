@@ -159,12 +159,8 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 			close(messages)
 			cancelContext()
 
-			backgroundContext := context.WithValue(context.Background(), models.UserContext{}, ctx.Value(models.UserContext{}).(string))
-			backgroundContext = context.WithValue(backgroundContext, models.SubscriptionContext{}, ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName))
-			backgroundContext = context.WithValue(backgroundContext, models.ClientContext{}, ctx.Value(models.ClientContext{}).(string))
-			backgroundContext = context.WithValue(backgroundContext, models.ChannelContext{}, ctx.Value(models.ChannelContext{}).(string))
 			usage.Usage.TotalTokens = usage.Usage.PromptTokens + usage.Usage.CompletionTokens
-			go payments.Bill(backgroundContext, usage)
+			go payments.Bill(ctx, usage)
 			config.CONFIG.DataDogClient.Timing("openai.chat_complete_streaming.latency", time.Since(timeNow), []string{"model:" + completion.Model}, 1)
 			config.CONFIG.DataDogClient.Timing("openai.chat_complete_streaming.latency_per_token", time.Since(timeNow), []string{"model:" + completion.Model}, float64(usage.Usage.CompletionTokens))
 		}()
