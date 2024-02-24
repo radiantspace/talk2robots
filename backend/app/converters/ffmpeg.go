@@ -10,21 +10,26 @@ import (
 )
 
 func ConvertWithFFMPEG(inputFile string, outputFile string) (duration time.Duration, err error) {
-	// -vn -map_metadata -1 -ac 1 -c:a libopus -b:a 12k -application voip
-	cmd := exec.Command("ffmpeg", "-i", inputFile, "-af", "silencedetect=n=-50dB:d=1", "-map", "a", "-q:a", "0", "-ac", "1", "-c:a", "libopus", "-b:a", "12k", "-application", "voip", outputFile)
+	var cmd *exec.Cmd
+	if strings.HasSuffix(inputFile, ".oga") {
+		// don't change the bitrate for .oga files, i.e. voice messages from Telegram
+		cmd = exec.Command("ffmpeg", "-i", inputFile, "-af", "silencedetect=n=-50dB:d=1", "-map", "a", "-q:a", "0", "-ac", "1", "-c:a", "libopus", outputFile)
+	} else {
+		cmd = exec.Command("ffmpeg", "-i", inputFile, "-af", "silencedetect=n=-50dB:d=1", "-map", "a", "-q:a", "0", "-ac", "1", "-c:a", "libopus", "-b:a", "12k", outputFile)
+	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return 0, fmt.Errorf("failed to convert %s to %s: %s\n%s", inputFile, outputFile, err, output)
+		return 0, fmt.Errorf("failed to convert %s to %s: %v\n%s", inputFile, outputFile, err, output)
 	}
 	outputStr := string(output)
 	if outputStr == "" && err != nil {
-		logrus.Errorf("failed to get duration of %s, output: %s, error: %s", outputFile, outputStr, err)
+		logrus.Errorf("failed to get duration of %s, output: %s, error: %v", outputFile, outputStr, err)
 		return 0, nil
 	}
 
 	duration, err = ParseDuration(outputStr)
 	if err != nil {
-		logrus.Errorf("failed to parse duration %s: %s", outputStr, err)
+		logrus.Errorf("failed to parse duration %s: %v", outputStr, err)
 		return 0, nil
 	}
 	return duration, nil
@@ -43,7 +48,7 @@ func ParseDuration(outputStr string) (duration time.Duration, err error) {
 	}
 	parsedTime, err := time.Parse("15:04:05.99", durationStr)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse time %s: %s", durationStr, err)
+		return 0, fmt.Errorf("failed to parse time %s: %v", durationStr, err)
 	}
 	dayOnly := time.Date(parsedTime.Year(), parsedTime.Month(), parsedTime.Day(), 0, 0, 0, 0, parsedTime.Location())
 	return parsedTime.Sub(dayOnly), nil

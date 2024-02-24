@@ -159,16 +159,6 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		return
 	}
 
-	if message.Text != "" {
-		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
-		if mode == lib.Transcribe {
-			if isPrivate {
-				bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
-			}
-			return
-		}
-	}
-
 	voiceTranscriptionText := ""
 	// if the message is voice/audio/video message, process it to upload to WhisperAI API and get the transcription
 	if message.Voice != nil || message.Audio != nil || message.Video != nil || message.VideoNote != nil || message.Document != nil {
@@ -210,6 +200,18 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 		if mode != lib.VoiceGPT && !(mode == lib.Grammar && !isPrivate) {
 			ChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
+		}
+	}
+
+	if message.Text != "" {
+		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
+		if mode == lib.Transcribe {
+			if isPrivate {
+				bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
+			} else {
+				log.Infof("Ignoring text message in /transcribe mode in channel: %s", chatIDString)
+			}
+			return
 		}
 	}
 
