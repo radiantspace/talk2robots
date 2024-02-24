@@ -154,7 +154,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	// user usage exceeded monthly limit, send message and return
 	ok := lib.ValidateUserUsage(ctx)
 	if !ok {
-		bot.SendMessage(tu.Message(chatID, "Your monthly usage limit has been exceeded. Check /status and /upgrade your subscription to continue using the bot."))
+		bot.SendMessage(tu.Message(chatID, "Your monthly usage limit has been exceeded. Check /status and /upgrade your subscription to continue using the bot. The limits are reset on the 1st of every month."))
 		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
 		return
 	}
