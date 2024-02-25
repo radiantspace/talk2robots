@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -43,15 +44,16 @@ func SetupUserAndContext(userId string, client ClientName, channelId string) (us
 	defaultSubscription := models.Subscriptions[currentSubscriptionName]
 	user, err = mongo.MongoDBClient.GetUser(currentContext)
 	if err != nil {
-		if err.Error() == "mongo: no documents in result" {
+		if strings.Contains(err.Error(), "mongo: no documents in result") {
 			log.Infof("User %s not found, creating a new one", userId)
 		} else {
 			log.Errorf("Failed to get a user (%s): %v", userId, err)
 			return nil, nil, nil, err
 		}
 	}
-	// No user found, create a new one
+
 	if user == nil || user.SubscriptionType.Name == "" {
+		// No user found, create a new one
 		config.CONFIG.DataDogClient.Incr("new_user", []string{"client:" + string(client)}, 1)
 		err = mongo.MongoDBClient.UpdateUserSubscription(currentContext, defaultSubscription)
 		if err != nil {

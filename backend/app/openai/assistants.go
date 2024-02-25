@@ -37,6 +37,7 @@ func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRe
 - Mode to /summarize text/voice/audio/video messages
 			
 You can only remember context in /chatgpt and /voicegpt modes, use /clear command to cleanup context memory (to avoid increased cost)
+/status to check usage limits, consumed tokens and audio transcription minutes
 			
 To use any of the modes user has to send respective /{command}.
 			
