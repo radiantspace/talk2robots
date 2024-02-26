@@ -13,7 +13,7 @@ import (
 
 func GetUserStatus(ctx context.Context) string {
 	userIdString := ctx.Value(models.UserContext{}).(string)
-	mode := string(lib.GetMode(userIdString))
+	mode, _ := lib.GetMode(userIdString)
 	subscriptionName := ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName)
 	subscription := models.Subscriptions[subscriptionName]
 	usage := GetUserUsage(userIdString)

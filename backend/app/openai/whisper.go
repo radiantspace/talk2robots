@@ -159,6 +159,10 @@ func (uw *whisper) onWhispered(reader io.Reader, fileName string) (string, error
 	// 	}
 	// 	writer.WriteField("language", language)
 	// }
+	params := uw.ctx.Value(models.ParamsContext{}).(string)
+	if params != "" {
+		writer.WriteField("language", params)
+	}
 
 	if uw.WhisperConfig.Prompt != "" {
 		writer.WriteField("prompt", uw.WhisperConfig.Prompt)

@@ -5,3 +5,4 @@ type UserContext struct{}
 type ClientContext struct{}
 type ChannelContext struct{}
 type WhisperDurationContext struct{}
+type ParamsContext struct{}

@@ -178,8 +178,13 @@ func (c CommandHandlers) getCommandHandler(command Command) *CommandHandler {
 
 func getModeHandlerFunction(mode lib.ModeName, response string) func(context.Context, *Bot, *telego.Message) {
 	return func(ctx context.Context, bot *Bot, message *telego.Message) {
+		messageArray := strings.Split(message.Text, " ")
+		params := ""
+		if len(messageArray) > 1 {
+			params = validateParams(mode, messageArray[1])
+		}
 		bot.SendMessage(tu.Message(util.GetChatID(message), response))
-		lib.SaveMode(util.GetChatIDString(message), mode)
+		lib.SaveMode(util.GetChatIDString(message), mode, params)
 	}
 }
 
@@ -348,4 +353,28 @@ func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Me
 	if err != nil {
 		log.Errorf("Failed to send ClearThreadCommand message: %v", err)
 	}
+}
+
+func validateParams(mode lib.ModeName, params string) string {
+	if params == "" {
+		return ""
+	}
+
+	if mode == lib.VoiceGPT || mode == lib.Transcribe || mode == lib.Grammar || mode == lib.ChatGPT || mode == lib.Summarize {
+		// params expected to be language code for now
+		params = strings.ToLower(params)
+
+		// validate language code
+		switch params {
+		case "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh":
+			return params
+		case "afrikaans", "amharic", "arabic", "assamese", "azerbaijani", "bashkir", "belarusian", "bengali", "tibetan", "breton", "bosnian", "catalan", "czech", "welsh", "danish", "german", "greek", "english", "spanish", "estonian", "basque", "persian", "finnish", "faroese", "french", "galician", "gujarati", "hausa", "hebrew", "hindi", "croatian", "haitian", "hungarian", "armenian", "indonesian", "icelandic", "italian", "japanese", "javanese", "georgian", "kazakh", "khmer", "kannada", "korean", "latin", "luxembourgish", "lingala", "lao", "lithuanian", "latvian", "malagasy", "maori", "macedonian", "malayalam", "mongolian", "marathi", "malay", "maltese", "burmese", "nepali", "dutch", "norwegian", "occitan", "punjabi", "polish", "pashto", "portuguese", "romanian", "russian", "sanskrit", "sindhi", "sinhala", "slovak", "slovenian", "shona", "somali", "albanian", "serbian", "sundanese", "swedish", "swahili", "tamil", "telugu", "tajik", "thai", "turkmen", "filipino", "turkish", "tatar", "ukrainian", "urdu", "uzbek", "vietnamese", "yiddish", "yoruba", "chinese":
+			return params
+		default:
+			log.Warnf("Invalid params %s used for mode %s", params, mode)
+			return ""
+		}
+	}
+
+	return ""
 }

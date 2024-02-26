@@ -2,6 +2,7 @@ package lib
 
 import (
 	"context"
+	"strings"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/models"
 	"time"
@@ -22,23 +23,30 @@ const (
 	Summarize  ModeName = "summarize"
 )
 
-func SaveMode(chatID string, mode ModeName) {
-	log.Info("Setting mode to ", string(mode), " for chat ", chatID)
-	redis.RedisClient.Set(context.Background(), chatID+":mode", string(mode), time.Hour*24*30)
+func SaveMode(chatID string, mode ModeName, params string) {
+	log.Infof("Setting mode to %s for chat %s with params %s", mode, chatID, params)
+	redis.RedisClient.Set(context.Background(), chatID+":mode", string(mode)+","+params, time.Hour*24*30)
 }
 
-func GetMode(chatID string) ModeName {
-	mode, err := redis.RedisClient.Get(context.Background(), chatID+":mode").Result()
+func GetMode(chatID string) (mode ModeName, params string) {
+	modeAndParams, err := redis.RedisClient.Get(context.Background(), chatID+":mode").Result()
 	if err != nil {
 		log.Info("No mode set for chat ", chatID, ", setting to default")
-		SaveMode(chatID, ChatGPT)
-		return ChatGPT
+		SaveMode(chatID, ChatGPT, "")
+		return ChatGPT, ""
 	}
+	modeAndParamsArray := strings.Split(modeAndParams, ",")
+	modeString := modeAndParamsArray[0]
+
+	if len(modeAndParamsArray) > 1 {
+		params = modeAndParamsArray[1]
+	}
+
 	// once ChatGPT mode was called "free"
-	if mode == "free" {
-		return ChatGPT
+	if modeString == "free" {
+		return ChatGPT, ""
 	}
-	return ModeName(mode)
+	return ModeName(modeString), params
 }
 
 var grammarSeed = []models.Message{

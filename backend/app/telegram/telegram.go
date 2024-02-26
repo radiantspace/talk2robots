@@ -134,7 +134,8 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		return
 	}
 
-	mode := lib.GetMode(chatIDString)
+	mode, params := lib.GetMode(chatIDString)
+	ctx = context.WithValue(ctx, models.ParamsContext{}, params)
 	// while in channels, only react to
 	// 1. @mentions
 	// 2. audio messages in /transcribe mode
