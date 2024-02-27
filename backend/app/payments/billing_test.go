@@ -131,3 +131,44 @@ func TestCheckThresholdsAndNotifyMaximum(t *testing.T) {
 	}
 	assert.Equal(t, expectedNotifications, notifications, "Unexpected notifications sent")
 }
+
+func TestCheckThresholdsAndNotifyGroup(t *testing.T) {
+	originalBotName := config.CONFIG.BotName
+	config.CONFIG.BotName = "testbot"
+	defer func() { config.CONFIG.BotName = originalBotName }()
+
+	// Set up the mock Redis client
+	redis.RedisClient = redis.NewMockRedisClient()
+
+	// Set up the mock MongoDB client
+	mongo.MongoDBClient = mongo.NewMockMongoDBClient(
+		models.MongoUser{
+			ID:    "-123",
+			Usage: 0.1,
+			SubscriptionType: models.MongoSubscription{
+				Name:         models.FreeSubscriptionName,
+				MaximumUsage: 0.1,
+			},
+		},
+	)
+
+	// Set up a custom SendNotification function to track notifications
+	var notifications []string
+	sendNotificationOriginal := SendNotification
+	SendNotification = func(ctx context.Context, message string) {
+		notifications = append(notifications, message)
+	}
+	defer func() { SendNotification = sendNotificationOriginal }() // Restore the original function after the test
+
+	// Set up the test context
+	ctx := context.WithValue(context.Background(), models.UserContext{}, "-123")
+	ctx = context.WithValue(ctx, models.ClientContext{}, "telegram")
+	redis.RedisClient.IncrByFloat(ctx, lib.UserTotalCostKey("-123"), 0.01)
+
+	// Test CheckThresholdsAndNotify
+	CheckThresholdsAndNotify(ctx, 0.05)
+
+	// Verify that the expected notification was sent
+	expectedNotifications := []string{"⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Please consider an /upgrade@testbot to a paid plan. Use /status@testbot to see your current usage."}
+	assert.Equal(t, expectedNotifications, notifications, "Unexpected notifications sent")
+}

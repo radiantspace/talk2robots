@@ -63,6 +63,11 @@ in Slack:
 - [x] Get user status (usage, limits etc) `/status`
 - [x] Get `/support`
 - [x] View terms `/terms`
+- [x] pin language for transcription and voice recognition by adding 'language' parameter to a command, e.g. `/transcribe hebrew`. Useful when translation of transcripts is needed or when studying a foreign language.
+
+While in groups context:
+- the bot will only reply when mentioned (so commands should be suffixed with @gienjibot, e.g. `/upgrade@gienjibot`)
+- in /transcribe and /grammar modes, the bot will react to all messages to either transcribe audio or correct grammar.
 
 ### Telegram bot in action
 

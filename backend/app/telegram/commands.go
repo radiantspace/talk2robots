@@ -183,21 +183,23 @@ func getModeHandlerFunction(mode lib.ModeName, response string) func(context.Con
 		if len(messageArray) > 1 {
 			params = validateParams(mode, messageArray[1])
 		}
+		response = lib.AddBotSuffixToGroupCommands(ctx, response)
 		bot.SendMessage(tu.Message(util.GetChatID(message), response))
 		lib.SaveMode(util.GetChatIDString(message), mode, params)
 	}
 }
 
 func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
+	chatString := util.GetChatIDString(message)
 	chatID := util.GetChatID(message)
 	if lib.IsUserFree(ctx) {
 		_, err := bot.SendMessage(tu.Message(chatID, "Upgrading to free+ gives you 5x monthly usage limits, effective immediately 🎉"))
 		if err != nil {
-			log.Errorf("Failed to send upgrade message: %v", err)
+			log.Errorf("Failed to send upgrade message to %s: %v", chatString, err)
 		}
 		err = mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 		if err != nil {
-			log.Errorf("Failed to update user subscription: %v", err)
+			log.Errorf("Failed to update user %s subscription: %v", chatString, err)
 			bot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to free+ plan. Please try again later."))
 			return
 		}
@@ -207,25 +209,25 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 	if lib.IsUserFreePlus(ctx) {
 		_, err := bot.SendMessage(tu.Message(chatID, "Upgrading account to basic paid plan.."))
 		if err != nil {
-			log.Errorf("Failed to send paid plan upgrade message: %v", err)
+			log.Errorf("Failed to send paid plan upgrade message to %s: %v", chatString, err)
 		}
 		// fetch userStripeID from DB
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {
-			log.Errorf("Failed to get user: %v", err)
+			log.Errorf("Failed to get user %s: %v", chatString, err)
 			return
 		}
 		stripeCustomerId := user.StripeCustomerId
 		if stripeCustomerId == "" {
 			customer, err := payments.StripeCreateCustomer(ctx, bot.Bot, message)
 			if err != nil {
-				log.Errorf("Failed to create customer: %v", err)
+				log.Errorf("Failed to create customer for user %s: %v", chatString, err)
 				return
 			}
 			stripeCustomerId = customer.ID
 			err = mongo.MongoDBClient.UpdateUserStripeCustomerId(ctx, stripeCustomerId)
 			if err != nil {
-				log.Errorf("Failed to update user stripe customer id: %v", err)
+				log.Errorf("Failed to update user stripe customer id for user %s: %v", chatString, err)
 				return
 			}
 		}
@@ -237,9 +239,12 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 			return
 		}
 
+		notification := "Press the subscribe button below and navigate to our partner, Stripe, to proceed with the payment. You will upgrade to the basic paid plan, which includes:\n💪 200x usage limits compared to the Free+ plan of OpenAI tokens and voice/audio recognition\n🧠 Access to more intelligent GPT-4 model (and more models that OpenAI will release)\n💁🏽 Priority support\n\nBy proceeding with the payments, you agree to /terms of usage.\n\nCancel your subscription at any time with the /downgrade command."
+		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+
 		// send link to customer as a button in telegram
 		bot.SendMessage(
-			tu.Message(chatID, "Press the subscribe button below and navigate to our partner, Stripe, to proceed with the payment. You will upgrade to the basic paid plan, which includes:\n💪 200x usage limits compared to the Free+ plan of OpenAI tokens and voice recognition\n🧠 Access to more intelligent GPT-4 model (and more models that OpenAI will release)\n💁🏽 Priority support\n\nBy proceeding with the payments, you agree to /terms of usage.\n\nCancel your subscription at any time with the /downgrade command.").WithReplyMarkup(
+			tu.Message(chatID, notification).WithReplyMarkup(
 				&telego.InlineKeyboardMarkup{
 					InlineKeyboard: [][]telego.InlineKeyboardButton{
 						{
@@ -260,10 +265,11 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 		return
 	}
 
-	log.Errorf("upgradeCommandHandler: unknown user subscription: %v", ctx.Value(models.SubscriptionContext{}))
+	log.Errorf("upgradeCommandHandler: unknown user %s subscription: %v", chatString, ctx.Value(models.SubscriptionContext{}))
 }
 
 func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
+	chatString := util.GetChatIDString(message)
 	chatID := util.GetChatID(message)
 	if lib.IsUserFree(ctx) {
 		bot.SendMessage(tu.Message(chatID, "You are already a free user!"))
@@ -272,7 +278,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 	if lib.IsUserFreePlus(ctx) {
 		err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreeSubscriptionName])
 		if err != nil {
-			log.Errorf("Failed to downgrade user subscription: to free %v", err)
+			log.Errorf("Failed to downgrade user %s subscription: to free %v", chatString, err)
 			bot.SendMessage(tu.Message(chatID, "Failed to downgrade your account to free plan. Please try again later."))
 			return
 		}
@@ -282,14 +288,14 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 	if lib.IsUserBasic(ctx) {
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {
-			log.Errorf("Failed to get user: %v", err)
+			log.Errorf("Failed to get user %s: %v", chatString, err)
 			return
 		}
 		stripeCustomerId := user.StripeCustomerId
 		if stripeCustomerId == "" {
 			err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 			if err != nil {
-				log.Errorf("Failed to downgrade user subscription: to free+ %v", err)
+				log.Errorf("Failed to downgrade user %s subscription: to free+ %v", chatString, err)
 				bot.SendMessage(tu.Message(chatID, "Failed to downgrade your account to free+ plan. Please try again later."))
 			}
 			bot.SendMessage(tu.Message(chatID, "You are now a free+ user!"))
@@ -300,7 +306,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 		payments.StripeCancelSubscription(ctx, stripeCustomerId)
 		return
 	}
-	log.Errorf("cancelSubscriptionCommandHandler: unknown user subscription: %v", ctx.Value(models.SubscriptionContext{}))
+	log.Errorf("cancelSubscriptionCommandHandler: unknown user %s subscription: %v", chatString, ctx.Value(models.SubscriptionContext{}))
 }
 
 func emptyCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {

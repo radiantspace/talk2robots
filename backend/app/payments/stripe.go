@@ -8,6 +8,7 @@ import (
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/db/mongo"
 	"talk2robots/m/v2/app/db/redis"
+	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
 	"talk2robots/m/v2/app/util"
 
@@ -27,6 +28,7 @@ const (
 	// TODO: move to config
 	// TestBasicPlanPriceId = "price_1N9MltLiy4WJgIwVyfxmfGGG"
 	BasicPlanPriceId = "price_1N9MjhLiy4WJgIwVLXPc41OQ"
+	ProPlanPriceId   = "price_1OoMCDLiy4WJgIwVhQml2Kxe"
 )
 
 func StripeWebhook(ctx *fasthttp.RequestCtx) {
@@ -169,6 +171,7 @@ func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 	config.CONFIG.DataDogClient.Incr("stripe.checkout_session_completed", []string{"payment_status:" + string(session.PaymentStatus)}, 1)
 	chatIDString := session.Metadata["telegram_chat_id"]
 	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
+	ctx = context.WithValue(ctx, models.ClientContext{}, "telegram") //  TODO: fix for slack/other clients
 	chatIDInt64, err := strconv.ParseInt(chatIDString, 10, 64)
 	if err != nil {
 		log.Errorf("Failed to convert string to int64 and process successful payment: %v, user_id: %s", err, chatIDString)
@@ -176,20 +179,22 @@ func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 	}
 	chatID := tu.ID(chatIDInt64)
 
+	failedNotification := "Failed to upgrade your account to basic paid plan. Please contact /support for help."
+	failedNotification = lib.AddBotSuffixToGroupCommands(ctx, failedNotification)
 	if session.PaymentStatus != "paid" {
 		log.Errorf("Checkout session %s payment status is not paid: %s, user_id: %s", session.ID, session.PaymentStatus, chatIDString)
-		PaymentsBot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to basic paid plan. Please contact /support for help."))
+		PaymentsBot.SendMessage(tu.Message(chatID, failedNotification))
 		return
 	}
 
 	err = mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.BasicSubscriptionName])
 	if err != nil {
 		log.Errorf("Failed to update MongoDB record and process successful payment: %v, user_id: %s", err, chatIDString)
-		PaymentsBot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to basic paid plan. Please contact /support for help."))
+		PaymentsBot.SendMessage(tu.Message(chatID, failedNotification))
 		return
 	}
 
-	PaymentsBot.SendMessage(tu.Message(chatID, "Your account has been upgraded to basic paid plan (/status)! Thanks for your support!"))
+	PaymentsBot.SendMessage(tu.Message(chatID, "Your account has been upgraded to basic paid plan! Thanks for your support and enjoy using the bot!"))
 
 	go func() {
 		// update subscription metadata to include telegram chat id
@@ -237,11 +242,14 @@ func handleCustomerSubscriptionDeleted(subscription stripe.Subscription) {
 		return
 	}
 	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
+	ctx = context.WithValue(ctx, models.ClientContext{}, "telegram") //  TODO: fix for slack/other clients
 	chatID := tu.ID(chatIDInt64)
 	err = mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 	if err != nil {
 		log.Errorf("handleCustomerSubscriptionDeleted: failed to update MongoDB record, user id: %s: %v", chatIDString, err)
-		PaymentsBot.SendMessage(tu.Message(chatID, "Failed to cancel your subscription. Please contact /support for help."))
+		notification := "Failed to cancel your subscription. Please contact /support for help."
+		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+		PaymentsBot.SendMessage(tu.Message(chatID, notification))
 		return
 	}
 

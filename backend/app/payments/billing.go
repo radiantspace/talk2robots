@@ -81,6 +81,7 @@ func Bill(originalContext context.Context, usage models.CostAndUsage) models.Cos
 	ctx = context.WithValue(ctx, models.SubscriptionContext{}, originalContext.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName))
 	ctx = context.WithValue(ctx, models.ClientContext{}, originalContext.Value(models.ClientContext{}).(string))
 	ctx = context.WithValue(ctx, models.ChannelContext{}, originalContext.Value(models.ChannelContext{}).(string))
+	ctx = context.WithValue(ctx, models.ParamsContext{}, originalContext.Value(models.ParamsContext{}))
 	defer ctx.Done()
 	usage.Cost =
 		float64(usage.Usage.PromptTokens)*usage.PricePerInputUnit +
@@ -174,7 +175,9 @@ func CheckThresholdsAndNotify(ctx context.Context, incomingCost float64) {
 				"client:" + client,
 			}, 1)
 			log.Infof("CheckThresholdsAndNotify: user %s has reached %.1f%% of their maximum usage for subscription %s. Sending notification..", user, threshold.Percentage*100, mongoUser.SubscriptionType.Name)
-			SendNotification(ctx, threshold.Message)
+
+			notification := lib.AddBotSuffixToGroupCommands(ctx, threshold.Message)
+			SendNotification(ctx, notification)
 		}
 	}
 }

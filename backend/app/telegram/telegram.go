@@ -155,7 +155,9 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	// user usage exceeded monthly limit, send message and return
 	ok := lib.ValidateUserUsage(ctx)
 	if !ok {
-		bot.SendMessage(tu.Message(chatID, "Your monthly usage limit has been exceeded. Check /status and /upgrade your subscription to continue using the bot. The limits are reset on the 1st of every month."))
+		notification := "Your monthly usage limit has been exceeded. Check /status and /upgrade your subscription to continue using the bot. The limits are reset on the 1st of every month."
+		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+		bot.SendMessage(tu.Message(chatID, notification))
 		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
 		return
 	}
@@ -330,11 +332,15 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 			return
 		}
 		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
-			BOT.SendMessage(tu.Message(tu.ID(chatID), "You need to /upgrade your subscription to use GPT-4 engine! Meanwhile, you can still use GPT-3.5 Turbo model, it's fast, cheap and quite smart."))
+			notification := "You need to /upgrade your subscription to use GPT-4 engine! Meanwhile, you can still use GPT-3.5 Turbo model, it's fast, cheap and quite smart."
+			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+			BOT.SendMessage(tu.Message(tu.ID(chatID), notification))
 			return
 		}
 		redis.SaveEngine(chatIDString, models.ChatGpt4)
-		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-4 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap."))
+		notification := "Switched to GPT-4 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap."
+		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-4 message: %v", err)
 		}
