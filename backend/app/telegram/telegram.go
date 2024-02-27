@@ -471,13 +471,6 @@ func sendAudioAction(bot *telego.Bot, chatID telego.ChatID) {
 	}
 }
 
-func sendFindAction(bot *telego.Bot, chatID telego.ChatID) {
-	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionFindLocation})
-	if err != nil {
-		log.Errorf("Failed to send chat action: %v", err)
-	}
-}
-
 func safeOsDelete(filename string) {
 	err := os.Remove(filename)
 	if err != nil {

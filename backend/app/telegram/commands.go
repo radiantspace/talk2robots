@@ -334,9 +334,9 @@ func statusCommandHandler(ctx context.Context, bot *Bot, message *telego.Message
 func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
-	threadId, err := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString)).Result()
+	threadId, _ := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString)).Result()
 	if threadId == "" {
-		_, err = bot.SendMessage(tu.Message(chatID, "There is no thread to clear."))
+		_, err := bot.SendMessage(tu.Message(chatID, "There is no thread to clear."))
 		if err != nil {
 			log.Errorf("Failed to send ClearThreadCommand message: %v", err)
 		}
@@ -345,7 +345,7 @@ func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Me
 
 	redis.RedisClient.Del(ctx, lib.UserCurrentThreadKey(chatIDString))
 	redis.RedisClient.Del(ctx, lib.UserCurrentThreadPromptKey(chatIDString))
-	_, err = BOT.API.DeleteThread(ctx, threadId)
+	_, err := BOT.API.DeleteThread(ctx, threadId)
 	if err != nil {
 		log.Errorf("Failed to clear thread: %v", err)
 	}
@@ -369,7 +369,7 @@ func validateParams(mode lib.ModeName, params string) string {
 		case "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh":
 			return params
 		case "afrikaans", "amharic", "arabic", "assamese", "azerbaijani", "bashkir", "belarusian", "bengali", "tibetan", "breton", "bosnian", "catalan", "czech", "welsh", "danish", "german", "greek", "english", "spanish", "estonian", "basque", "persian", "finnish", "faroese", "french", "galician", "gujarati", "hausa", "hebrew", "hindi", "croatian", "haitian", "hungarian", "armenian", "indonesian", "icelandic", "italian", "japanese", "javanese", "georgian", "kazakh", "khmer", "kannada", "korean", "latin", "luxembourgish", "lingala", "lao", "lithuanian", "latvian", "malagasy", "maori", "macedonian", "malayalam", "mongolian", "marathi", "malay", "maltese", "burmese", "nepali", "dutch", "norwegian", "occitan", "punjabi", "polish", "pashto", "portuguese", "romanian", "russian", "sanskrit", "sindhi", "sinhala", "slovak", "slovenian", "shona", "somali", "albanian", "serbian", "sundanese", "swedish", "swahili", "tamil", "telugu", "tajik", "thai", "turkmen", "filipino", "turkish", "tatar", "ukrainian", "urdu", "uzbek", "vietnamese", "yiddish", "yoruba", "chinese":
-			return params
+			return languageToCode(params)
 		default:
 			log.Warnf("Invalid params %s used for mode %s", params, mode)
 			return ""
@@ -377,4 +377,204 @@ func validateParams(mode lib.ModeName, params string) string {
 	}
 
 	return ""
+}
+
+func languageToCode(language string) string {
+	switch language {
+	case "afrikaans":
+		return "af"
+	case "amharic":
+		return "am"
+	case "arabic":
+		return "ar"
+	case "assamese":
+		return "as"
+	case "azerbaijani":
+		return "az"
+	case "bashkir":
+		return "ba"
+	case "belarusian":
+		return "be"
+	case "bengali":
+		return "bn"
+	case "tibetan":
+		return "bo"
+	case "breton":
+		return "br"
+	case "bosnian":
+		return "bs"
+	case "catalan":
+		return "ca"
+	case "czech":
+		return "cs"
+	case "welsh":
+		return "cy"
+	case "danish":
+		return "da"
+	case "german":
+		return "de"
+	case "greek":
+		return "el"
+	case "english":
+		return "en"
+	case "spanish":
+		return "es"
+	case "estonian":
+		return "et"
+	case "basque":
+		return "eu"
+	case "persian":
+		return "fa"
+	case "finnish":
+		return "fi"
+	case "faroese":
+		return "fo"
+	case "french":
+		return "fr"
+	case "galician":
+		return "gl"
+	case "gujarati":
+		return "gu"
+	case "hausa":
+		return "ha"
+	case "hebrew":
+		return "he"
+	case "hindi":
+		return "hi"
+	case "croatian":
+		return "hr"
+	case "haitian":
+		return "ht"
+	case "hungarian":
+		return "hu"
+	case "armenian":
+		return "hy"
+	case "indonesian":
+		return "id"
+	case "icelandic":
+		return "is"
+	case "italian":
+		return "it"
+	case "japanese":
+		return "ja"
+	case "javanese":
+		return "jw"
+	case "georgian":
+		return "ka"
+	case "kazakh":
+		return "kk"
+	case "khmer":
+		return "km"
+	case "kannada":
+		return "kn"
+	case "korean":
+		return "ko"
+	case "latin":
+		return "la"
+	case "luxembourgish":
+		return "lb"
+	case "lingala":
+		return "ln"
+	case "lao":
+		return "lo"
+	case "lithuanian":
+		return "lt"
+	case "latvian":
+		return "lv"
+	case "malagasy":
+		return "mg"
+	case "maori":
+		return "mi"
+	case "macedonian":
+		return "mk"
+	case "malayalam":
+		return "ml"
+	case "mongolian":
+		return "mn"
+	case "marathi":
+		return "mr"
+	case "malay":
+		return "ms"
+	case "maltese":
+		return "mt"
+	case "burmese":
+		return "my"
+	case "nepali":
+		return "ne"
+	case "dutch":
+		return "nl"
+	case "norwegian":
+		return "nn"
+	case "occitan":
+		return "oc"
+	case "punjabi":
+		return "pa"
+	case "polish":
+		return "pl"
+	case "pashto":
+		return "ps"
+	case "portuguese":
+		return "pt"
+	case "romanian":
+		return "ro"
+	case "russian":
+		return "ru"
+	case "sanskrit":
+		return "sa"
+	case "sindhi":
+		return "sd"
+	case "sinhala":
+		return "si"
+	case "slovak":
+		return "sk"
+	case "slovenian":
+		return "sl"
+	case "shona":
+		return "sn"
+	case "somali":
+		return "so"
+	case "albanian":
+		return "sq"
+	case "serbian":
+		return "sr"
+	case "sundanese":
+		return "su"
+	case "swedish":
+		return "sv"
+	case "swahili":
+		return "sw"
+	case "tamil":
+		return "ta"
+	case "telugu":
+		return "te"
+	case "tajik":
+		return "tg"
+	case "thai":
+		return "th"
+	case "turkmen":
+		return "tk"
+	case "filipino":
+		return "tl"
+	case "turkish":
+		return "tr"
+	case "tatar":
+		return "tt"
+	case "ukrainian":
+		return "uk"
+	case "urdu":
+		return "ur"
+	case "uzbek":
+		return "uz"
+	case "vietnamese":
+		return "vi"
+	case "yiddish":
+		return "yi"
+	case "yoruba":
+		return "yo"
+	case "chinese":
+		return "zh"
+	default:
+		log.Warnf("Invalid language %s", language)
+		return ""
+	}
 }

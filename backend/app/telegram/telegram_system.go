@@ -156,6 +156,9 @@ func setupSystemCommandHandlers() {
 				return
 			}
 			userJson, err := json.Marshal(user)
+			if err != nil {
+				log.Errorf("Failed to marshal user: %s", err)
+			}
 			userString := "DB:\n" + string(userJson) + "\n\n"
 
 			userString += "Redis:\ntotal cost            - " + redis.RedisClient.Get(ctx, lib.UserTotalCostKey(userId)).Val() + "\n"
