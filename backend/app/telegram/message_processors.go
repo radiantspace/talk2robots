@@ -474,6 +474,9 @@ func pollThreadRun(ctx context.Context, threadId string, chatIDString string, ru
 
 // sends a message in up to 4000 chars chunks
 func ChunkSendMessage(bot *telego.Bot, chatID telego.ChatID, text string) {
+	if text == "" {
+		return
+	}
 	for _, chunk := range util.ChunkString(text, 4000) {
 		_, err := bot.SendMessage(tu.Message(chatID, chunk).WithReplyMarkup(getLikeDislikeReplyMarkup()))
 		if err != nil {

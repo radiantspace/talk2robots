@@ -135,6 +135,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	}
 
 	mode, params := lib.GetMode(chatIDString)
+	log.Infof("chat %s, mode: %s, params: %s", chatIDString, mode, params)
 	ctx = context.WithValue(ctx, models.ParamsContext{}, params)
 	// while in channels, only react to
 	// 1. @mentions
@@ -195,27 +196,25 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 			AllCommandHandlers.handleCommand(ctx, BOT, &message)
 			return
 		}
+	}
 
-		if mode == lib.Transcribe {
-			ChunkSendMessage(bot, chatID, voiceTranscriptionText)
-			return
+	if mode == lib.Transcribe {
+		ChunkSendMessage(bot, chatID, voiceTranscriptionText)
+		if isPrivate && message.Text != "" {
+			bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
 		}
+		return
+	}
 
-		if mode != lib.VoiceGPT && !(mode == lib.Grammar && !isPrivate) {
-			ChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
-		}
+	if mode != lib.VoiceGPT && !(mode == lib.Grammar && !isPrivate) && voiceTranscriptionText != "" {
+		ChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
 	}
 
 	if message.Text != "" {
 		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
-		if mode == lib.Transcribe {
-			if isPrivate {
-				bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
-			} else {
-				log.Infof("Ignoring text message in /transcribe mode in channel: %s", chatIDString)
-			}
-			return
-		}
+	} else {
+		log.Infof("Ignoring empty message in chat: %s", chatIDString)
+		return
 	}
 
 	if message.Photo != nil {
