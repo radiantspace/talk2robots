@@ -17,6 +17,7 @@ import (
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
 	"talk2robots/m/v2/app/openai"
+	"talk2robots/m/v2/app/payments"
 	"talk2robots/m/v2/app/util"
 	"time"
 
@@ -247,6 +248,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	userId := callbackQuery.From.ID
 	chat := callbackQuery.Message.GetChat()
 	chatId := chat.ID
+	chatString := fmt.Sprintf("%d", chatId)
 	chatType := chat.Type
 	log.Infof("Received callback query: %s, for user: %d in chat %d", callbackQuery.Data, userId, chatId)
 	config.CONFIG.DataDogClient.Incr("telegram.callback_query", []string{"data:" + callbackQuery.Data, "channel_type:" + chatType}, 1)
@@ -269,6 +271,47 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 		handleCommandsInCallbackQuery(callbackQuery)
 	case string(models.ChatGpt35Turbo), string(models.ChatGpt4):
 		handleEngineSwitchCallbackQuery(callbackQuery)
+	case "downgradefromfreeplus":
+		_, ctx, _, _ := lib.SetupUserAndContext(chatString, "telegram", chatString)
+		if !lib.IsUserFreePlus(ctx) {
+			return
+		}
+		err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreeSubscriptionName])
+		if err != nil {
+			log.Errorf("Failed to downgrade user %s subscription: to free %v", chatString, err)
+			bot.SendMessage(tu.Message(tu.ID(chatId), "Failed to downgrade your account to free plan. Please try again later."))
+			return
+		}
+		bot.SendMessage(tu.Message(tu.ID(chatId), "You are now a free user!"))
+	case "downgradefrombasic":
+		user, ctx, _, err := lib.SetupUserAndContext(chatString, "telegram", chatString)
+		if err != nil {
+			log.Errorf("Failed to get user %s: %v", chatString, err)
+			return
+		}
+		if !lib.IsUserBasic(ctx) {
+			return
+		}
+
+		stripeCustomerId := user.StripeCustomerId
+		if stripeCustomerId == "" {
+			err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
+			if err != nil {
+				log.Errorf("Failed to downgrade user %s subscription: to free+ %v", chatString, err)
+				bot.SendMessage(tu.Message(tu.ID(chatId), "Failed to downgrade your account to free+ plan. Please try again later."))
+			}
+			bot.SendMessage(tu.Message(tu.ID(chatId), "You are now a free+ user!"))
+			return
+		}
+
+		// cancel subscriptions
+		payments.StripeCancelSubscription(ctx, stripeCustomerId)
+	case "cancel":
+		// delete the message
+		bot.DeleteMessage(&telego.DeleteMessageParams{
+			ChatID:    tu.ID(chatId),
+			MessageID: callbackQuery.Message.GetMessageID(),
+		})
 	default:
 		log.Errorf("Unknown callback query: %s", callbackQuery.Data)
 	}

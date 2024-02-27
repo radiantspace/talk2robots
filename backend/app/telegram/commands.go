@@ -277,38 +277,42 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 		bot.SendMessage(tu.Message(chatID, "You are already a free user!"))
 		return
 	}
-	if lib.IsUserFreePlus(ctx) {
-		err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreeSubscriptionName])
-		if err != nil {
-			log.Errorf("Failed to downgrade user %s subscription: to free %v", chatString, err)
-			bot.SendMessage(tu.Message(chatID, "Failed to downgrade your account to free plan. Please try again later."))
-			return
-		}
-		bot.SendMessage(tu.Message(chatID, "You are now a free user!"))
-		return
-	}
-	if lib.IsUserBasic(ctx) {
-		user, err := mongo.MongoDBClient.GetUser(ctx)
-		if err != nil {
-			log.Errorf("Failed to get user %s: %v", chatString, err)
-			return
-		}
-		stripeCustomerId := user.StripeCustomerId
-		if stripeCustomerId == "" {
-			err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
-			if err != nil {
-				log.Errorf("Failed to downgrade user %s subscription: to free+ %v", chatString, err)
-				bot.SendMessage(tu.Message(chatID, "Failed to downgrade your account to free+ plan. Please try again later."))
-			}
-			bot.SendMessage(tu.Message(chatID, "You are now a free+ user!"))
-			return
-		}
 
-		// cancel subscriptions
-		payments.StripeCancelSubscription(ctx, stripeCustomerId)
+	confirmationMessage := ""
+	callbackData := ""
+	if lib.IsUserFreePlus(ctx) {
+		// send confirmation message with yes/no buttons
+		confirmationMessage = "Are you sure you want to cancel your free+ plan?\n\nYou will be downgraded to the free plan immediately."
+		callbackData = "downgradefromfreeplus"
+	}
+
+	if lib.IsUserBasic(ctx) {
+		confirmationMessage = "Are you sure you want to cancel your subscription to the basic plan?\n\nYou will be downgraded to the free+ plan immediately, loosing access to GPT-4 model and increased usage limits. Unused limits will not be refunded."
+		callbackData = "downgradefrombasic"
+	}
+
+	if callbackData == "" {
+		log.Errorf("cancelSubscriptionCommandHandler: unknown user %s subscription: %v", chatString, ctx.Value(models.SubscriptionContext{}))
 		return
 	}
-	log.Errorf("cancelSubscriptionCommandHandler: unknown user %s subscription: %v", chatString, ctx.Value(models.SubscriptionContext{}))
+
+	log.Infof("Sending downgrade confirmation message to user %s: %s", chatString, callbackData)
+	bot.SendMessage(tu.Message(chatID, confirmationMessage).WithReplyMarkup(
+		&telego.InlineKeyboardMarkup{
+			InlineKeyboard: [][]telego.InlineKeyboardButton{
+				{
+					telego.InlineKeyboardButton{
+						// whitecheckmark
+						Text:         "Yes",
+						CallbackData: callbackData,
+					},
+					telego.InlineKeyboardButton{
+						Text:         "No",
+						CallbackData: "cancel",
+					},
+				},
+			},
+		}))
 }
 
 func emptyCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
