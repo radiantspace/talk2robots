@@ -84,7 +84,8 @@ func setupCommandHandlers() {
 	AllCommandHandlers = []*CommandHandler{
 		newCommandHandler(EmptyCommand, emptyCommandHandler),
 		newCommandHandler(StartCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			_, err := bot.SendMessage(tu.Message(util.GetChatID(message), ONBOARDING_TEXT).WithReplyMarkup(GetStatusKeyboard(ctx)))
+			notification := lib.AddBotSuffixToGroupCommands(ctx, ONBOARDING_TEXT)
+			_, err := bot.SendMessage(tu.Message(util.GetChatID(message), notification).WithReplyMarkup(GetStatusKeyboard(ctx)))
 			if err != nil {
 				log.Errorf("Failed to send StartCommand message: %v", err)
 			}
@@ -155,6 +156,7 @@ func (c CommandHandlers) handleCommand(ctx context.Context, bot *Bot, message *t
 	commandArray := strings.Split(message.Text, " ")
 	commandString := strings.ReplaceAll(commandArray[0], "@"+bot.Name+"bot", "")
 	commandString = strings.ReplaceAll(commandString, "@"+bot.Name, "")
+	commandString = strings.ReplaceAll(commandString, "@"+config.CONFIG.BotName, "")
 	command := Command(commandString)
 
 	commandHandler := c.getCommandHandler(command)
