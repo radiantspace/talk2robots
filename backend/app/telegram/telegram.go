@@ -320,8 +320,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 func handleCommandsInCallbackQuery(callbackQuery telego.CallbackQuery) {
 	chat := callbackQuery.Message.GetChat()
 	chatIDString := fmt.Sprint(chat.ID)
-	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
-	ctx = context.WithValue(ctx, models.ClientContext{}, "telegram")
+	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString)
 	message := telego.Message{
 		Chat: telego.Chat{ID: chat.ID},
 		Text: "/" + callbackQuery.Data,
@@ -337,8 +336,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 		chatID = chat.ID
 	}
 	chatIDString := fmt.Sprint(chatID)
-	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
-	ctx = context.WithValue(ctx, models.ClientContext{}, "telegram")
+	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString)
 	currentEngine := redis.GetChatEngine(chatIDString)
 	if callbackQuery.Data == string(currentEngine) {
 		err := BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
