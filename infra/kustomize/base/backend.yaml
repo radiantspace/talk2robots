@@ -100,10 +100,10 @@ spec:
                   key: connection-string
           resources:
             requests:
-              cpu: 500m
+              cpu: 200m
               memory: 64Mi
             limits:
-              cpu: 1000m
+              cpu: 500m
               memory: 128Mi
           volumeMounts:
             - name: backend-data
