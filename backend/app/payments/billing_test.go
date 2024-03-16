@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-go/v5/statsd"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,6 +23,12 @@ func init() {
 	config.CONFIG = &config.Config{
 		DataDogClient: testClient,
 	}
+
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+		ForceColors:   true,
+	})
+	logrus.SetLevel(logrus.DebugLevel)
 }
 
 func TestBill(t *testing.T) {

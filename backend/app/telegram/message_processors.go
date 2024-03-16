@@ -447,7 +447,15 @@ func ChunkSendMessage(bot *telego.Bot, chatID telego.ChatID, text string) {
 }
 
 // update current message and sends a new message in up to 4000 chars chunks
-func ChunkEditSendMessage(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, text string, messageID int, voice bool) (lastMessage *telego.Message, err error) {
+func ChunkEditSendMessage(
+	ctx context.Context,
+	bot *telego.Bot,
+	chatID telego.ChatID,
+	text string,
+	messageID int,
+	voice bool,
+	finalize bool,
+) (lastMessage *telego.Message, err error) {
 	if text == "" {
 		return nil, nil
 	}
@@ -455,7 +463,7 @@ func ChunkEditSendMessage(ctx context.Context, bot *telego.Bot, chatID telego.Ch
 	for i, chunk := range chunks {
 		last := false
 		markup := getLikeDislikeReplyMarkup()
-		if i == len(chunks)-1 {
+		if i == len(chunks)-1 && !finalize {
 			markup = getPendingReplyMarkup()
 			last = true
 		}
@@ -584,7 +592,7 @@ func processMessageChannel(
 				log.Errorf("Failed to add reaction to message in chat: %s, %v", chatIDString, err)
 			}
 		} else {
-			_, err = ChunkEditSendMessage(ctx, bot, chatID, finalMessageString, responseMessage.MessageID, mode == lib.VoiceGPT)
+			_, err = ChunkEditSendMessage(ctx, bot, chatID, finalMessageString, responseMessage.MessageID, mode == lib.VoiceGPT, true)
 			if err != nil {
 				log.Errorf("Failed to ChunkEditSendMessage message in chat: %s, %v", chatIDString, err)
 			}
@@ -606,7 +614,7 @@ func processMessageChannel(
 			trimmedResponseText := postprocessMessage(responseText, mode, userMessagePrimer)
 
 			var nextMessageObject *telego.Message
-			nextMessageObject, err = ChunkEditSendMessage(ctx, bot, chatID, trimmedResponseText, responseMessage.MessageID, mode == lib.VoiceGPT)
+			nextMessageObject, err = ChunkEditSendMessage(ctx, bot, chatID, trimmedResponseText, responseMessage.MessageID, mode == lib.VoiceGPT, false)
 			if err != nil {
 				log.Errorf("Failed to ChunkEditSendMessage message in chat: %s, %v", chatIDString, err)
 			}

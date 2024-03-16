@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/mymmrac/telego"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/undefinedlabs/go-mpatch"
 )
 
@@ -31,11 +31,11 @@ func init() {
 	setupTestBot()
 	setupCommandHandlers()
 
-	log.SetFormatter(&log.TextFormatter{
+	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 		ForceColors:   true,
 	})
-	log.SetLevel(log.DebugLevel)
+	logrus.SetLevel(logrus.DebugLevel)
 }
 
 func TestProcessThreadedStreamingMessage(t *testing.T) {

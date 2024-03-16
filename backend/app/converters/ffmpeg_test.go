@@ -1,6 +1,12 @@
 package converters
 
-import "testing"
+import (
+	"testing"
+)
+
+func init() {
+
+}
 
 // test ParseDuration
 

@@ -29,6 +29,12 @@ func init() {
 
 	setupTestBot()
 	setupCommandHandlers()
+
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+		ForceColors:   true,
+	})
+	log.SetLevel(log.DebugLevel)
 }
 
 func getTestBot() *telego.Bot {
