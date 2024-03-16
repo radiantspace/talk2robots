@@ -570,11 +570,6 @@ func processMessageChannel(
 	}()
 	for {
 		select {
-		case message := <-messageChannel:
-			log.Debugf("Sending message: %s, in chat: %s", message, chatIDString)
-			responseText = strings.TrimPrefix(responseText, "...")
-			responseText += message
-			continue
 		case <-ctx.Done():
 			log.Infof("Context cancelled, closing streaming connection in chat: %s", chatIDString)
 			return
@@ -618,6 +613,10 @@ func processMessageChannel(
 			if err != nil {
 				log.Errorf("Failed to edit message in chat: %s, %v", chatIDString, err)
 			}
+		case message := <-messageChannel:
+			log.Debugf("Sending message: %s, in chat: %s", message, chatIDString)
+			responseText = strings.TrimPrefix(responseText, "...")
+			responseText += message
 		}
 	}
 }
