@@ -16,13 +16,7 @@ import (
 )
 
 func init() {
-	testClient, err := statsd.New("127.0.0.1:8125", statsd.WithNamespace("tests."))
-	if err != nil {
-		log.Fatalf("error creating test DataDog client: %v", err)
-	}
-	config.CONFIG = &config.Config{
-		DataDogClient: testClient,
-	}
+	setupTestDatadog()
 
 	redis.RedisClient = redis.NewMockRedisClient()
 
@@ -33,7 +27,7 @@ func init() {
 		},
 	)
 
-	setupBot()
+	setupTestBot()
 	setupCommandHandlers()
 }
 
@@ -41,10 +35,20 @@ func getTestBot() *telego.Bot {
 	return &telego.Bot{}
 }
 
-func setupBot() {
+func setupTestBot() {
 	BOT = &Bot{
 		Name: "testbot",
 		Bot:  getTestBot(),
+	}
+}
+
+func setupTestDatadog() {
+	testClient, err := statsd.New("127.0.0.1:8125", statsd.WithNamespace("tests."))
+	if err != nil {
+		log.Fatalf("error creating test DataDog client: %v", err)
+	}
+	config.CONFIG = &config.Config{
+		DataDogClient: testClient,
 	}
 }
 
@@ -62,7 +66,31 @@ func getSendMessageFuncAssertion(t *testing.T, expectedRegex string, expectedCha
 			t.Errorf("Expected message to match regex %s, got %s", expectedRegex, params.Text)
 		}
 
-		return &telego.Message{}, nil
+		return &telego.Message{
+			MessageID: 12345,
+			Text:      params.Text,
+		}, nil
+	}
+}
+
+func getEditMessageFuncAssertion(t *testing.T, expectedRegex string, expectedChatID int64) func(bot *telego.Bot, params *telego.EditMessageTextParams) (*telego.Message, error) {
+	return func(bot *telego.Bot, params *telego.EditMessageTextParams) (*telego.Message, error) {
+		if params.ChatID.ID != expectedChatID {
+			t.Errorf("Expected chat ID %d, got %d", expectedChatID, params.ChatID.ID)
+		}
+
+		matched, err := regexp.MatchString(expectedRegex, params.Text)
+		if err != nil {
+			t.Errorf("Error matching regex: %v", err)
+		}
+		if !matched {
+			t.Errorf("Expected message to match regex %s, got %s", expectedRegex, params.Text)
+		}
+
+		return &telego.Message{
+			MessageID: params.MessageID,
+			Text:      params.Text,
+		}, nil
 	}
 }
 
