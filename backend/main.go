@@ -112,11 +112,13 @@ func main() {
 		payments.PaymentsSlackClient = slackBot.Client
 	}
 
-	if promAddress := util.Env("PROMETHEUS_LISTEN_ADDRESS"); promAddress != "" {
+	if promAddress := util.Env("PROMETHEUS_LISTEN_ADDRESS", ""); promAddress != "" {
 		log.Debugf("Setting up prometheus metrics on %s", promAddress)
 		p := fasthttpprom.NewPrometheus("backend")
 		p.SetListenAddress(promAddress)
 		p.Use(rtr)
+	} else {
+		log.Warnf("Prometheus metrics are disabled")
 	}
 
 	// create and setup main telegram bot

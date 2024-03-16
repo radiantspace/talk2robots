@@ -44,6 +44,13 @@ func GetChatIDString(m *telego.Message) string {
 	return fmt.Sprintf("%d", m.Chat.ID)
 }
 
+func GetTopicID(m *telego.Message) string {
+	if m.Chat.Type == "private" {
+		return ""
+	}
+	return fmt.Sprintf("%d", m.GetChat().LinkedChatID)
+}
+
 func MessagesToMultimodalMessages(messages []models.Message) []models.MultimodalMessage {
 	multimodalMessages := make([]models.MultimodalMessage, len(messages))
 	for i, message := range messages {

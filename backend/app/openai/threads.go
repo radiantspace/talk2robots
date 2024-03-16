@@ -8,8 +8,15 @@ import (
 	"io"
 	"net/http"
 	"talk2robots/m/v2/app/config"
+	"talk2robots/m/v2/app/db/redis"
+	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
+	"talk2robots/m/v2/app/openai/sse"
+	"talk2robots/m/v2/app/payments"
 	"time"
+
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 // creates a thread and runs it in one request.
@@ -554,4 +561,162 @@ func (a *API) ListThreadMessagesForARun(ctx context.Context, threadId string, ru
 	}
 
 	return messages, nil
+}
+
+func (a *API) CreateThreadAndRunStreaming(ctx context.Context, assistantId string, model models.Engine, thread *models.Thread, cancelContext context.CancelFunc) (chan string, error) {
+	userId := ctx.Value(models.UserContext{}).(string)
+	if assistantId == "" {
+		return nil, fmt.Errorf("assistantId is required")
+	}
+
+	if thread == nil {
+		return nil, fmt.Errorf("thread is required")
+	}
+
+	body, err := json.Marshal(&models.ThreadRunRequest{
+		AssistantID: assistantId,
+		Thread:      thread,
+		Stream:      true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	timeNow := time.Now()
+	usage := models.CostAndUsage{
+		Engine:             model,
+		PricePerInputUnit:  PricePerInputToken(model),
+		PricePerOutputUnit: PricePerOutputToken(model),
+		Cost:               0,
+		Usage:              models.Usage{},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/threads/runs", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("OpenAI-Beta", "assistants=v1")
+
+	client := sse.NewClientFromReq(req)
+	messages := make(chan string)
+	go subscribeAndProcess(messages, client, ctx, cancelContext, userId, timeNow, "create_thread_and_run_streaming", usage)
+	return messages, nil
+}
+
+func (a *API) CreateRunStreaming(ctx context.Context, assistantId string, model models.Engine, threadId string, cancelContext context.CancelFunc) (chan string, error) {
+	userId := ctx.Value(models.UserContext{}).(string)
+	if assistantId == "" {
+		return nil, fmt.Errorf("assistantId is required")
+	}
+
+	if threadId == "" {
+		return nil, fmt.Errorf("threadId is required")
+	}
+
+	requestBody := struct {
+		AssistantId string `json:"assistant_id"`
+		Stream      bool   `json:"stream"`
+		// model, instructions, tools and metadata can be overriden here if needed
+	}{
+		AssistantId: assistantId,
+		Stream:      true,
+	}
+
+	requestBodyJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	timeNow := time.Now()
+	usage := models.CostAndUsage{
+		Engine:             model,
+		PricePerInputUnit:  PricePerInputToken(model),
+		PricePerOutputUnit: PricePerOutputToken(model),
+		Cost:               0,
+		Usage:              models.Usage{},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/threads/"+threadId+"/runs", bytes.NewBuffer(requestBodyJSON))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("OpenAI-Beta", "assistants=v1")
+
+	client := sse.NewClientFromReq(req)
+	messages := make(chan string)
+
+	go subscribeAndProcess(messages, client, ctx, cancelContext, userId, timeNow, "create_run_streaming", usage)
+	return messages, nil
+}
+
+func subscribeAndProcess(
+	messages chan string,
+	client *sse.Client,
+	ctx context.Context,
+	cancelContext context.CancelFunc,
+	userId string,
+	timeNow time.Time,
+	apiName string,
+	usage models.CostAndUsage,
+) {
+	status := fmt.Sprintf("status:%d", 0)
+	defer func() {
+		close(messages)
+		cancelContext()
+
+		go payments.HugePromptAlarm(ctx, usage)
+		go payments.Bill(ctx, usage)
+		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, "api:" + apiName}, 1)
+	}()
+
+	err := client.SubscribeWithContext(ctx, uuid.New().String(), func(msg *sse.Event) {
+		var response models.StreamDataResponse
+		if msg.Event == nil || msg.Data == nil {
+			return
+		}
+		if string(msg.Event) == "done" && string(msg.Data) == "[DONE]" {
+			log.Infof("[%s] got [DONE] event for user id %s", apiName, userId)
+			return
+		}
+
+		if err := json.Unmarshal(msg.Data, &response); err != nil {
+			log.Errorf("[%s] couldn't parse event %s, response: %s, err: %v, user id: %s", apiName, string(msg.Event), string(msg.Data), err, userId)
+			return // or handle error
+		}
+		status = fmt.Sprintf("status:%s", response.Status)
+
+		if string(msg.Event) == "thread.created" {
+			log.Infof("[%s] got thread.created event for user id %s, saving threadId..", apiName, userId)
+			redis.RedisClient.Set(context.Background(), lib.UserCurrentThreadKey(userId), response.Id, 0)
+			return
+		}
+
+		if string(msg.Event) == "thread.run.completed" {
+			log.Infof("[%s] got thread.run.completed event for user id %s", apiName, userId)
+			usage.Usage.PromptTokens = response.Usage.PromptTokens
+			usage.Usage.CompletionTokens = response.Usage.CompletionTokens
+			usage.Usage.TotalTokens = response.Usage.TotalTokens
+			return
+		}
+
+		if string(msg.Event) == "thread.message.delta" {
+			// this log is spammy
+			// log.Infof("[%s] got thread.message.delta event for user id %s", apiName, userId)
+			for _, content := range response.Delta.Content {
+				if content.Text.Value != "" {
+					messages <- content.Text.Value
+				}
+			}
+			return
+		}
+
+		log.Infof("[%s] got event %s for user id %s, skipping processing..", apiName, string(msg.Event), userId)
+	})
+	if err != nil {
+		log.Errorf("[%s] couldn't subscribe: %v, user id: %s", apiName, err, userId)
+	}
 }

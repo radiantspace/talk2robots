@@ -23,7 +23,7 @@ import (
 
 const OOPSIE = "Oopsie, it looks like my AI brain isn't working 🧠🔥. Please try again later."
 
-func ProcessStreamingMessage(
+func ProcessChatCompleteStreamingMessage(
 	ctx context.Context,
 	bot *telego.Bot,
 	message *telego.Message,
@@ -59,100 +59,65 @@ func ProcessStreamingMessage(
 		return
 	}
 
-	responseText := "..."
-	responseMessage, err := bot.SendMessage(tu.Message(chatID, responseText).WithReplyMarkup(
-		getPendingReplyMarkup(),
-	))
-	if err != nil {
-		log.Errorf("Failed to send primer message in chat: %s, %v", chatIDString, err)
-		bot.SendMessage(tu.Message(chatID, OOPSIE))
-		return
-	}
-	// only update message every 5 seconds to prevent rate limiting from telegram
-	ticker := time.NewTicker(5 * time.Second)
-	previousMessageLength := len(responseText)
-	defer func() {
-		log.Infof("Finalizing message for streaming connection for chat: %s", chatIDString)
-		ticker.Stop()
-		finalMessageString := postprocessMessage(responseText, mode, userMessagePrimer)
-
-		if finalMessageString == "✅" {
-			// if the final message is just a checkmark, delete response and add thumbs up reaction to original message
-			err = bot.DeleteMessage(&telego.DeleteMessageParams{
-				ChatID:    chatID,
-				MessageID: responseMessage.MessageID,
-			})
-			if err != nil {
-				log.Errorf("Failed to delete message in chat: %s, %v", chatIDString, err)
-			}
-			err = bot.SetMessageReaction(&telego.SetMessageReactionParams{
-				ChatID:    chatID,
-				MessageID: message.MessageID,
-				Reaction:  []telego.ReactionType{&telego.ReactionTypeEmoji{Type: "emoji", Emoji: "👍"}},
-			})
-			if err != nil {
-				log.Errorf("Failed to add reaction to message in chat: %s, %v", chatIDString, err)
-			}
-		} else {
-			finalMessageParams := telego.EditMessageTextParams{
-				ChatID:      chatID,
-				MessageID:   responseMessage.MessageID,
-				Text:        finalMessageString,
-				ReplyMarkup: getLikeDislikeReplyMarkup(),
-			}
-			_, err = bot.EditMessageText(&finalMessageParams)
-		}
-		if err != nil {
-			log.Errorf("Failed to add reply markup to message in chat: %s, %v", chatIDString, err)
-		}
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			log.Infof("Context cancelled, closing streaming connection in chat: %s", chatIDString)
-			return
-		case <-ticker.C:
-			if previousMessageLength == len(responseText) {
-				continue
-			}
-			previousMessageLength = len(responseText)
-			trimmedResponseText := postprocessMessage(responseText, mode, userMessagePrimer)
-
-			var nextMessageObject *telego.Message
-			if len(trimmedResponseText) > 4000 {
-				currentMessage := trimmedResponseText[:4000]
-				responseText := trimmedResponseText[4000:]
-				previousMessageLength = len(responseText)
-				nextMessageObject, err = bot.SendMessage(tu.Message(chatID, responseText).WithReplyMarkup(
-					getPendingReplyMarkup(),
-				))
-				if err != nil {
-					log.Errorf("Failed to send next message in chat: %s, %v", chatIDString, err)
-				}
-				trimmedResponseText = currentMessage
-			}
-			_, err = bot.EditMessageText(&telego.EditMessageTextParams{
-				ChatID:      chatID,
-				MessageID:   responseMessage.MessageID,
-				Text:        trimmedResponseText,
-				ReplyMarkup: getPendingReplyMarkup(),
-			})
-			if nextMessageObject != nil {
-				responseMessage = nextMessageObject
-				nextMessageObject = nil
-			}
-			if err != nil {
-				log.Errorf("Failed to edit message in chat: %s, %v", chatIDString, err)
-			}
-		case message := <-messageChannel:
-			log.Debugf("Sending message: %s, in chat: %s", message, chatIDString)
-			responseText = strings.TrimPrefix(responseText, "...")
-			responseText += message
-		}
-	}
+	processMessageChannel(ctx, bot, message, messageChannel, userMessagePrimer, mode)
 }
 
-func ProcessThreadedMessage(
+func ProcessThreadedStreamingMessage(
+	ctx context.Context,
+	bot *telego.Bot,
+	message *telego.Message,
+	mode lib.ModeName,
+	engineModel models.Engine,
+	cancelContext context.CancelFunc,
+) {
+	chatID := util.GetChatID(message)
+	chatIDString := util.GetChatIDString(message)
+	var messages chan string
+
+	threadRunId := ""
+	threadId, err := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString)).Result()
+	if err != nil {
+		log.Debugf("Failed to get current thread for chat %s: %s", chatIDString, err)
+	}
+	if threadId == "" {
+		log.Infof("No thread found for chat %s, creating new thread..", chatIDString)
+
+		messages, err = BOT.API.CreateThreadAndRunStreaming(ctx, models.AssistantIdForModel(engineModel), engineModel, &models.Thread{
+			Messages: []models.Message{
+				{
+					Content: message.Text,
+					Role:    "user",
+				},
+			},
+		}, cancelContext)
+
+		if err != nil {
+			log.Errorf("Failed to create and run thread streaming for user id: %s, error: %v", chatIDString, err)
+			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			return
+		}
+	} else {
+		log.Infof("Found thread %s for chat %s, adding a message..", threadId, chatIDString)
+
+		err = createThreadMessageWithRetries(ctx, threadId, threadRunId, message.Text, chatIDString)
+		if err != nil {
+			log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
+			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			return
+		}
+
+		messages, err = BOT.API.CreateRunStreaming(ctx, models.AssistantIdForModel(engineModel), engineModel, threadId, cancelContext)
+		if err != nil {
+			log.Errorf("Failed to create and run streaming for user id: %s, error: %v", chatIDString, err)
+			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			return
+		}
+	}
+
+	processMessageChannel(ctx, bot, message, messages, "", mode)
+}
+
+func ProcessThreadedNonStreamingMessage(
 	ctx context.Context,
 	bot *telego.Bot,
 	message *telego.Message,
@@ -172,11 +137,7 @@ func ProcessThreadedMessage(
 	currentThreadPromptTokens, _ := redis.RedisClient.IncrBy(ctx, lib.UserCurrentThreadPromptKey(chatIDString), int64(openai.ApproximateTokensCount(message.Text))).Result()
 	usage.Usage.PromptTokens = openai.LimitPromptTokensForModel(engineModel, float64(currentThreadPromptTokens))
 
-	MAX_TOKENS_ALARM := 10 * 1024
-	if usage.Usage.PromptTokens > MAX_TOKENS_ALARM {
-		log.Warnf("Prompt tokens for chat %s exceeded max tokens alarm: %d", chatIDString, usage.Usage.PromptTokens)
-		bot.SendMessage(tu.Message(chatID, fmt.Sprintf("⚠️ Your prompt (including previous conversation) is very long. This may lead to increased costs and the bot timeouts.\nConsider /clear the memory to start a new thread and/or use shorter messages.\n\nRequest tokens - %d.\nProjected cost of the request - $%.3f", usage.Usage.PromptTokens, usage.PricePerInputUnit*float64(usage.Usage.PromptTokens))))
-	}
+	payments.HugePromptAlarm(ctx, usage)
 
 	var threadRun *models.ThreadRunResponse
 	threadRunId := ""
@@ -257,11 +218,11 @@ func ProcessThreadedMessage(
 	if mode != lib.VoiceGPT {
 		ChunkSendMessage(bot, chatID, totalContent)
 	} else {
-		ChunkSendVoice(ctx, bot, chatID, totalContent)
+		ChunkSendVoice(ctx, bot, chatID, totalContent, true)
 	}
 }
 
-func ProcessNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *telego.Message, seedData []models.Message, userMessagePrimer string, mode lib.ModeName, engineModel models.Engine) {
+func ProcessChatCompleteNonStreamingMessage(ctx context.Context, bot *telego.Bot, message *telego.Message, seedData []models.Message, userMessagePrimer string, mode lib.ModeName, engineModel models.Engine) {
 	chatID := util.GetChatID(message)
 	isPrivate := message.Chat.Type == "private"
 	response, err := BOT.API.ChatComplete(ctx, models.ChatCompletion{
@@ -494,7 +455,7 @@ func (nr NamedReader) Name() string {
 	return nr.name
 }
 
-func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, text string) {
+func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, text string, caption bool) {
 	for _, chunk := range util.ChunkString(text, 1000) {
 		sendAudioAction(bot, chatID)
 		voiceReader, err := BOT.API.CreateSpeech(ctx, &models.TTSRequest{
@@ -520,9 +481,11 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, 
 			trimmedChunk = chunk[:1000] + "..."
 		}
 		voiceParams := &telego.SendVoiceParams{
-			ChatID:  chatID,
-			Voice:   voiceFile,
-			Caption: trimmedChunk,
+			ChatID: chatID,
+			Voice:  voiceFile,
+		}
+		if caption {
+			voiceParams.Caption = trimmedChunk
 		}
 		_, err = bot.SendVoice(voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup()))
 		if err != nil {
@@ -542,4 +505,119 @@ func postprocessMessage(message string, mode lib.ModeName, userMessagePrimer str
 		trimmedResponseText = strings.ReplaceAll(trimmedResponseText, "[correct]", "✅")
 	}
 	return trimmedResponseText
+}
+
+func processMessageChannel(
+	ctx context.Context,
+	bot *telego.Bot,
+	message *telego.Message,
+	messageChannel chan string,
+	userMessagePrimer string,
+	mode lib.ModeName,
+) {
+	chatID := util.GetChatID(message)
+	chatIDString := util.GetChatIDString(message)
+	responseText := "..."
+	responseMessage, err := bot.SendMessage(tu.Message(chatID, responseText).WithReplyMarkup(
+		getPendingReplyMarkup(),
+	))
+	if err != nil {
+		log.Errorf("Failed to send primer message in chat: %s, %v", chatIDString, err)
+		bot.SendMessage(tu.Message(chatID, OOPSIE))
+		return
+	}
+	// only update message every 3 seconds to prevent rate limiting from telegram
+	ticker := time.NewTicker(3 * time.Second)
+	previousMessageLength := len(responseText)
+	defer func() {
+		log.Infof("Finalizing message for streaming connection for chat: %s", chatIDString)
+		ticker.Stop()
+		finalMessageString := postprocessMessage(responseText, mode, userMessagePrimer)
+
+		if finalMessageString == "✅" {
+			// if the final message is just a checkmark, delete response and add thumbs up reaction to original message
+			err = bot.DeleteMessage(&telego.DeleteMessageParams{
+				ChatID:    chatID,
+				MessageID: responseMessage.MessageID,
+			})
+			if err != nil {
+				log.Errorf("Failed to delete message in chat: %s, %v", chatIDString, err)
+			}
+			err = bot.SetMessageReaction(&telego.SetMessageReactionParams{
+				ChatID:    chatID,
+				MessageID: message.MessageID,
+				Reaction:  []telego.ReactionType{&telego.ReactionTypeEmoji{Type: "emoji", Emoji: "👍"}},
+			})
+			if err != nil {
+				log.Errorf("Failed to add reaction to message in chat: %s, %v", chatIDString, err)
+			}
+		} else {
+			if mode == lib.VoiceGPT {
+				ChunkSendVoice(ctx, bot, chatID, finalMessageString, false)
+			}
+
+			finalMessageParams := telego.EditMessageTextParams{
+				ChatID:      chatID,
+				MessageID:   responseMessage.MessageID,
+				Text:        finalMessageString,
+				ReplyMarkup: getLikeDislikeReplyMarkup(),
+			}
+			_, err = bot.EditMessageText(&finalMessageParams)
+		}
+		if err != nil {
+			log.Errorf("Failed to add reply markup to message in chat: %s, %v", chatIDString, err)
+		}
+	}()
+	for {
+		select {
+		case message := <-messageChannel:
+			log.Debugf("Sending message: %s, in chat: %s", message, chatIDString)
+			responseText = strings.TrimPrefix(responseText, "...")
+			responseText += message
+			continue
+		case <-ctx.Done():
+			log.Infof("Context cancelled, closing streaming connection in chat: %s", chatIDString)
+			return
+		case <-ticker.C:
+			if previousMessageLength == len(responseText) {
+				continue
+			}
+			previousMessageLength = len(responseText)
+			trimmedResponseText := postprocessMessage(responseText, mode, userMessagePrimer)
+
+			var nextMessageObject *telego.Message
+			maxMessageSize := 4000
+			if mode == lib.VoiceGPT {
+				maxMessageSize = 1000
+			}
+			if len(trimmedResponseText) > maxMessageSize {
+				currentMessage := trimmedResponseText[:maxMessageSize]
+				responseText := trimmedResponseText[maxMessageSize:]
+				previousMessageLength = len(responseText)
+				if mode == lib.VoiceGPT {
+					ChunkSendVoice(ctx, bot, chatID, currentMessage, false)
+				}
+				nextMessageObject, err = bot.SendMessage(tu.Message(chatID, responseText).WithReplyMarkup(
+					getPendingReplyMarkup(),
+				))
+				if err != nil {
+					log.Errorf("Failed to send next message in chat: %s, %v", chatIDString, err)
+				}
+				trimmedResponseText = currentMessage
+			}
+			_, err = bot.EditMessageText(&telego.EditMessageTextParams{
+				ChatID:      chatID,
+				MessageID:   responseMessage.MessageID,
+				Text:        trimmedResponseText,
+				ReplyMarkup: getPendingReplyMarkup(),
+			})
+			if nextMessageObject != nil {
+				responseMessage = nextMessageObject
+				nextMessageObject = nil
+			}
+			if err != nil {
+				log.Errorf("Failed to edit message in chat: %s, %v", chatIDString, err)
+			}
+		}
+	}
 }

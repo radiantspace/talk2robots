@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"talk2robots/m/v2/app/config"
@@ -74,6 +75,20 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 			},
 		},
 	},
+}
+
+func HugePromptAlarm(ctx context.Context, usage models.CostAndUsage) {
+	userId := ctx.Value(models.UserContext{}).(string)
+	userIdInt, _ := strconv.ParseInt(userId, 10, 64)
+	chatID := telego.ChatID{
+		ID: userIdInt,
+	}
+
+	MAX_TOKENS_ALARM := 10 * 1024
+	if usage.Usage.PromptTokens > MAX_TOKENS_ALARM {
+		log.Warnf("Prompt tokens for chat %s exceeded max tokens alarm: %d", userId, usage.Usage.PromptTokens)
+		PaymentsBot.SendMessage(tu.Message(chatID, fmt.Sprintf("⚠️ Your prompt (including previous conversation) is very long. This may lead to increased costs and the bot timeouts.\nConsider /clear the memory to start a new thread and/or use shorter messages.\n\nRequest tokens - %d.\nProjected cost of the request - $%.3f", usage.Usage.PromptTokens, usage.PricePerInputUnit*float64(usage.Usage.PromptTokens))))
+	}
 }
 
 func Bill(originalContext context.Context, usage models.CostAndUsage) models.CostAndUsage {

@@ -23,11 +23,11 @@ jobs:
       # full parameters list
       # https://github.com/appleboy/drone-telegram/blob/master/main.go
       - name: Telegram Notify
-        uses: appleboy/telegram-action@0.0.3
+        uses: appleboy/telegram-action@v0.1.1
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_SYSTEM_TOKEN }}
           TELEGRAM_TO: ${{ secrets.TELEGRAM_SYSTEM_TO }}
-          TELEGRAM_MESSAGE: "🚀 Deploying to DOKS - ${{ github.sha }}"
+          TELEGRAM_MESSAGE: "🚀 Deploying ${{ env.IMAGE }} to DOKS - ${{ github.sha }}"
 
       - name: Checkout code
         uses: actions/checkout@v2
@@ -94,18 +94,18 @@ jobs:
           rm environment-properties.env
       
       - name: Telegram Notify
-        uses: appleboy/telegram-action@0.0.3
+        uses: appleboy/telegram-action@v0.1.1
         if: success()
         env:
           TELEGRAM_TO: ${{ secrets.TELEGRAM_SYSTEM_TO }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_SYSTEM_TOKEN }}
-          TELEGRAM_MESSAGE: "🚀✅ Successfully deployed to DOKS - ${{ github.sha }}"
+          TELEGRAM_MESSAGE: "🚀✅ Successfully deployed ${{ env.IMAGE }} to DOKS - ${{ github.sha }}"
        
       # Notify if deployment failed
       - name: Telegram Notify
-        uses: appleboy/telegram-action@0.0.3
+        uses: appleboy/telegram-action@v0.1.1
         if: failure()
         env:
           TELEGRAM_TO: ${{ secrets.TELEGRAM_SYSTEM_TO }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_SYSTEM_TOKEN }}
-          TELEGRAM_MESSAGE: "🚀❌ Deployment to DOKS failed - ${{ github.sha }}"
+          TELEGRAM_MESSAGE: "🚀❌ Deployment ${{ env.IMAGE }} to DOKS failed - ${{ github.sha }}"

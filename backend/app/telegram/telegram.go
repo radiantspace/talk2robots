@@ -66,7 +66,7 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup bot handler: %w", err)
 	}
-	bh.HandleMessage(handleMessage)
+	bh.HandleMessage(HandleMessage)
 	bh.HandleCallbackQuery(handleCallbackQuery)
 	go bh.Start()
 
@@ -109,7 +109,7 @@ func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Updat
 	return updates, err
 }
 
-func handleMessage(bot *telego.Bot, message telego.Message) {
+func HandleMessage(bot *telego.Bot, message telego.Message) {
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
 	isPrivate := message.Chat.Type == "private"
@@ -123,7 +123,6 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		log.Errorf("Error setting up user and context: %v", err)
 		return
 	}
-	defer cancelContext()
 
 	// process commands
 	if message.Voice == nil && message.Audio == nil && message.Video == nil && message.VideoNote == nil && message.Document == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
@@ -187,15 +186,18 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 			sendAudioAction(bot, chatID)
 		}
 		voiceTranscriptionText = getVoiceTranscript(ctx, bot, message)
-		// combine message text with transcription
-		if voiceTranscriptionText != "" {
-			message.Text = message.Text + "\n" + voiceTranscriptionText
-		}
 
-		// process commands again if it was a voice command
-		if message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/") {
-			AllCommandHandlers.handleCommand(ctx, BOT, &message)
-			return
+		if mode != lib.Transcribe {
+			// combine message text with transcription
+			if voiceTranscriptionText != "" {
+				message.Text = message.Text + "\n" + voiceTranscriptionText
+			}
+
+			// process commands again if it was a voice command
+			if message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/") {
+				AllCommandHandlers.handleCommand(ctx, BOT, &message)
+				return
+			}
 		}
 	}
 
@@ -236,11 +238,11 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		sendAudioAction(bot, chatID)
 	}
 	if mode == lib.ChatGPT || mode == lib.VoiceGPT {
-		ProcessThreadedMessage(ctx, bot, &message, mode, engineModel)
+		go ProcessThreadedStreamingMessage(ctx, bot, &message, mode, engineModel, cancelContext)
 	} else if mode == lib.Summarize || (mode == lib.Grammar && isPrivate) {
-		ProcessStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel, cancelContext)
+		go ProcessChatCompleteStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel, cancelContext)
 	} else {
-		ProcessNonStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel)
+		go ProcessChatCompleteNonStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel)
 	}
 }
 
