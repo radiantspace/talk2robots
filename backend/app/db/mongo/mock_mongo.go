@@ -22,6 +22,10 @@ func (m *MockMongoDBClient) UpdateUserUsage(ctx context.Context, userTotalCost f
 	return nil
 }
 
+func (m *MockMongoDBClient) UpdateUserSubscription(ctx context.Context, subscription models.MongoSubscription) error {
+	return nil
+}
+
 func (m *MockMongoDBClient) GetUser(ctx context.Context) (*models.MongoUser, error) {
 	if m.User.ID == "" {
 		return &models.MongoUser{}, errors.New("user not found")

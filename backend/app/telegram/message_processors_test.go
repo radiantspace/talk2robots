@@ -4,5 +4,5 @@ import (
 	"testing"
 )
 
-func TestProcessStreamingMessage(t *testing.T) {
+func TestProcessChatCompleteStreamingMessage(t *testing.T) {
 }

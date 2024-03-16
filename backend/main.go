@@ -137,12 +137,11 @@ func main() {
 	var systemBot *telegram.Bot
 	if env == "production" {
 		systemBot, err = telegram.NewSystemBot(rtr, config.CONFIG)
-		if err != nil && config.CONFIG.Environment != "production" {
-			log.Errorf("ERROR creating system bot: %v, creating stub bot instead", err)
-			systemBot = telegram.NewStubSystemBot(config.CONFIG)
+		if err != nil {
+			log.Fatalf("ERROR creating system bot: %v", err)
 		}
 	} else {
-		systemBot = telegramBot
+		systemBot = telegram.NewStubSystemBot(config.CONFIG)
 	}
 
 	// run onstart worker once
