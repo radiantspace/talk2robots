@@ -443,12 +443,15 @@ func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
 	}
 	params := &telego.AnswerInlineQueryParams{
 		InlineQueryID: inlineQuery.ID,
+		CacheTime:     60 * 60 * 24, // 24 hours
 	}
 	params.WithResults(&telego.InlineQueryResultArticle{
-		Type:        "article",
-		ID:          "0",
-		Title:       "ChatGPT",
-		Description: response,
+		Type:         "article",
+		ID:           "0",
+		Title:        "FastGPT",
+		URL:          "https://t.me/gienjibot",
+		ThumbnailURL: "https://gienji.me/assets/images/image01.jpg",
+		Description:  response,
 		InputMessageContent: &telego.InputTextMessageContent{
 			MessageText: response,
 			ParseMode:   "HTML",
