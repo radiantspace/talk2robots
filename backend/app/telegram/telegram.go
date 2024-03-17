@@ -428,6 +428,8 @@ func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
 		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:inline"}, 1)
 	}
 
+	config.CONFIG.DataDogClient.Incr("telegram.inline_message_received", []string{"channel_type:" + inlineQuery.ChatType}, 1)
+
 	// get the response
 	response, err := BOT.API.ChatComplete(ctx, models.ChatCompletion{
 		Messages: []models.Message{
