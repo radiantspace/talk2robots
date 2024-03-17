@@ -164,8 +164,8 @@ func setupSystemCommandHandlers() {
 			userString += "Redis:\ntotal cost            - " + redis.RedisClient.Get(ctx, lib.UserTotalCostKey(userId)).Val() + "\n"
 			userString += "total audio minutes   - " + redis.RedisClient.Get(ctx, lib.UserTotalAudioMinutesKey(userId)).Val() + "\n"
 			userString += "total tokens          - " + redis.RedisClient.Get(ctx, lib.UserTotalTokensKey(userId)).Val() + "\n\n"
-			userString += "current thread        - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(userId)).Val() + "\n"
-			userString += "current prompt tokens - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadPromptKey(userId)).Val()
+			userString += "current thread        - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(userId, "")).Val() + "\n"
+			userString += "current prompt tokens - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadPromptKey(userId, "")).Val()
 
 			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("User: %+v", userString)))
 		}),

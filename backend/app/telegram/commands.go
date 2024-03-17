@@ -85,7 +85,7 @@ func setupCommandHandlers() {
 		newCommandHandler(EmptyCommand, emptyCommandHandler),
 		newCommandHandler(StartCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
 			notification := lib.AddBotSuffixToGroupCommands(ctx, ONBOARDING_TEXT)
-			_, err := bot.SendMessage(tu.Message(util.GetChatID(message), notification).WithReplyMarkup(GetStatusKeyboard(ctx)))
+			_, err := bot.SendMessage(tu.Message(util.GetChatID(message), notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
 			if err != nil {
 				log.Errorf("Failed to send StartCommand message: %v", err)
 			}
@@ -118,7 +118,7 @@ func setupCommandHandlers() {
 		newCommandHandler(SupportCommand, supportCommandHandler),
 		newCommandHandler(TermsCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
 			log.Infof("Terms command received from userID: %s", util.GetChatIDString(message))
-			bot.SendMessage(tu.Message(util.GetChatID(message), USAGE_TERMS_URL))
+			bot.SendMessage(tu.Message(util.GetChatID(message), USAGE_TERMS_URL).WithMessageThreadID(message.MessageThreadID))
 		}),
 		// we have to use system command here since it's not possible to transfer fileId from one bot to another
 		// be super careful with this command refactoring and make sure that it's not possible to send this command from any other chat
@@ -131,15 +131,15 @@ func setupCommandHandlers() {
 
 			// get video from message
 			if message.Video == nil {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide video"))
+				bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide video").WithMessageThreadID(message.MessageThreadID))
 				return
 			}
 			err := redis.RedisClient.Set(ctx, "onboarding-video", message.Video.FileID, 0).Err()
 			if err != nil {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to save video: %v", err)))
+				bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to save video: %v", err)).WithMessageThreadID(message.MessageThreadID))
 				return
 			}
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, "Onboarding video saved"))
+			bot.SendMessage(tu.Message(SystemBOT.ChatID, "Onboarding video saved").WithMessageThreadID(message.MessageThreadID))
 		}),
 		newCommandHandler(ClearThreadCommand, clearThreadCommandHandler),
 	}
@@ -165,7 +165,7 @@ func (c CommandHandlers) handleCommand(ctx context.Context, bot *Bot, message *t
 		commandHandler.Handler(ctx, bot, message)
 	} else {
 		config.CONFIG.DataDogClient.Incr("unknown_command", nil, 1)
-		bot.SendMessage(tu.Message(util.GetChatID(message), "Unknown command \U0001f937"))
+		bot.SendMessage(tu.Message(util.GetChatID(message), "Unknown command \U0001f937").WithMessageThreadID(message.MessageThreadID))
 	}
 }
 
@@ -186,8 +186,8 @@ func getModeHandlerFunction(mode lib.ModeName, response string) func(context.Con
 			params = validateParams(mode, messageArray[1])
 		}
 		response = lib.AddBotSuffixToGroupCommands(ctx, response)
-		bot.SendMessage(tu.Message(util.GetChatID(message), response))
-		lib.SaveMode(util.GetChatIDString(message), mode, params)
+		bot.SendMessage(tu.Message(util.GetChatID(message), response).WithMessageThreadID(message.MessageThreadID))
+		lib.SaveMode(util.GetChatIDString(message), util.GetTopicID(message), mode, params)
 	}
 }
 
@@ -195,21 +195,21 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 	chatString := util.GetChatIDString(message)
 	chatID := util.GetChatID(message)
 	if lib.IsUserFree(ctx) {
-		_, err := bot.SendMessage(tu.Message(chatID, "Upgrading to free+ gives you 5x monthly usage limits, effective immediately 🎉"))
+		_, err := bot.SendMessage(tu.Message(chatID, "Upgrading to free+ gives you 5x monthly usage limits, effective immediately 🎉").WithMessageThreadID(message.MessageThreadID))
 		if err != nil {
 			log.Errorf("Failed to send upgrade message to %s: %v", chatString, err)
 		}
 		err = mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 		if err != nil {
 			log.Errorf("Failed to update user %s subscription: %v", chatString, err)
-			bot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to free+ plan. Please try again later."))
+			bot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to free+ plan. Please try again later.").WithMessageThreadID(message.MessageThreadID))
 			return
 		}
-		bot.SendMessage(tu.Message(chatID, "You are now a free+ user 🥳! Thanks for trying the bot and the wish to support it's development! 🙏"))
+		bot.SendMessage(tu.Message(chatID, "You are now a free+ user 🥳! Thanks for trying the bot and the wish to support it's development! 🙏").WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 	if lib.IsUserFreePlus(ctx) {
-		_, err := bot.SendMessage(tu.Message(chatID, "Upgrading account to basic paid plan.."))
+		_, err := bot.SendMessage(tu.Message(chatID, "Upgrading account to basic paid plan..").WithMessageThreadID(message.MessageThreadID))
 		if err != nil {
 			log.Errorf("Failed to send paid plan upgrade message to %s: %v", chatString, err)
 		}
@@ -246,7 +246,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 
 		// send link to customer as a button in telegram
 		bot.SendMessage(
-			tu.Message(chatID, notification).WithReplyMarkup(
+			tu.Message(chatID, notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
 				&telego.InlineKeyboardMarkup{
 					InlineKeyboard: [][]telego.InlineKeyboardButton{
 						{
@@ -263,7 +263,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 		return
 	}
 	if lib.IsUserBasic(ctx) {
-		bot.SendMessage(tu.Message(chatID, "You are already a basic paid plan user! Premium upgrade plans are not available yet. Stay tuned for updates!"))
+		bot.SendMessage(tu.Message(chatID, "You are already a basic paid plan user! Premium upgrade plans are not available yet. Stay tuned for updates!").WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 
@@ -274,7 +274,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 	chatString := util.GetChatIDString(message)
 	chatID := util.GetChatID(message)
 	if lib.IsUserFree(ctx) {
-		bot.SendMessage(tu.Message(chatID, "You are already a free user!"))
+		bot.SendMessage(tu.Message(chatID, "You are already a free user!").WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 
@@ -297,7 +297,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 	}
 
 	log.Infof("Sending downgrade confirmation message to user %s: %s", chatString, callbackData)
-	bot.SendMessage(tu.Message(chatID, confirmationMessage).WithReplyMarkup(
+	bot.SendMessage(tu.Message(chatID, confirmationMessage).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
 		&telego.InlineKeyboardMarkup{
 			InlineKeyboard: [][]telego.InlineKeyboardButton{
 				{
@@ -316,7 +316,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 }
 
 func emptyCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
-	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), "There is no message provided to correct or comment on. If you have a message you would like me to review, please provide it."))
+	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), "There is no message provided to correct or comment on. If you have a message you would like me to review, please provide it.").WithMessageThreadID(message.MessageThreadID))
 	if err != nil {
 		log.Errorf("Failed to send EmptyCommand message: %v", err)
 	}
@@ -329,7 +329,7 @@ func supportCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 		tu.Entity("If you have any questions, please contact us at "),
 		tu.Entity("free+support@radiant.space").Email(),
 		tu.Entityf(", explaining the problem and mentioning userID: %s.", util.GetChatIDString(message)),
-	)
+	).WithMessageThreadID(message.MessageThreadID)
 	_, err := bot.SendMessage(supportMessage)
 	if err != nil {
 		log.Errorf("Failed to send SupportCommand message: %v", err)
@@ -337,7 +337,7 @@ func supportCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 }
 
 func statusCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
-	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), GetUserStatus(ctx)).WithReplyMarkup(GetStatusKeyboard(ctx)))
+	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), GetUserStatus(ctx)).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
 	if err != nil {
 		log.Errorf("Failed to send StatusCommand message: %v", err)
 	}
@@ -346,22 +346,23 @@ func statusCommandHandler(ctx context.Context, bot *Bot, message *telego.Message
 func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
-	threadId, _ := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString)).Result()
+	topicIDString := util.GetTopicID(message)
+	threadId, _ := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString, topicIDString)).Result()
 	if threadId == "" {
-		_, err := bot.SendMessage(tu.Message(chatID, "There is no thread to clear."))
+		_, err := bot.SendMessage(tu.Message(chatID, "There is no thread to clear.").WithMessageThreadID(message.MessageThreadID))
 		if err != nil {
 			log.Errorf("Failed to send ClearThreadCommand message: %v", err)
 		}
 		return
 	}
 
-	redis.RedisClient.Del(ctx, lib.UserCurrentThreadKey(chatIDString))
-	redis.RedisClient.Del(ctx, lib.UserCurrentThreadPromptKey(chatIDString))
+	redis.RedisClient.Del(ctx, lib.UserCurrentThreadKey(chatIDString, topicIDString))
+	redis.RedisClient.Del(ctx, lib.UserCurrentThreadPromptKey(chatIDString, topicIDString))
 	_, err := BOT.API.DeleteThread(ctx, threadId)
 	if err != nil {
 		log.Errorf("Failed to clear thread: %v", err)
 	}
-	_, err = bot.SendMessage(tu.Message(chatID, "Thread cleared."))
+	_, err = bot.SendMessage(tu.Message(chatID, "Thread cleared.").WithMessageThreadID(message.MessageThreadID))
 	if err != nil {
 		log.Errorf("Failed to send ClearThreadCommand message: %v", err)
 	}

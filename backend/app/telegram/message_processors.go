@@ -52,7 +52,7 @@ func ProcessChatCompleteStreamingMessage(
 
 	if err != nil {
 		log.Errorf("Failed get streaming response from Open AI: %s", err)
-		_, err = bot.SendMessage(tu.Message(chatID, OOPSIE))
+		_, err = bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		if err != nil {
 			log.Errorf("Failed to send error message in chat: %s, %v", chatIDString, err)
 		}
@@ -72,10 +72,11 @@ func ProcessThreadedStreamingMessage(
 ) {
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
+	topicID := util.GetTopicID(message)
 	var messages chan string
 
 	threadRunId := ""
-	threadId, err := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString)).Result()
+	threadId, err := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString, topicID)).Result()
 	if err != nil {
 		log.Debugf("Failed to get current thread for chat %s: %s", chatIDString, err)
 	}
@@ -93,7 +94,7 @@ func ProcessThreadedStreamingMessage(
 
 		if err != nil {
 			log.Errorf("Failed to create and run thread streaming for user id: %s, error: %v", chatIDString, err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 	} else {
@@ -102,14 +103,14 @@ func ProcessThreadedStreamingMessage(
 		err = createThreadMessageWithRetries(ctx, threadId, threadRunId, message.Text, chatIDString)
 		if err != nil {
 			log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 
 		messages, err = BOT.API.CreateRunStreaming(ctx, models.AssistantIdForModel(engineModel), engineModel, threadId, cancelContext)
 		if err != nil {
 			log.Errorf("Failed to create and run streaming for user id: %s, error: %v", chatIDString, err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 	}
@@ -126,6 +127,7 @@ func ProcessThreadedNonStreamingMessage(
 ) {
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
+	topicID := util.GetTopicID(message)
 
 	usage := models.CostAndUsage{
 		Engine:             engineModel,
@@ -134,14 +136,14 @@ func ProcessThreadedNonStreamingMessage(
 		Cost:               0,
 		Usage:              models.Usage{},
 	}
-	currentThreadPromptTokens, _ := redis.RedisClient.IncrBy(ctx, lib.UserCurrentThreadPromptKey(chatIDString), int64(openai.ApproximateTokensCount(message.Text))).Result()
+	currentThreadPromptTokens, _ := redis.RedisClient.IncrBy(ctx, lib.UserCurrentThreadPromptKey(chatIDString, topicID), int64(openai.ApproximateTokensCount(message.Text))).Result()
 	usage.Usage.PromptTokens = openai.LimitPromptTokensForModel(engineModel, float64(currentThreadPromptTokens))
 
 	payments.HugePromptAlarm(ctx, usage)
 
 	var threadRun *models.ThreadRunResponse
 	threadRunId := ""
-	threadId, _ := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString)).Result()
+	threadId, _ := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString, topicID)).Result()
 	if threadId == "" {
 		log.Infof("No thread found for chat %s, creating new thread", chatIDString)
 
@@ -155,26 +157,26 @@ func ProcessThreadedNonStreamingMessage(
 		})
 		if err != nil {
 			log.Errorf("Failed to create thread: %s", err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 		threadId = threadRun.ThreadID
 		threadRunId = threadRun.ID
-		redis.RedisClient.Set(ctx, lib.UserCurrentThreadKey(chatIDString), threadId, 0)
+		redis.RedisClient.Set(ctx, lib.UserCurrentThreadKey(chatIDString, topicID), threadId, 0)
 	} else {
 		log.Infof("Found thread %s for chat %s, adding a message..", threadId, chatIDString)
 
 		err := createThreadMessageWithRetries(ctx, threadId, threadRunId, message.Text, chatIDString)
 		if err != nil {
 			log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 
 		threadRun, err = BOT.API.CreateRun(ctx, models.AssistantIdForModel(engineModel), threadId)
 		if err != nil {
 			log.Errorf("Failed to create run in chat %s: %s", chatIDString, err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 		threadRunId = threadRun.ID
@@ -183,7 +185,7 @@ func ProcessThreadedNonStreamingMessage(
 	_, err := pollThreadRun(ctx, threadId, chatIDString, threadRunId)
 	if err != nil {
 		log.Errorf("Failed to final poll thread run in chat %s: %s", chatIDString, err)
-		bot.SendMessage(tu.Message(chatID, OOPSIE))
+		bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID).WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 
@@ -191,7 +193,7 @@ func ProcessThreadedNonStreamingMessage(
 	threadMessage, err := BOT.API.ListThreadMessagesForARun(ctx, threadId, threadRunId)
 	if err != nil {
 		log.Errorf("Failed to get messages from thread in chat %s: %s", chatIDString, err)
-		bot.SendMessage(tu.Message(chatID, OOPSIE))
+		bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 
@@ -203,7 +205,7 @@ func ProcessThreadedNonStreamingMessage(
 				totalContent += content.Text.Value
 
 				// increase also current-thread-prompt-tokens, cause it will be used in the next iteration
-				_, err := redis.RedisClient.IncrBy(ctx, lib.UserCurrentThreadPromptKey(chatIDString), int64(usage.Usage.CompletionTokens)).Result()
+				_, err := redis.RedisClient.IncrBy(ctx, lib.UserCurrentThreadPromptKey(chatIDString, topicID), int64(usage.Usage.CompletionTokens)).Result()
 				if err != nil {
 					log.Errorf("Failed to increment current-thread-prompt-tokens in chat %s: %s", chatIDString, err)
 				}
@@ -216,9 +218,9 @@ func ProcessThreadedNonStreamingMessage(
 	go payments.Bill(ctx, usage)
 
 	if mode != lib.VoiceGPT {
-		ChunkSendMessage(bot, chatID, totalContent)
+		ChunkSendMessage(bot, message, totalContent)
 	} else {
-		ChunkSendVoice(ctx, bot, chatID, totalContent, true)
+		ChunkSendVoice(ctx, bot, message, totalContent, true)
 	}
 }
 
@@ -239,7 +241,7 @@ func ProcessChatCompleteNonStreamingMessage(ctx context.Context, bot *telego.Bot
 		log.Errorf("Failed get response from Open AI in chat %s: %s", chatID, err)
 
 		if isPrivate {
-			bot.SendMessage(tu.Message(chatID, OOPSIE))
+			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		}
 		return
 	}
@@ -263,10 +265,10 @@ func ProcessChatCompleteNonStreamingMessage(ctx context.Context, bot *telego.Bot
 		separator := "Explanation:"
 		parts := strings.Split(response, separator)
 		for _, part := range parts {
-			ChunkSendMessage(bot, chatID, part)
+			ChunkSendMessage(bot, message, part)
 		}
 	} else {
-		ChunkSendMessage(bot, chatID, response)
+		ChunkSendMessage(bot, message, response)
 	}
 }
 
@@ -309,13 +311,15 @@ func prepareMessages(
 	if err != nil {
 		if strings.Contains(err.Error(), "free plan") {
 			bot.SendMessage(&telego.SendMessageParams{
-				ChatID: chatID,
-				Text:   "Image vision is not currently available on free plans, since it's kinda expensive. Please /upgrade to use this feature.",
+				ChatID:          chatID,
+				Text:            "Image vision is not currently available on free plans, since it's kinda expensive. Please /upgrade to use this feature.",
+				MessageThreadID: message.MessageThreadID,
 			})
 		} else {
 			bot.SendMessage(&telego.SendMessageParams{
-				ChatID: chatID,
-				Text:   "😔 can't accept image messages at the moment",
+				ChatID:          chatID,
+				Text:            "😔 can't accept image messages at the moment",
+				MessageThreadID: message.MessageThreadID,
 			})
 		}
 		return nil, engineModel, err
@@ -434,12 +438,13 @@ func pollThreadRun(ctx context.Context, threadId string, chatIDString string, ru
 }
 
 // sends a message in up to 4000 chars chunks
-func ChunkSendMessage(bot *telego.Bot, chatID telego.ChatID, text string) {
+func ChunkSendMessage(bot *telego.Bot, message *telego.Message, text string) {
 	if text == "" {
 		return
 	}
+	chatID := message.Chat.ChatID()
 	for _, chunk := range util.ChunkString(text, 4000) {
-		_, err := bot.SendMessage(tu.Message(chatID, chunk).WithReplyMarkup(getLikeDislikeReplyMarkup()))
+		_, err := bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(getLikeDislikeReplyMarkup()))
 		if err != nil {
 			log.Errorf("Failed to send message to telegram: %s, chatID: %s", err, chatID)
 		}
@@ -450,15 +455,16 @@ func ChunkSendMessage(bot *telego.Bot, chatID telego.ChatID, text string) {
 func ChunkEditSendMessage(
 	ctx context.Context,
 	bot *telego.Bot,
-	chatID telego.ChatID,
+	message *telego.Message,
 	text string,
-	messageID int,
 	voice bool,
 	finalize bool,
 ) (lastMessage *telego.Message, err error) {
 	if text == "" {
 		return nil, nil
 	}
+	chatID := message.Chat.ChatID()
+	messageID := message.MessageID
 	chunks := util.ChunkString(text, 4000)
 	for i, chunk := range chunks {
 		last := false
@@ -477,10 +483,10 @@ func ChunkEditSendMessage(
 			})
 		} else {
 			log.Debugf("[ChunkEditSendMessage] chunk %d (size %d) - sending new message in chat %s", i, len(chunk), chatID)
-			lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithReplyMarkup(markup))
+			lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
 		}
 		if !last && voice {
-			ChunkSendVoice(ctx, bot, chatID, chunk, false)
+			ChunkSendVoice(ctx, bot, message, chunk, false)
 		}
 	}
 	return lastMessage, err
@@ -495,9 +501,10 @@ func (nr NamedReader) Name() string {
 	return nr.name
 }
 
-func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, text string, caption bool) {
+func ChunkSendVoice(ctx context.Context, bot *telego.Bot, message *telego.Message, text string, caption bool) {
+	chatID := message.Chat.ChatID()
 	for _, chunk := range util.ChunkString(text, 1000) {
-		sendAudioAction(bot, chatID)
+		sendAudioAction(bot, message)
 		voiceReader, err := BOT.API.CreateSpeech(ctx, &models.TTSRequest{
 			Model: models.TTS,
 			Input: chunk,
@@ -521,8 +528,9 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, chatID telego.ChatID, 
 			trimmedChunk = chunk[:1000] + "..."
 		}
 		voiceParams := &telego.SendVoiceParams{
-			ChatID: chatID,
-			Voice:  voiceFile,
+			ChatID:          chatID,
+			Voice:           voiceFile,
+			MessageThreadID: message.MessageThreadID,
 		}
 		if caption {
 			voiceParams.Caption = trimmedChunk
@@ -558,12 +566,12 @@ func processMessageChannel(
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
 	responseText := "..."
-	responseMessage, err := bot.SendMessage(tu.Message(chatID, responseText).WithReplyMarkup(
+	responseMessage, err := bot.SendMessage(tu.Message(chatID, responseText).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
 		getPendingReplyMarkup(),
 	))
 	if err != nil {
 		log.Errorf("Failed to send primer message in chat: %s, %v", chatIDString, err)
-		bot.SendMessage(tu.Message(chatID, OOPSIE))
+		bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 	// only update message every 3 seconds to prevent rate limiting from telegram
@@ -592,7 +600,7 @@ func processMessageChannel(
 				log.Errorf("Failed to add reaction to message in chat: %s, %v", chatIDString, err)
 			}
 		} else {
-			_, err = ChunkEditSendMessage(ctx, bot, chatID, finalMessageString, responseMessage.MessageID, mode == lib.VoiceGPT, true)
+			_, err = ChunkEditSendMessage(ctx, bot, responseMessage, finalMessageString, mode == lib.VoiceGPT, true)
 			if err != nil {
 				log.Errorf("Failed to ChunkEditSendMessage message in chat: %s, %v", chatIDString, err)
 			}
@@ -614,7 +622,7 @@ func processMessageChannel(
 			trimmedResponseText := postprocessMessage(responseText, mode, userMessagePrimer)
 
 			var nextMessageObject *telego.Message
-			nextMessageObject, err = ChunkEditSendMessage(ctx, bot, chatID, trimmedResponseText, responseMessage.MessageID, mode == lib.VoiceGPT, false)
+			nextMessageObject, err = ChunkEditSendMessage(ctx, bot, responseMessage, trimmedResponseText, mode == lib.VoiceGPT, false)
 			if err != nil {
 				log.Errorf("Failed to ChunkEditSendMessage message in chat: %s, %v", chatIDString, err)
 			}

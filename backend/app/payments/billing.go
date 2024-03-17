@@ -84,10 +84,13 @@ func HugePromptAlarm(ctx context.Context, usage models.CostAndUsage) {
 		ID: userIdInt,
 	}
 
+	topicIdString := ctx.Value(models.TopicContext{}).(string)
+	topicId, _ := strconv.Atoi(topicIdString)
+
 	MAX_TOKENS_ALARM := 10 * 1024
 	if usage.Usage.PromptTokens > MAX_TOKENS_ALARM {
 		log.Warnf("Prompt tokens for chat %s exceeded max tokens alarm: %d", userId, usage.Usage.PromptTokens)
-		PaymentsBot.SendMessage(tu.Message(chatID, fmt.Sprintf("⚠️ Your prompt (including previous conversation) is very long. This may lead to increased costs and the bot timeouts.\nConsider /clear the memory to start a new thread and/or use shorter messages.\n\nRequest tokens - %d.\nProjected cost of the request - $%.3f", usage.Usage.PromptTokens, usage.PricePerInputUnit*float64(usage.Usage.PromptTokens))))
+		PaymentsBot.SendMessage(tu.Message(chatID, fmt.Sprintf("⚠️ Your prompt (including previous conversation) is very long. This may lead to increased costs and the bot timeouts.\nConsider /clear the memory to start a new thread and/or use shorter messages.\n\nRequest tokens - %d.\nProjected cost of the request - $%.3f", usage.Usage.PromptTokens, usage.PricePerInputUnit*float64(usage.Usage.PromptTokens))).WithMessageThreadID(topicId))
 	}
 }
 
@@ -96,6 +99,7 @@ func Bill(originalContext context.Context, usage models.CostAndUsage) models.Cos
 	ctx = context.WithValue(ctx, models.SubscriptionContext{}, originalContext.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName))
 	ctx = context.WithValue(ctx, models.ClientContext{}, originalContext.Value(models.ClientContext{}).(string))
 	ctx = context.WithValue(ctx, models.ChannelContext{}, originalContext.Value(models.ChannelContext{}).(string))
+	ctx = context.WithValue(ctx, models.TopicContext{}, originalContext.Value(models.TopicContext{}))
 	ctx = context.WithValue(ctx, models.ParamsContext{}, originalContext.Value(models.ParamsContext{}))
 	defer ctx.Done()
 	usage.Cost =
@@ -201,9 +205,11 @@ var SendNotification = func(ctx context.Context, message string) {
 	userString := strings.TrimPrefix(ctx.Value(models.UserContext{}).(string), "slack:")
 	userId, _ := strconv.ParseInt(userString, 10, 64)
 	client := ctx.Value(models.ClientContext{}).(string)
+	topicString := ctx.Value(models.TopicContext{}).(string)
+	topicId, _ := strconv.Atoi(topicString)
 
 	if client == string(lib.TelegramClientName) {
-		_, err := PaymentsBot.SendMessage(tu.Message(tu.ID(userId), message))
+		_, err := PaymentsBot.SendMessage(tu.Message(tu.ID(userId), message).WithMessageThreadID(topicId))
 		if err != nil {
 			log.Errorf("[billing] error sending telegram message: %v", err)
 		}

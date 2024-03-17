@@ -45,10 +45,17 @@ func GetChatIDString(m *telego.Message) string {
 }
 
 func GetTopicID(m *telego.Message) string {
-	if m.Chat.Type == "private" {
+	if m.Chat.Type != telego.ChatTypeSupergroup {
 		return ""
 	}
-	return fmt.Sprintf("%d", m.GetChat().LinkedChatID)
+	return fmt.Sprintf("%d", m.MessageThreadID)
+}
+
+func GetTopicIDFromChat(c telego.Chat) string {
+	if c.Type != telego.ChatTypeSupergroup {
+		return ""
+	}
+	return fmt.Sprintf("%d", c.LinkedChatID)
 }
 
 func MessagesToMultimodalMessages(messages []models.Message) []models.MultimodalMessage {

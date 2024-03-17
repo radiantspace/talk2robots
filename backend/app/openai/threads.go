@@ -564,7 +564,6 @@ func (a *API) ListThreadMessagesForARun(ctx context.Context, threadId string, ru
 }
 
 func (a *API) CreateThreadAndRunStreaming(ctx context.Context, assistantId string, model models.Engine, thread *models.Thread, cancelContext context.CancelFunc) (chan string, error) {
-	userId := ctx.Value(models.UserContext{}).(string)
 	if assistantId == "" {
 		return nil, fmt.Errorf("assistantId is required")
 	}
@@ -601,12 +600,11 @@ func (a *API) CreateThreadAndRunStreaming(ctx context.Context, assistantId strin
 
 	client := sse.NewClientFromReq(req)
 	messages := make(chan string)
-	go subscribeAndProcess(messages, client, ctx, cancelContext, userId, timeNow, "create_thread_and_run_streaming", usage)
+	go subscribeAndProcess(messages, client, ctx, cancelContext, timeNow, "create_thread_and_run_streaming", usage)
 	return messages, nil
 }
 
 func (a *API) CreateRunStreaming(ctx context.Context, assistantId string, model models.Engine, threadId string, cancelContext context.CancelFunc) (chan string, error) {
-	userId := ctx.Value(models.UserContext{}).(string)
 	if assistantId == "" {
 		return nil, fmt.Errorf("assistantId is required")
 	}
@@ -649,7 +647,7 @@ func (a *API) CreateRunStreaming(ctx context.Context, assistantId string, model 
 	client := sse.NewClientFromReq(req)
 	messages := make(chan string)
 
-	go subscribeAndProcess(messages, client, ctx, cancelContext, userId, timeNow, "create_run_streaming", usage)
+	go subscribeAndProcess(messages, client, ctx, cancelContext, timeNow, "create_run_streaming", usage)
 	return messages, nil
 }
 
@@ -658,12 +656,13 @@ func subscribeAndProcess(
 	client *sse.Client,
 	ctx context.Context,
 	cancelContext context.CancelFunc,
-	userId string,
 	timeNow time.Time,
 	apiName string,
 	usage models.CostAndUsage,
 ) {
 	status := fmt.Sprintf("status:%d", 0)
+	userId := ctx.Value(models.UserContext{}).(string)
+	topicId := ctx.Value(models.TopicContext{}).(string)
 	defer func() {
 		close(messages)
 		cancelContext()
@@ -691,7 +690,7 @@ func subscribeAndProcess(
 
 		if string(msg.Event) == "thread.created" {
 			log.Infof("[%s] got thread.created event for user id %s, saving threadId..", apiName, userId)
-			redis.RedisClient.Set(context.Background(), lib.UserCurrentThreadKey(userId), response.Id, 0)
+			redis.RedisClient.Set(context.Background(), lib.UserCurrentThreadKey(userId, topicId), response.Id, 0)
 			return
 		}
 

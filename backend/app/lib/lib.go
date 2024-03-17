@@ -29,7 +29,7 @@ const (
 	TelegramClientName ClientName = "telegram"
 )
 
-func SetupUserAndContext(userId string, client ClientName, channelId string) (user *models.MongoUser, currentContext context.Context, cancelContext context.CancelFunc, err error) {
+func SetupUserAndContext(userId string, client ClientName, channelId string, topicId string) (user *models.MongoUser, currentContext context.Context, cancelContext context.CancelFunc, err error) {
 	if redis.IsUserBanned(userId) {
 		return nil, nil, nil, ErrUserBanned
 	}
@@ -37,6 +37,7 @@ func SetupUserAndContext(userId string, client ClientName, channelId string) (us
 	currentContext = context.WithValue(context.Background(), models.UserContext{}, userId)
 	currentContext = context.WithValue(currentContext, models.ClientContext{}, string(client))
 	currentContext = context.WithValue(currentContext, models.ChannelContext{}, channelId)
+	currentContext = context.WithValue(currentContext, models.TopicContext{}, topicId)
 	currentContext, cancelContext = context.WithTimeout(currentContext, TIMEOUT)
 
 	log.Infof("Fetching subscription from DB for user: %s", userId)

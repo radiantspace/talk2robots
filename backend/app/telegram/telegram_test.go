@@ -75,6 +75,9 @@ func getSendMessageFuncAssertion(t *testing.T, expectedRegex string, expectedCha
 		return &telego.Message{
 			MessageID: 12345,
 			Text:      params.Text,
+			Chat: telego.Chat{
+				ID: params.ChatID.ID,
+			},
 		}, nil
 	}
 }
@@ -96,6 +99,9 @@ func getEditMessageFuncAssertion(t *testing.T, expectedRegex string, expectedCha
 		return &telego.Message{
 			MessageID: params.MessageID,
 			Text:      params.Text,
+			Chat: telego.Chat{
+				ID: params.ChatID.ID,
+			},
 		}, nil
 	}
 }

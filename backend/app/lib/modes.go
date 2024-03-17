@@ -23,16 +23,31 @@ const (
 	Summarize  ModeName = "summarize"
 )
 
-func SaveMode(chatID string, mode ModeName, params string) {
+func SaveMode(chatID string, topicID string, mode ModeName, params string) {
 	log.Infof("Setting mode to %s for chat %s with params %s", mode, chatID, params)
-	redis.RedisClient.Set(context.Background(), chatID+":mode", string(mode)+","+params, time.Hour*24*30)
+	key := chatID + ":mode"
+	redis.RedisClient.Set(context.Background(), key, string(mode)+","+params, time.Hour*24*180)
+	if topicID != "" && topicID != "0" {
+		key = chatID + ":" + topicID + ":mode"
+		redis.RedisClient.Set(context.Background(), key, string(mode)+","+params, time.Hour*24*180)
+	}
 }
 
-func GetMode(chatID string) (mode ModeName, params string) {
-	modeAndParams, err := redis.RedisClient.Get(context.Background(), chatID+":mode").Result()
-	if err != nil {
-		log.Info("No mode set for chat ", chatID, ", setting to default")
-		SaveMode(chatID, ChatGPT, "")
+func GetMode(chatID string, topicID string) (mode ModeName, params string) {
+	modeAndParams := ""
+	if topicID != "" && topicID != "0" {
+		modeAndParams, _ = redis.RedisClient.Get(context.Background(), chatID+":"+topicID+":mode").Result()
+	}
+
+	// if no mode set for topic, check for general chat mode
+	if modeAndParams == "" {
+		modeAndParams, _ = redis.RedisClient.Get(context.Background(), chatID+":mode").Result()
+	}
+
+	// still no mode set, return+set default
+	if modeAndParams == "" {
+		log.Infof("No mode set for chat %s (topic: %s), setting to default", chatID, topicID)
+		SaveMode(chatID, topicID, ChatGPT, "")
 		return ChatGPT, ""
 	}
 	modeAndParamsArray := strings.Split(modeAndParams, ",")

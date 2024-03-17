@@ -163,13 +163,13 @@ func slackCommandsHandler(ctx *fasthttp.RequestCtx) {
 	go func() {
 		switch command.Command {
 		case "/grammar":
-			lib.SaveMode(userId, lib.Grammar, "")
+			lib.SaveMode(userId, "", lib.Grammar, "")
 			BOT.SendMessage(command.ChannelID, slack.MsgOptionText("Grammar mode enabled", false), slack.MsgOptionPostEphemeral(command.UserID))
 		case "/chatgpt":
-			lib.SaveMode(userId, lib.ChatGPT, "")
+			lib.SaveMode(userId, "", lib.ChatGPT, "")
 			BOT.SendMessage(command.ChannelID, slack.MsgOptionText("ChatGPT mode enabled", false), slack.MsgOptionPostEphemeral(command.UserID))
 		case "/upgrade":
-			_, currentContext, _, err := lib.SetupUserAndContext(userId, lib.SlackClientName, command.ChannelID)
+			_, currentContext, _, err := lib.SetupUserAndContext(userId, lib.SlackClientName, command.ChannelID, "")
 			if err != nil {
 				log.Errorf("Error setting up user and context: %v", err)
 				return
@@ -192,7 +192,7 @@ func handleUrlVerificationEvent(ctx *fasthttp.RequestCtx) {
 
 func handleAppHomeOpenedEvent(ev *slackevents.AppHomeOpenedEvent) {
 	userId := "slack:" + ev.User
-	user, _, cancelFunc, err := lib.SetupUserAndContext(userId, lib.SlackClientName, ev.Channel)
+	user, _, cancelFunc, err := lib.SetupUserAndContext(userId, lib.SlackClientName, ev.Channel, "")
 	if err != nil {
 		if err == lib.ErrUserBanned {
 			log.Infof("User %s is banned", userId)
@@ -253,7 +253,7 @@ func handleMessageEvent(userId string, channel string, messageTS string, message
 		log.Errorf("Invalid user: %s", userId)
 		return
 	}
-	_, currentContext, cancelFunc, err := lib.SetupUserAndContext(userId, lib.SlackClientName, channel)
+	_, currentContext, cancelFunc, err := lib.SetupUserAndContext(userId, lib.SlackClientName, channel, "")
 	if err != nil {
 		if err == lib.ErrUserBanned {
 			log.Infof("User %s is banned", userId)
@@ -278,7 +278,7 @@ func handleMessageEvent(userId string, channel string, messageTS string, message
 	var userMessagePrimer string
 
 	if mode == "" {
-		mode, _ = lib.GetMode(userId)
+		mode, _ = lib.GetMode(userId, "")
 	}
 	seedData, userMessagePrimer = lib.GetSeedDataAndPrimer(mode)
 
@@ -294,7 +294,7 @@ func summarizeThread(userId string, messageTS string, channelId string) {
 		log.Errorf("Invalid user: %s", userId)
 		return
 	}
-	_, currentContext, cancelFunc, err := lib.SetupUserAndContext(userId, lib.SlackClientName, channelId)
+	_, currentContext, cancelFunc, err := lib.SetupUserAndContext(userId, lib.SlackClientName, channelId, "")
 	if err != nil {
 		if err == lib.ErrUserBanned {
 			log.Infof("User %s is banned", userId)

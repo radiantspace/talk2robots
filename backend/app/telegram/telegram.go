@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/converters"
@@ -112,8 +113,9 @@ func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Updat
 func HandleMessage(bot *telego.Bot, message telego.Message) {
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
+	topicID := util.GetTopicID(&message)
 	isPrivate := message.Chat.Type == "private"
-	_, ctx, cancelContext, err := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString)
+	_, ctx, cancelContext, err := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, topicID)
 	if err != nil {
 		if err == lib.ErrUserBanned {
 			log.Infof("User %s is banned", chatIDString)
@@ -134,7 +136,7 @@ func HandleMessage(bot *telego.Bot, message telego.Message) {
 		return
 	}
 
-	mode, params := lib.GetMode(chatIDString)
+	mode, params := lib.GetMode(chatIDString, topicID)
 	log.Infof("chat %s, mode: %s, params: %s", chatIDString, mode, params)
 	ctx = context.WithValue(ctx, models.ParamsContext{}, params)
 	// while in channels, only react to
@@ -158,7 +160,7 @@ func HandleMessage(bot *telego.Bot, message telego.Message) {
 	if !ok {
 		notification := "Your monthly usage limit has been exceeded. Check /status and /upgrade your subscription to continue using the bot. The limits are reset on the 1st of every month."
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-		bot.SendMessage(tu.Message(chatID, notification))
+		bot.SendMessage(tu.Message(chatID, notification).WithMessageThreadID(message.MessageThreadID))
 		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
 		return
 	}
@@ -181,9 +183,9 @@ func HandleMessage(bot *telego.Bot, message telego.Message) {
 
 		// send typing action to show that bot is working
 		if mode != lib.VoiceGPT {
-			sendTypingAction(bot, chatID)
+			sendTypingAction(bot, &message)
 		} else {
-			sendAudioAction(bot, chatID)
+			sendAudioAction(bot, &message)
 		}
 		voiceTranscriptionText = getVoiceTranscript(ctx, bot, message)
 
@@ -202,7 +204,7 @@ func HandleMessage(bot *telego.Bot, message telego.Message) {
 	}
 
 	if mode == lib.Transcribe {
-		ChunkSendMessage(bot, chatID, voiceTranscriptionText)
+		ChunkSendMessage(bot, &message, voiceTranscriptionText)
 		if isPrivate && message.Text != "" {
 			bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
 		}
@@ -210,7 +212,7 @@ func HandleMessage(bot *telego.Bot, message telego.Message) {
 	}
 
 	if mode != lib.VoiceGPT && !(mode == lib.Grammar && !isPrivate) && voiceTranscriptionText != "" {
-		ChunkSendMessage(bot, chatID, "🗣:\n"+voiceTranscriptionText)
+		ChunkSendMessage(bot, &message, "🗣:\n"+voiceTranscriptionText)
 	}
 
 	if message.Text != "" {
@@ -233,9 +235,9 @@ func HandleMessage(bot *telego.Bot, message telego.Message) {
 
 	// send action to show that bot is working
 	if mode != lib.VoiceGPT {
-		sendTypingAction(bot, chatID)
+		sendTypingAction(bot, &message)
 	} else {
-		sendAudioAction(bot, chatID)
+		sendAudioAction(bot, &message)
 	}
 	if mode == lib.ChatGPT || mode == lib.VoiceGPT {
 		go ProcessThreadedStreamingMessage(ctx, bot, &message, mode, engineModel, cancelContext)
@@ -249,10 +251,13 @@ func HandleMessage(bot *telego.Bot, message telego.Message) {
 func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	userId := callbackQuery.From.ID
 	chat := callbackQuery.Message.GetChat()
+	messageId := callbackQuery.Message.GetMessageID()
 	chatId := chat.ID
 	chatString := fmt.Sprintf("%d", chatId)
+	topicString := util.GetTopicIDFromChat(chat)
+	topicId, _ := strconv.Atoi(topicString)
 	chatType := chat.Type
-	log.Infof("Received callback query: %s, for user: %d in chat %d", callbackQuery.Data, userId, chatId)
+	log.Infof("Received callback query: %s, for user: %d in chat %d, topic %s, messageId %d", callbackQuery.Data, userId, chatId, topicString, messageId)
 	config.CONFIG.DataDogClient.Incr("telegram.callback_query", []string{"data:" + callbackQuery.Data, "channel_type:" + chatType}, 1)
 	switch callbackQuery.Data {
 	case "like":
@@ -274,19 +279,19 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	case string(models.ChatGpt35Turbo), string(models.ChatGpt4):
 		handleEngineSwitchCallbackQuery(callbackQuery)
 	case "downgradefromfreeplus":
-		_, ctx, _, _ := lib.SetupUserAndContext(chatString, "telegram", chatString)
+		_, ctx, _, _ := lib.SetupUserAndContext(chatString, "telegram", chatString, topicString)
 		if !lib.IsUserFreePlus(ctx) {
 			return
 		}
 		err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreeSubscriptionName])
 		if err != nil {
 			log.Errorf("Failed to downgrade user %s subscription: to free %v", chatString, err)
-			bot.SendMessage(tu.Message(tu.ID(chatId), "Failed to downgrade your account to free plan. Please try again later."))
+			bot.SendMessage(tu.Message(tu.ID(chatId), "Failed to downgrade your account to free plan. Please try again later.").WithMessageThreadID(topicId))
 			return
 		}
-		bot.SendMessage(tu.Message(tu.ID(chatId), "You are now a free user!"))
+		bot.SendMessage(tu.Message(tu.ID(chatId), "You are now a free user!").WithMessageThreadID(topicId))
 	case "downgradefrombasic":
-		user, ctx, _, err := lib.SetupUserAndContext(chatString, "telegram", chatString)
+		user, ctx, _, err := lib.SetupUserAndContext(chatString, "telegram", chatString, topicString)
 		if err != nil {
 			log.Errorf("Failed to get user %s: %v", chatString, err)
 			return
@@ -300,9 +305,9 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 			if err != nil {
 				log.Errorf("Failed to downgrade user %s subscription: to free+ %v", chatString, err)
-				bot.SendMessage(tu.Message(tu.ID(chatId), "Failed to downgrade your account to free+ plan. Please try again later."))
+				bot.SendMessage(tu.Message(tu.ID(chatId), "Failed to downgrade your account to free+ plan. Please try again later.").WithMessageThreadID(topicId))
 			}
-			bot.SendMessage(tu.Message(tu.ID(chatId), "You are now a free+ user!"))
+			bot.SendMessage(tu.Message(tu.ID(chatId), "You are now a free+ user!").WithMessageThreadID(topicId))
 			return
 		}
 
@@ -322,10 +327,13 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 func handleCommandsInCallbackQuery(callbackQuery telego.CallbackQuery) {
 	chat := callbackQuery.Message.GetChat()
 	chatIDString := fmt.Sprint(chat.ID)
-	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString)
+	topicString := util.GetTopicIDFromChat(chat)
+	topicID, _ := strconv.Atoi(topicString)
+	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, topicString)
 	message := telego.Message{
-		Chat: telego.Chat{ID: chat.ID},
-		Text: "/" + callbackQuery.Data,
+		Chat:            chat,
+		Text:            "/" + callbackQuery.Data,
+		MessageThreadID: topicID,
 	}
 	AllCommandHandlers.handleCommand(ctx, BOT, &message)
 }
@@ -334,11 +342,13 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 	chat := callbackQuery.Message.GetChat()
 	chatID := callbackQuery.From.ID
 	if callbackQuery.Message != nil && chat.ID != chatID {
-		log.Infof("Callback query message in chat ID: %d, user ID: %d", chat.ID, chatID)
 		chatID = chat.ID
 	}
+	log.Infof("Callback query message in chat ID: %d, user ID: %d, topic: %s", chat.ID, chatID, util.GetTopicIDFromChat(chat))
 	chatIDString := fmt.Sprint(chatID)
-	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString)
+	topicString := util.GetTopicIDFromChat(chat)
+	topicID, _ := strconv.Atoi(topicString)
+	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, topicString)
 	currentEngine := redis.GetChatEngine(chatIDString)
 	if callbackQuery.Data == string(currentEngine) {
 		err := BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
@@ -352,7 +362,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 	}
 	if callbackQuery.Data == string(models.ChatGpt35Turbo) {
 		redis.SaveEngine(chatIDString, models.ChatGpt35Turbo)
-		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-3.5 Turbo model, fast and cheap!"))
+		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-3.5 Turbo model, fast and cheap!").WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-3.5 message: %v", err)
 		}
@@ -370,19 +380,19 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {
 			log.Errorf("Failed to get user: %v", err)
-			BOT.SendMessage(tu.Message(tu.ID(chatID), "Failed to switch to GPT model, please try again later"))
+			BOT.SendMessage(tu.Message(tu.ID(chatID), "Failed to switch to GPT model, please try again later").WithMessageThreadID(topicID))
 			return
 		}
 		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
 			notification := "You need to /upgrade your subscription to use GPT-4 engine! Meanwhile, you can still use GPT-3.5 Turbo model, it's fast, cheap and quite smart."
 			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-			BOT.SendMessage(tu.Message(tu.ID(chatID), notification))
+			BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 			return
 		}
 		redis.SaveEngine(chatIDString, models.ChatGpt4)
 		notification := "Switched to GPT-4 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap."
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification))
+		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-4 message: %v", err)
 		}
@@ -423,10 +433,10 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 	if err != nil {
 		log.Errorf("Failed to get voice/audio/video file data in chat %s: %v", chatIDString, err)
 		if strings.Contains(err.Error(), "file is too big") {
-			_, _ = bot.SendMessage(tu.Message(chatID, "Telegram API doesn't support downloading files bigger than 20Mb, try sending a shorter voice/audio/video message."))
+			_, _ = bot.SendMessage(tu.Message(chatID, "Telegram API doesn't support downloading files bigger than 20Mb, try sending a shorter voice/audio/video message.").WithMessageThreadID(message.MessageThreadID))
 			return ""
 		}
-		_, err = bot.SendMessage(tu.Message(chatID, "Something went wrong while getting voice/audio/video file, please try again."))
+		_, err = bot.SendMessage(tu.Message(chatID, "Something went wrong while getting voice/audio/video file, please try again.").WithMessageThreadID(message.MessageThreadID))
 		if err != nil {
 			log.Errorf("Failed to send message in chat %s: %v", chatIDString, err)
 		}
@@ -498,22 +508,24 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 
 	if whisper.Transcript().Text == "" {
 		log.Warnf("Failed to transcribe voice message in chat %s from %s, size %d", chatIDString, fileData.FilePath, fileData.FileSize)
-		bot.SendMessage(tu.Message(chatID, "Couldn't transcribe the voice/audio/video message, maybe next time?"))
+		bot.SendMessage(tu.Message(chatID, "Couldn't transcribe the voice/audio/video message, maybe next time?").WithMessageThreadID(message.MessageThreadID))
 		return ""
 	}
 
 	return whisper.Transcript().Text
 }
 
-func sendTypingAction(bot *telego.Bot, chatID telego.ChatID) {
-	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionTyping})
+func sendTypingAction(bot *telego.Bot, message *telego.Message) {
+	chatID := message.Chat.ChatID()
+	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionTyping, MessageThreadID: message.MessageThreadID})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %v", err)
 	}
 }
 
-func sendAudioAction(bot *telego.Bot, chatID telego.ChatID) {
-	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionRecordVoice})
+func sendAudioAction(bot *telego.Bot, message *telego.Message) {
+	chatID := message.Chat.ChatID()
+	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionRecordVoice, MessageThreadID: message.MessageThreadID})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %v", err)
 	}
