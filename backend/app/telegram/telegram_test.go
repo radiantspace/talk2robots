@@ -114,7 +114,7 @@ func TestHandleEmptyPublicMessage(t *testing.T) {
 	}
 
 	// act
-	HandleMessage(BOT.Bot, message)
+	handleMessage(BOT.Bot, message)
 }
 
 func TestHandleEmptyPrivateMessage(t *testing.T) {
@@ -136,7 +136,7 @@ func TestHandleEmptyPrivateMessage(t *testing.T) {
 	defer sendMessagePatch.Unpatch()
 
 	// act
-	HandleMessage(BOT.Bot, message)
+	handleMessage(BOT.Bot, message)
 }
 
 func TestHandlePrivateStartCommandMessage(t *testing.T) {
@@ -160,7 +160,7 @@ func TestHandlePrivateStartCommandMessage(t *testing.T) {
 	defer sendMessagePatch.Unpatch()
 
 	// act
-	HandleMessage(BOT.Bot, message)
+	handleMessage(BOT.Bot, message)
 }
 
 func TestHandlePublicStartCommandMessage(t *testing.T) {
@@ -184,7 +184,7 @@ func TestHandlePublicStartCommandMessage(t *testing.T) {
 	defer sendMessagePatch.Unpatch()
 
 	// act
-	HandleMessage(BOT.Bot, message)
+	handleMessage(BOT.Bot, message)
 }
 
 func TestHandlePublicStartCommandNoMentionMessage(t *testing.T) {
@@ -198,7 +198,7 @@ func TestHandlePublicStartCommandNoMentionMessage(t *testing.T) {
 	}
 
 	// act
-	HandleMessage(BOT.Bot, message)
+	handleMessage(BOT.Bot, message)
 }
 
 func TestHandlePublicUnknownCommandMessage(t *testing.T) {
@@ -222,5 +222,5 @@ func TestHandlePublicUnknownCommandMessage(t *testing.T) {
 	defer sendMessagePatch.Unpatch()
 
 	// act
-	HandleMessage(BOT.Bot, message)
+	handleMessage(BOT.Bot, message)
 }

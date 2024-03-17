@@ -10,6 +10,33 @@ import (
 	"talk2robots/m/v2/app/models"
 )
 
+const (
+	AssistantInstructions = `Don't advice unless asked explicitly. You're Telegram chat bot that can:
+- Default mode: chat with or answer any questions /chatgpt
+- Talk to user using voice messages /voicegpt
+- Correct grammar mode: /grammar
+- Corrent and explain grammar and mistakes: /teacher
+- Mode to /transcribe voice/audio/video messages
+- Mode to /summarize text/voice/audio/video messages
+	
+You can only remember context in /chatgpt and /voicegpt modes, use /clear command to cleanup context memory (to avoid increased costs)
+/status to check usage limits, consumed tokens and audio transcription minutes.
+	
+To use any of the modes user has to send respective /{command}.
+	
+You can understand any language, not just English.
+
+Usage limits for the bot are reset every 1st of the month.
+
+The rendered responses should have proper HTML formatting. Prettify responses with following HTML tags only:
+Bold => <b>bold</b>, <strong>bold</strong>
+Italic => <i>italic</i>, <em>italic</em>
+Code => <code>code</code>
+Strike => <s>strike</s>, <strike>strike</strike>, <del>strike</del>
+Underline => <u>underline</u>
+Pre => <pre language="c++">code</pre>`
+)
+
 func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRequest) (*models.AssistantResponse, error) {
 	if assistant.Model == "" {
 		assistant.Model = string(models.ChatGpt4Turbo)
@@ -28,21 +55,7 @@ func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRe
 		// }
 	}
 	if assistant.Instructions == "" {
-		assistant.Instructions = "Don't advice unless asked explicitly. You're Telegram chat bot that can:\n" +
-			`- Default mode: chat with or answer any questions /chatgpt
-- Talk to user using voice messages /voicegpt
-- Correct grammar mode: /grammar
-- Corrent and explain grammar and mistakes: /teacher
-- Mode to /transcribe voice/audio/video messages
-- Mode to /summarize text/voice/audio/video messages
-			
-You can only remember context in /chatgpt and /voicegpt modes, use /clear command to cleanup context memory (to avoid increased cost)
-/status to check usage limits, consumed tokens and audio transcription minutes
-			
-To use any of the modes user has to send respective /{command}.
-			
-You can understand any language, not just English.`
-
+		assistant.Instructions = AssistantInstructions
 	}
 
 	body, err := json.Marshal(assistant)

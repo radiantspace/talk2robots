@@ -480,10 +480,11 @@ func ChunkEditSendMessage(
 				MessageID:   messageID,
 				Text:        chunk,
 				ReplyMarkup: markup,
+				ParseMode:   "HTML",
 			})
 		} else {
 			log.Debugf("[ChunkEditSendMessage] chunk %d (size %d) - sending new message in chat %s", i, len(chunk), chatID)
-			lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
+			lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithParseMode("HTML").WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
 		}
 		if !last && voice {
 			ChunkSendVoice(ctx, bot, message, chunk, false)
@@ -531,6 +532,7 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, message *telego.Messag
 			ChatID:          chatID,
 			Voice:           voiceFile,
 			MessageThreadID: message.MessageThreadID,
+			ParseMode:       "HTML",
 		}
 		if caption {
 			voiceParams.Caption = trimmedChunk

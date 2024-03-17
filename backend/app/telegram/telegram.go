@@ -67,8 +67,10 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup bot handler: %w", err)
 	}
-	bh.HandleMessage(HandleMessage)
+	bh.HandleMessage(handleMessage)
 	bh.HandleCallbackQuery(handleCallbackQuery)
+	bh.HandleInlineQuery(handleInlineQuery)
+	bh.HandleChosenInlineResult(handleChosenInlineResult)
 	go bh.Start()
 
 	BOT = &Bot{
@@ -96,6 +98,8 @@ func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Updat
 			AllowedUpdates: []string{
 				"message",
 				"callback_query",
+				"inline_query",
+				"chosen_inline_result",
 				// TODO: uncomment these when https://github.com/mymmrac/telego/pull/157/files lands
 				// "message_reaction",
 				// "message_reaction_count",
@@ -110,7 +114,7 @@ func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Updat
 	return updates, err
 }
 
-func HandleMessage(bot *telego.Bot, message telego.Message) {
+func handleMessage(bot *telego.Bot, message telego.Message) {
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
 	topicID := util.GetTopicID(&message)
@@ -252,12 +256,14 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	userId := callbackQuery.From.ID
 	chat := callbackQuery.Message.GetChat()
 	messageId := callbackQuery.Message.GetMessageID()
+
+	// log.Infof("Received callback query: %s, for user: %d in chat %d, messageId %d, fetching message..", callbackQuery.Data, userId, chat.ID, messageId)
 	chatId := chat.ID
 	chatString := fmt.Sprintf("%d", chatId)
 	topicString := util.GetTopicIDFromChat(chat)
 	topicId, _ := strconv.Atoi(topicString)
 	chatType := chat.Type
-	log.Infof("Received callback query: %s, for user: %d in chat %d, topic %s, messageId %d", callbackQuery.Data, userId, chatId, topicString, messageId)
+	log.Infof("Callback query %s for user: %d in chat %d, topic %s, messageId %d", callbackQuery.Data, userId, chatId, topicString, messageId)
 	config.CONFIG.DataDogClient.Incr("telegram.callback_query", []string{"data:" + callbackQuery.Data, "channel_type:" + chatType}, 1)
 	switch callbackQuery.Data {
 	case "like":
@@ -406,6 +412,57 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 		return
 	}
 	log.Errorf("Unknown engine switch callback query: %s, chat id: %s", callbackQuery.Data, chatIDString)
+}
+
+func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
+	chatID := inlineQuery.From.ID
+	chatIDString := fmt.Sprint(chatID)
+	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, "")
+	if inlineQuery.Query == "" {
+		inlineQuery.Query = "What can you do?"
+	}
+	log.Infof("Inline query from ID: %d, query size: %d", inlineQuery.From.ID, len(inlineQuery.Query))
+
+	// get the response
+	response, err := BOT.API.ChatComplete(ctx, models.ChatCompletion{
+		Messages: []models.Message{
+			{
+				Role:    "system",
+				Content: openai.AssistantInstructions,
+			},
+			{
+				Role:    "user",
+				Content: inlineQuery.Query,
+			},
+		},
+		MaxTokens: 1024,
+	})
+	if err != nil {
+		log.Errorf("Failed to get completion for inline query: %v", err)
+		return
+	}
+	params := &telego.AnswerInlineQueryParams{
+		InlineQueryID: inlineQuery.ID,
+	}
+	params.WithResults(&telego.InlineQueryResultArticle{
+		Type:        "article",
+		ID:          "0",
+		Title:       "ChatGPT",
+		Description: response,
+		InputMessageContent: &telego.InputTextMessageContent{
+			MessageText: response,
+			ParseMode:   "HTML",
+		},
+	})
+	err = bot.AnswerInlineQuery(params)
+	if err != nil {
+		log.Errorf("Failed to answer %d inline query: %v", chatID, err)
+	}
+}
+
+func handleChosenInlineResult(bot *telego.Bot, chosenInlineResult telego.ChosenInlineResult) {
+	userID := chosenInlineResult.From.ID
+	log.Infof("Chosen inline result from ID: %d, result ID: %s", userID, chosenInlineResult.ResultID)
 }
 
 func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Message) string {
