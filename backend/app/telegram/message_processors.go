@@ -272,10 +272,11 @@ func ProcessChatCompleteNonStreamingMessage(ctx context.Context, bot *telego.Bot
 	}
 }
 
-func getLikeDislikeReplyMarkup() *telego.InlineKeyboardMarkup {
+func getLikeDislikeReplyMarkup(messageThreadId int) *telego.InlineKeyboardMarkup {
+	topicIdString := fmt.Sprintf("%d", messageThreadId)
 	// set up inline keyboard for like/dislike buttons
-	btnLike := telego.InlineKeyboardButton{Text: "👍", CallbackData: "like"}
-	btnDislike := telego.InlineKeyboardButton{Text: "👎", CallbackData: "dislike"}
+	btnLike := telego.InlineKeyboardButton{Text: "👍", CallbackData: "like:" + topicIdString}
+	btnDislike := telego.InlineKeyboardButton{Text: "👎", CallbackData: "dislike:" + topicIdString}
 	return &telego.InlineKeyboardMarkup{InlineKeyboard: [][]telego.InlineKeyboardButton{{btnLike, btnDislike}}}
 }
 
@@ -444,7 +445,7 @@ func ChunkSendMessage(bot *telego.Bot, message *telego.Message, text string) {
 	}
 	chatID := message.Chat.ChatID()
 	for _, chunk := range util.ChunkString(text, 4000) {
-		_, err := bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(getLikeDislikeReplyMarkup()))
+		_, err := bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
 		if err != nil {
 			log.Errorf("Failed to send message to telegram: %s, chatID: %s", err, chatID)
 		}
@@ -468,7 +469,7 @@ func ChunkEditSendMessage(
 	chunks := util.ChunkString(text, 4000)
 	for i, chunk := range chunks {
 		last := false
-		markup := getLikeDislikeReplyMarkup()
+		markup := getLikeDislikeReplyMarkup(message.MessageThreadID)
 		if i == len(chunks)-1 && !finalize {
 			markup = getPendingReplyMarkup()
 			last = true
@@ -537,7 +538,7 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, message *telego.Messag
 		if caption {
 			voiceParams.Caption = trimmedChunk
 		}
-		_, err = bot.SendVoice(voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup()))
+		_, err = bot.SendVoice(voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
 		if err != nil {
 			log.Errorf("Failed to send voice message: %v in chatID: %d", err, chatID.ID)
 			continue

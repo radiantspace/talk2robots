@@ -273,6 +273,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
 	chatString := util.GetChatIDString(message)
 	chatID := util.GetChatID(message)
+	topicString := util.GetTopicID(message)
 	if lib.IsUserFree(ctx) {
 		bot.SendMessage(tu.Message(chatID, "You are already a free user!").WithMessageThreadID(message.MessageThreadID))
 		return
@@ -283,12 +284,12 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 	if lib.IsUserFreePlus(ctx) {
 		// send confirmation message with yes/no buttons
 		confirmationMessage = "Are you sure you want to cancel your free+ plan?\n\nYou will be downgraded to the free plan immediately."
-		callbackData = "downgradefromfreeplus"
+		callbackData = "downgradefromfreeplus:" + topicString
 	}
 
 	if lib.IsUserBasic(ctx) {
 		confirmationMessage = "Are you sure you want to cancel your subscription to the basic plan?\n\nYou will be downgraded to the free+ plan immediately, loosing access to GPT-4 model and increased usage limits. Unused limits will not be refunded."
-		callbackData = "downgradefrombasic"
+		callbackData = "downgradefrombasic:" + topicString
 	}
 
 	if callbackData == "" {
@@ -308,7 +309,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 					},
 					telego.InlineKeyboardButton{
 						Text:         "No",
-						CallbackData: "cancel",
+						CallbackData: "cancel:" + topicString,
 					},
 				},
 			},

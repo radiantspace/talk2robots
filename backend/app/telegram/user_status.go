@@ -39,46 +39,47 @@ func GetUserStatus(ctx context.Context) string {
 func GetStatusKeyboard(ctx context.Context) telego.ReplyMarkup {
 	// userIdString := ctx.Value(models.UserContext{}).(string)
 	// mode := GetMode(userIdString)
+	topicString := ctx.Value(models.TopicContext{}).(string)
 	keyboard := &telego.InlineKeyboardMarkup{
 		InlineKeyboard: [][]telego.InlineKeyboardButton{
 			{
 				{
 					Text:         "ChatGPT",
-					CallbackData: string(lib.ChatGPT),
+					CallbackData: string(lib.ChatGPT) + ":" + topicString,
 				},
 				{
 					Text:         "VoiceGPT",
-					CallbackData: string(lib.VoiceGPT),
+					CallbackData: string(lib.VoiceGPT) + ":" + topicString,
 				},
 			},
 			{
 				{
 					Text:         "Grammar",
-					CallbackData: string(lib.Grammar),
+					CallbackData: string(lib.Grammar) + ":" + topicString,
 				},
 				{
 					Text:         "Teacher",
-					CallbackData: string(lib.Teacher),
+					CallbackData: string(lib.Teacher) + ":" + topicString,
 				},
 			},
 			{
 				{
 					Text:         "Transcribe",
-					CallbackData: string(lib.Transcribe),
+					CallbackData: string(lib.Transcribe) + ":" + topicString,
 				},
 				{
 					Text:         "Summarize",
-					CallbackData: string(lib.Summarize),
+					CallbackData: string(lib.Summarize) + ":" + topicString,
 				},
 			},
 			{
 				{
 					Text:         "GPT 3.5 Turbo",
-					CallbackData: string(models.ChatGpt35Turbo),
+					CallbackData: string(models.ChatGpt35Turbo) + ":" + topicString,
 				},
 				{
 					Text:         "GPT 4",
-					CallbackData: string(models.ChatGpt4),
+					CallbackData: string(models.ChatGpt4) + ":" + topicString,
 				},
 			},
 		},

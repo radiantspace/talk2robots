@@ -260,9 +260,18 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	// log.Infof("Received callback query: %s, for user: %d in chat %d, messageId %d, fetching message..", callbackQuery.Data, userId, chat.ID, messageId)
 	chatId := chat.ID
 	chatString := fmt.Sprintf("%d", chatId)
-	topicString := util.GetTopicIDFromChat(chat)
-	topicId, _ := strconv.Atoi(topicString)
 	chatType := chat.Type
+
+	// we pass the topic id / message thread id in the callback query data
+	callbackParams := strings.Split(callbackQuery.Data, ":")
+	topicString := ""
+	topicId := 0
+	if len(callbackParams) > 1 {
+		topicString = callbackParams[1]
+		topicId, _ = strconv.Atoi(topicString)
+	}
+	callbackQuery.Data = callbackParams[0]
+
 	log.Infof("Callback query %s for user: %d in chat %d, topic %s, messageId %d", callbackQuery.Data, userId, chatId, topicString, messageId)
 	config.CONFIG.DataDogClient.Incr("telegram.callback_query", []string{"data:" + callbackQuery.Data, "channel_type:" + chatType}, 1)
 	switch callbackQuery.Data {
@@ -281,9 +290,9 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			Text:            "Thanks for your feedback!",
 		})
 	case string(lib.ChatGPT), string(lib.VoiceGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe):
-		handleCommandsInCallbackQuery(callbackQuery)
+		handleCommandsInCallbackQuery(callbackQuery, topicString)
 	case string(models.ChatGpt35Turbo), string(models.ChatGpt4):
-		handleEngineSwitchCallbackQuery(callbackQuery)
+		handleEngineSwitchCallbackQuery(callbackQuery, topicString)
 	case "downgradefromfreeplus":
 		_, ctx, _, _ := lib.SetupUserAndContext(chatString, "telegram", chatString, topicString)
 		if !lib.IsUserFreePlus(ctx) {
@@ -326,14 +335,13 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			MessageID: callbackQuery.Message.GetMessageID(),
 		})
 	default:
-		log.Errorf("Unknown callback query: %s", callbackQuery.Data)
+		log.Errorf("Unknown callback query: %s, chat id: %s", callbackQuery.Data, chatString)
 	}
 }
 
-func handleCommandsInCallbackQuery(callbackQuery telego.CallbackQuery) {
+func handleCommandsInCallbackQuery(callbackQuery telego.CallbackQuery, topicString string) {
 	chat := callbackQuery.Message.GetChat()
 	chatIDString := fmt.Sprint(chat.ID)
-	topicString := util.GetTopicIDFromChat(chat)
 	topicID, _ := strconv.Atoi(topicString)
 	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, topicString)
 	message := telego.Message{
@@ -344,7 +352,7 @@ func handleCommandsInCallbackQuery(callbackQuery telego.CallbackQuery) {
 	AllCommandHandlers.handleCommand(ctx, BOT, &message)
 }
 
-func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
+func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicString string) {
 	chat := callbackQuery.Message.GetChat()
 	chatID := callbackQuery.From.ID
 	if callbackQuery.Message != nil && chat.ID != chatID {
@@ -352,7 +360,6 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery) {
 	}
 	log.Infof("Callback query message in chat ID: %d, user ID: %d, topic: %s", chat.ID, chatID, util.GetTopicIDFromChat(chat))
 	chatIDString := fmt.Sprint(chatID)
-	topicString := util.GetTopicIDFromChat(chat)
 	topicID, _ := strconv.Atoi(topicString)
 	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, topicString)
 	currentEngine := redis.GetChatEngine(chatIDString)
