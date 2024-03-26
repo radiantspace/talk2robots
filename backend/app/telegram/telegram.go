@@ -472,6 +472,13 @@ func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
 		},
 	})
 	err = bot.AnswerInlineQuery(params)
+
+	// retry w/o parse mode if failed
+	if err != nil && strings.Contains(err.Error(), "can't parse entities") {
+		params.Results[0].(*telego.InlineQueryResultArticle).InputMessageContent.(*telego.InputTextMessageContent).ParseMode = ""
+		err = bot.AnswerInlineQuery(params)
+	}
+
 	if err != nil {
 		log.Errorf("Failed to answer %d inline query: %v", chatID, err)
 	}

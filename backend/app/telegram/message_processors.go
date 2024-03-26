@@ -476,16 +476,26 @@ func ChunkEditSendMessage(
 		}
 		if i == 0 {
 			log.Debugf("[ChunkEditSendMessage] chunk %d (size %d) - editing message %d in chat %s", i, len(chunk), messageID, chatID)
-			_, err = bot.EditMessageText(&telego.EditMessageTextParams{
+			params := &telego.EditMessageTextParams{
 				ChatID:      chatID,
 				MessageID:   messageID,
 				Text:        chunk,
 				ReplyMarkup: markup,
 				ParseMode:   "HTML",
-			})
+			}
+			_, err = bot.EditMessageText(params)
+
+			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
+				params.ParseMode = ""
+				_, err = bot.EditMessageText(params)
+			}
 		} else {
 			log.Debugf("[ChunkEditSendMessage] chunk %d (size %d) - sending new message in chat %s", i, len(chunk), chatID)
 			lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithParseMode("HTML").WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
+
+			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
+				lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
+			}
 		}
 		if !last && voice {
 			ChunkSendVoice(ctx, bot, message, chunk, false)
@@ -539,6 +549,10 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, message *telego.Messag
 			voiceParams.Caption = trimmedChunk
 		}
 		_, err = bot.SendVoice(voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+		if err != nil && strings.Contains(err.Error(), "can't parse entities") {
+			voiceParams.ParseMode = ""
+			_, err = bot.SendVoice(voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+		}
 		if err != nil {
 			log.Errorf("Failed to send voice message: %v in chatID: %d", err, chatID.ID)
 			continue
