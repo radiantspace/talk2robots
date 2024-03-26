@@ -85,6 +85,16 @@ func TestChunkString(t *testing.T) {
 				"words",
 			},
 		},
+		{
+			name: "Long line with newlines and no split",
+			args: args{
+				s:         "This is a long line that will not be split by words\nThis is a second line that will not be split by words",
+				chunkSize: 256,
+			},
+			want: []string{
+				"This is a long line that will not be split by words\nThis is a second line that will not be split by words",
+			},
+		},
 	}
 
 	for _, tt := range tests {

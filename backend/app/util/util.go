@@ -82,7 +82,7 @@ func ChunkString(s string, chunkSize int) []string {
 			chunks = append(chunks, currentChunk)
 			currentChunk = ""
 		}
-		if currentChunk != "" && i_line < len(lines)-1 {
+		if currentChunk != "" && i_line < len(lines) {
 			currentChunk += "\n"
 		}
 
