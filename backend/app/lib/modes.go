@@ -26,10 +26,10 @@ const (
 func SaveMode(chatID string, topicID string, mode ModeName, params string) {
 	log.Infof("Setting mode to %s for chat %s with params %s", mode, chatID, params)
 	key := chatID + ":mode"
-	redis.RedisClient.Set(context.Background(), key, string(mode)+","+params, time.Hour*24*180)
+	redis.RedisClient.Set(context.Background(), key, string(mode)+","+params, time.Hour*24*3650)
 	if topicID != "" && topicID != "0" {
 		key = chatID + ":" + topicID + ":mode"
-		redis.RedisClient.Set(context.Background(), key, string(mode)+","+params, time.Hour*24*180)
+		redis.RedisClient.Set(context.Background(), key, string(mode)+","+params, time.Hour*24*3650)
 	}
 }
 
