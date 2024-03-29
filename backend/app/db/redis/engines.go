@@ -3,14 +3,13 @@ package redis
 import (
 	"context"
 	"talk2robots/m/v2/app/models"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
 func SaveEngine(chatID string, engine models.Engine) {
 	log.Info("Setting engine to ", string(engine), " for chat ", chatID)
-	RedisClient.Set(context.Background(), chatID+":engine", string(engine), time.Hour*24*30)
+	RedisClient.Set(context.Background(), chatID+":engine", string(engine), 0)
 }
 
 func GetChatEngine(chatID string) models.Engine {

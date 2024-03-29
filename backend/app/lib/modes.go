@@ -5,7 +5,6 @@ import (
 	"strings"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/models"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -26,10 +25,10 @@ const (
 func SaveMode(chatID string, topicID string, mode ModeName, params string) {
 	log.Infof("Setting mode to %s for chat %s with params %s", mode, chatID, params)
 	key := chatID + ":mode"
-	redis.RedisClient.Set(context.Background(), key, string(mode)+","+params, time.Hour*24*3650)
+	redis.RedisClient.Set(context.Background(), key, string(mode)+","+params, 0)
 	if topicID != "" && topicID != "0" {
 		key = chatID + ":" + topicID + ":mode"
-		redis.RedisClient.Set(context.Background(), key, string(mode)+","+params, time.Hour*24*3650)
+		redis.RedisClient.Set(context.Background(), key, string(mode)+","+params, 0)
 	}
 }
 
