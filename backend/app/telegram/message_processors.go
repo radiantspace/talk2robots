@@ -445,9 +445,14 @@ func ChunkSendMessage(bot *telego.Bot, message *telego.Message, text string) {
 	}
 	chatID := message.Chat.ChatID()
 	for _, chunk := range util.ChunkString(text, 4000) {
-		_, err := bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+		var err error
+		if message.MessageThreadID != 0 {
+			_, err = bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+		} else {
+			_, err = bot.SendMessage(tu.Message(chatID, chunk).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+		}
 		if err != nil {
-			log.Errorf("Failed to send message to telegram: %s, chatID: %s", err, chatID)
+			log.Errorf("Failed to send message to telegram: %v, chatID: %s, threadID: %d", err, chatID, message.MessageThreadID)
 		}
 	}
 }
