@@ -374,7 +374,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 	}
 	if callbackQuery.Data == string(models.LlamaV3_8b) {
 		redis.SaveEngine(chatIDString, models.LlamaV3_8b)
-		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to small Llama3 model, fast and cheap! Note that /chatgpt and /voicegpt modes will use GPT-3.5 Turbo to keep context awareness.").WithMessageThreadID(topicID))
+		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to small Llama3 model, fast and cheap! Note that /chatgpt and /voicegpt modes don't have context awareness (memory) when using Llama models at the moment.").WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send Llama3 small message: %v", err)
 		}
@@ -447,7 +447,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 			return
 		}
 		redis.SaveEngine(chatIDString, models.LlamaV3_70b)
-		notification := "Switched to big Llama3 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap. Note that /chatgpt and /voicegpt modes will use GPT-4 to keep context awareness."
+		notification := "Switched to big Llama3 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap. Note that /chatgpt and /voicegpt modes don't have context awareness (memory) when using Llama models at the moment."
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 		if err != nil {

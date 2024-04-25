@@ -76,7 +76,7 @@ func ProcessThreadedStreamingMessage(
 	topicID := util.GetTopicID(message)
 
 	if ai.IsFireworksAI(engineModel) {
-		ProcessChatCompleteStreamingMessage(ctx, bot, message, nil, "", mode, engineModel, nil)
+		ProcessChatCompleteStreamingMessage(ctx, bot, message, []models.Message{}, "", mode, engineModel, cancelContext)
 		return
 	}
 
@@ -137,7 +137,7 @@ func ProcessThreadedNonStreamingMessage(
 	topicID := util.GetTopicID(message)
 
 	if ai.IsFireworksAI(engineModel) {
-		ProcessChatCompleteNonStreamingMessage(ctx, bot, message, nil, "", mode, engineModel)
+		ProcessChatCompleteNonStreamingMessage(ctx, bot, message, []models.Message{}, "", mode, engineModel)
 		return
 	}
 
