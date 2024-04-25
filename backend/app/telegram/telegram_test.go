@@ -152,7 +152,7 @@ func TestHandlePrivateStartCommandMessage(t *testing.T) {
 	sendMessagePatch, err := mpatch.PatchInstanceMethodByName(
 		reflect.TypeOf(BOT.Bot),
 		"SendMessage",
-		getSendMessageFuncAssertion(t, "Hi, I'm a bot powered by OpenAI!", 123),
+		getSendMessageFuncAssertion(t, "Hi, I'm a bot powered by AI!", 123),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -176,7 +176,7 @@ func TestHandlePublicStartCommandMessage(t *testing.T) {
 	sendMessagePatch, err := mpatch.PatchInstanceMethodByName(
 		reflect.TypeOf(BOT.Bot),
 		"SendMessage",
-		getSendMessageFuncAssertion(t, "Hi, I'm a bot powered by OpenAI!", 123),
+		getSendMessageFuncAssertion(t, "Hi, I'm a bot powered by AI!", 123),
 	)
 	if err != nil {
 		t.Fatal(err)

@@ -3,20 +3,16 @@ package onstart
 
 import (
 	"context"
+	"talk2robots/m/v2/app/ai/openai"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/db/mongo"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/models"
-	"talk2robots/m/v2/app/openai"
 
 	log "github.com/sirupsen/logrus"
 )
 
-var OpenAI *openai.API
-
 func Run(cfg *config.Config) {
-	OpenAI = openai.NewAPI(cfg)
-
 	// this was one time migration, but keeping it here for future reference
 	// migrateFreePlus()
 	migrateAll()
@@ -61,11 +57,14 @@ func setupAssistants() {
 func setupAssistantForModel(model models.Engine) string {
 	var id string
 	id, err := redis.RedisClient.Get(context.Background(), string(models.AssistantKeyForModel(model))).Result()
+	if err != nil {
+		log.Errorf("[onstart] failed to get assistant for %s: %v", model, err)
+	}
 	if id != "" {
 		log.Infof("[onstart] found assistant %s for %s in Redis", id, model)
 
 		// validate if assistant exists in OpenAI
-		assistant, err := OpenAI.GetAssistant(context.Background(), id)
+		assistant, err := openai.GetAssistant(context.Background(), id)
 		if err != nil {
 			log.Fatalf("[onstart] failed to validate assistant %s exists: %v", id, err)
 		}
@@ -74,7 +73,7 @@ func setupAssistantForModel(model models.Engine) string {
 
 	log.Infof("[onstart] no assistant value found in Redis for %s, looking up OpenAI..", model)
 
-	assistants, err := OpenAI.ListAssistants(context.Background(), 0, "", "", "")
+	assistants, err := openai.ListAssistants(context.Background(), 0, "", "", "")
 	if err != nil {
 		log.Fatalf("[onstart] failed to list assistants: %v", err)
 	}
@@ -93,7 +92,7 @@ func setupAssistantForModel(model models.Engine) string {
 	}
 
 	log.Infof("[onstart] no assistant found in OpenAI for %s, try to create one..", model)
-	assistant, err := OpenAI.CreateAssistant(context.Background(), &models.AssistantRequest{
+	assistant, err := openai.CreateAssistant(context.Background(), &models.AssistantRequest{
 		Name:  "Assistant for " + string(model),
 		Model: string(model),
 	})

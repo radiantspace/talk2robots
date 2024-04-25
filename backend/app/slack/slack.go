@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"talk2robots/m/v2/app/ai"
+	"talk2robots/m/v2/app/ai/openai"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
-	"talk2robots/m/v2/app/openai"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -31,7 +32,7 @@ var (
 )
 
 type Bot struct {
-	*openai.API
+	*ai.API
 	*slack.Client
 	Name          string
 	SigningSecret string
@@ -48,7 +49,7 @@ func NewBot(rtr *router.Router, config *config.Config) (*Bot, error) {
 	rtr.POST("/slack/commands", slackCommandsHandler)
 
 	BOT = &Bot{
-		API:           openai.NewAPI(config),
+		API:           ai.NewAPI(config),
 		Client:        slackClient,
 		SigningSecret: config.SlackSigningSecret,
 		Name:          config.BotName,

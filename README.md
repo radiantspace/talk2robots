@@ -42,13 +42,13 @@ in Slack:
 - [x] Video/Audio summary
 - [x] Voice response (OpenAI TTS)
 - [x] Threads, i.e. context awareness and memory (OpenAI Assistant Threads)
-- [ ] Image recognition (OpenAI Multimodal gpt-4-vision-preview)
-- [ ] Image generation (DALL-E)
+- [ ] Image recognition
+- [ ] Image generation
 
 
 ## Telegram Features
 
-- [x] Chat with GPT-3.5 or GPT-4 `/chatgpt`. The bot remembers the context of the conversation until you say `/clear`.
+- [x] Chat with state of art ChatGPT models `/chatgpt`. The bot remembers the context of the conversation until you say `/clear`.
 - [x] Voice support, just send a voice message in any popular language
 - [x] `/voicegpt` for full voice experience, i.e. voice prompt and voice reply (with OpenAI TTS)
 - [x] `/grammar` mode just to correct grammar
@@ -56,9 +56,9 @@ in Slack:
 - [x] `/transcribe` voice/audio/video messages
 - [x] `/summarize` text/voice/audio/video messages
 - [x] Upgrade subscription `/upgrade`. Three subscription plans are available:
-  - Free - limits to $0.05/month of OpenAI API usage (text and audio)
-  - Free+ - limits to $0.25/month OpenAI API usage (just to test the system and conversion rates)
-  - Basic - $9.99/month, limits to $9.99/month OpenAI API usage
+  - Free - limits to $0.05/month of AI usage (text and audio)
+  - Free+ - limits to $0.25/month AI usage (just to test the system and conversion rates)
+  - Basic - $9.99/month, limits to $9.99/month AI usage
 - [x] Cancel subscription `/downgrade`
 - [x] Get user status (usage, limits etc) `/status`
 - [x] Get `/support`
@@ -81,8 +81,8 @@ https://github.com/radiantspace/talk2robots/assets/8243681/3cfd47c4-55ed-4eb3-9f
 - [x] Summarize message thread by adding :memo: emoji to a message
 - [ ] Use `/teacher` mode to correct and explain grammar
 - [x] Upgrade subscription `/upgrade`, only free subscription is available at the moment:
-  - Free - limits to $0.05 OpenAI API usage
-  - Free+ - limits to $0.25 OpenAI API usage (just to test the system and conversion rates)
+  - Free - limits to $0.05 AI usage
+  - Free+ - limits to $0.25 AI usage (just to test the system and conversion rates)
 - [ ] Cancel subscription `/downgrade`
 - [ ] Get user status (usage, limits etc) `/mystatus`
 - [ ] Get `/support`
@@ -128,11 +128,13 @@ graph LR
 
     subgraph "Dependencies"
     D[OpenAI API]
+    E[FireworksAI API]
     P[DataDog]
     N[Stripe]
     end
 
     A[Backend] <--> D[OpenAI API]
+    A[Backend] <--> E[FireworksAI API]
     A[Backend] -.-> P[DataDog] 
     A[Backend] <-.-> N[Stripe]
 
@@ -144,6 +146,7 @@ graph LR
 ### Requirements
 - Setup Telegram bot - https://core.telegram.org/bots#6-botfather and save in the repo/Codespace secrets as `TELEGRAM_BOT_TOKEN`
 - Setup OpenAI API key - https://platform.openai.com/account/api-keys and save in the repo/Codespace secrets as `OPENAI_API_KEY`
+- Setup FireworksAI API key - https://fireworks.ai/api-keys and save in the repo/Codespace secrets as `FIREWORKS_API_KEY`
 
 ### Start local development environment
 

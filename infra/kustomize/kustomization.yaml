@@ -82,3 +82,10 @@ vars:
     apiVersion: v1
     kind: ConfigMap
     name: environment-variables
+- fieldref:
+    fieldPath: data.FIREWORKS_API_KEY
+  name: FIREWORKS_API_KEY
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables

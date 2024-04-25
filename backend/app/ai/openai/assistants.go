@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/models"
 )
 
@@ -37,7 +38,7 @@ Underline => <u>underline</u>
 Pre => <pre language="c++">code</pre>`
 )
 
-func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRequest) (*models.AssistantResponse, error) {
+func CreateAssistant(ctx context.Context, assistant *models.AssistantRequest) (*models.AssistantResponse, error) {
 	if assistant.Model == "" {
 		assistant.Model = string(models.ChatGpt4Turbo)
 	}
@@ -68,10 +69,11 @@ func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRe
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -97,16 +99,17 @@ func (a *API) CreateAssistant(ctx context.Context, assistant *models.AssistantRe
 }
 
 // Get assistant
-func (a *API) GetAssistant(ctx context.Context, assistantID string) (*models.AssistantResponse, error) {
+func GetAssistant(ctx context.Context, assistantID string) (*models.AssistantResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/assistants/"+assistantID, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -132,13 +135,13 @@ func (a *API) GetAssistant(ctx context.Context, assistantID string) (*models.Ass
 }
 
 // List assistants
-func (a *API) ListAssistants(ctx context.Context, limit int, order string, after string, before string) (*models.AssistantListResponse, error) {
+func ListAssistants(ctx context.Context, limit int, order string, after string, before string) (*models.AssistantListResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/assistants", nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	q := req.URL.Query()
@@ -156,7 +159,8 @@ func (a *API) ListAssistants(ctx context.Context, limit int, order string, after
 	}
 	req.URL.RawQuery = q.Encode()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

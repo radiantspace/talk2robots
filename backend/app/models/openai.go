@@ -9,6 +9,7 @@ type AssistantKey string
 
 // Engine types
 const (
+	// OpenAI
 	Ada                 Engine = "ada"
 	Babbage             Engine = "babbage"
 	Curie               Engine = "curie"
@@ -20,6 +21,12 @@ const (
 	ChatGpt4Turbo       Engine = "gpt-4-turbo-preview"
 	Whisper             Engine = "whisper-1"
 	TTS                 Engine = "tts-1"
+
+	// Fireworks
+	Firellava_13b Engine = "accounts/fireworks/models/firellava-13b"
+	LlamaV3_70b   Engine = "accounts/fireworks/models/llama-v3-70b-instruct"
+	LlamaV3_8b    Engine = "accounts/fireworks/models/llama-v3-8b-instruct"
+	Llava_yi_34b  Engine = "accounts/fireworks/models/llava-yi-34b"
 
 	// used as Redis keys
 	AssistantGpt4  AssistantKey = "assistant:gpt-4"

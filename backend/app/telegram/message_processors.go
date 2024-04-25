@@ -7,10 +7,11 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"talk2robots/m/v2/app/ai"
+	"talk2robots/m/v2/app/ai/openai"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
-	"talk2robots/m/v2/app/openai"
 	"talk2robots/m/v2/app/payments"
 	"talk2robots/m/v2/app/util"
 	"time"
@@ -51,7 +52,7 @@ func ProcessChatCompleteStreamingMessage(
 	)
 
 	if err != nil {
-		log.Errorf("Failed get streaming response from Open AI: %s", err)
+		log.Errorf("Failed get streaming response from AI: %s", err)
 		_, err = bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		if err != nil {
 			log.Errorf("Failed to send error message in chat: %s, %v", chatIDString, err)
@@ -73,6 +74,9 @@ func ProcessThreadedStreamingMessage(
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
 	topicID := util.GetTopicID(message)
+
+	engineModel = overrideModelForThreads(engineModel)
+
 	var messages chan string
 
 	threadRunId := ""
@@ -83,7 +87,7 @@ func ProcessThreadedStreamingMessage(
 	if threadId == "" {
 		log.Infof("No thread found for chat %s, creating new thread..", chatIDString)
 
-		messages, err = BOT.API.CreateThreadAndRunStreaming(ctx, models.AssistantIdForModel(engineModel), engineModel, &models.Thread{
+		messages, err = openai.CreateThreadAndRunStreaming(ctx, models.AssistantIdForModel(engineModel), engineModel, &models.Thread{
 			Messages: []models.Message{
 				{
 					Content: message.Text,
@@ -107,7 +111,7 @@ func ProcessThreadedStreamingMessage(
 			return
 		}
 
-		messages, err = BOT.API.CreateRunStreaming(ctx, models.AssistantIdForModel(engineModel), engineModel, threadId, cancelContext)
+		messages, err = openai.CreateRunStreaming(ctx, models.AssistantIdForModel(engineModel), engineModel, threadId, cancelContext)
 		if err != nil {
 			log.Errorf("Failed to create and run streaming for user id: %s, error: %v", chatIDString, err)
 			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
@@ -129,15 +133,17 @@ func ProcessThreadedNonStreamingMessage(
 	chatIDString := util.GetChatIDString(message)
 	topicID := util.GetTopicID(message)
 
+	engineModel = overrideModelForThreads(engineModel)
+
 	usage := models.CostAndUsage{
 		Engine:             engineModel,
-		PricePerInputUnit:  openai.PricePerInputToken(engineModel),
-		PricePerOutputUnit: openai.PricePerOutputToken(engineModel),
+		PricePerInputUnit:  ai.PricePerInputToken(engineModel),
+		PricePerOutputUnit: ai.PricePerOutputToken(engineModel),
 		Cost:               0,
 		Usage:              models.Usage{},
 	}
-	currentThreadPromptTokens, _ := redis.RedisClient.IncrBy(ctx, lib.UserCurrentThreadPromptKey(chatIDString, topicID), int64(openai.ApproximateTokensCount(message.Text))).Result()
-	usage.Usage.PromptTokens = openai.LimitPromptTokensForModel(engineModel, float64(currentThreadPromptTokens))
+	currentThreadPromptTokens, _ := redis.RedisClient.IncrBy(ctx, lib.UserCurrentThreadPromptKey(chatIDString, topicID), int64(ai.ApproximateTokensCount(message.Text))).Result()
+	usage.Usage.PromptTokens = ai.LimitPromptTokensForModel(engineModel, float64(currentThreadPromptTokens))
 
 	payments.HugePromptAlarm(ctx, usage)
 
@@ -147,7 +153,7 @@ func ProcessThreadedNonStreamingMessage(
 	if threadId == "" {
 		log.Infof("No thread found for chat %s, creating new thread", chatIDString)
 
-		threadRun, err := BOT.API.CreateThreadAndRun(ctx, models.AssistantIdForModel(engineModel), &models.Thread{
+		threadRun, err := openai.CreateThreadAndRun(ctx, models.AssistantIdForModel(engineModel), &models.Thread{
 			Messages: []models.Message{
 				{
 					Content: message.Text,
@@ -173,7 +179,7 @@ func ProcessThreadedNonStreamingMessage(
 			return
 		}
 
-		threadRun, err = BOT.API.CreateRun(ctx, models.AssistantIdForModel(engineModel), threadId)
+		threadRun, err = openai.CreateRun(ctx, models.AssistantIdForModel(engineModel), threadId)
 		if err != nil {
 			log.Errorf("Failed to create run in chat %s: %s", chatIDString, err)
 			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
@@ -190,7 +196,7 @@ func ProcessThreadedNonStreamingMessage(
 	}
 
 	// get messages from thread
-	threadMessage, err := BOT.API.ListThreadMessagesForARun(ctx, threadId, threadRunId)
+	threadMessage, err := openai.ListThreadMessagesForARun(ctx, threadId, threadRunId)
 	if err != nil {
 		log.Errorf("Failed to get messages from thread in chat %s: %s", chatIDString, err)
 		bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
@@ -201,7 +207,7 @@ func ProcessThreadedNonStreamingMessage(
 	for _, message := range threadMessage {
 		for _, content := range message.Content {
 			if content.Type == "text" {
-				usage.Usage.CompletionTokens += int(openai.ApproximateTokensCount(content.Text.Value))
+				usage.Usage.CompletionTokens += int(ai.ApproximateTokensCount(content.Text.Value))
 				totalContent += content.Text.Value
 
 				// increase also current-thread-prompt-tokens, cause it will be used in the next iteration
@@ -390,11 +396,11 @@ func createThreadMessageWithRetries(
 		Content: message,
 		Role:    "user",
 	}
-	_, err := BOT.API.CreateThreadMessage(ctx, threadId, messageBody)
+	_, err := openai.CreateThreadMessage(ctx, threadId, messageBody)
 	if err != nil {
 		if strings.Contains(err.Error(), "while a run") && strings.Contains(err.Error(), "is active") {
 			pollThreadRun(ctx, threadId, chatIDString, runId)
-			_, err := BOT.API.CreateThreadMessage(ctx, threadId, messageBody)
+			_, err := openai.CreateThreadMessage(ctx, threadId, messageBody)
 			return err
 		} else {
 			return err
@@ -407,7 +413,7 @@ func createThreadMessageWithRetries(
 func pollThreadRun(ctx context.Context, threadId string, chatIDString string, runId string) (*models.ThreadRunResponse, error) {
 	ticker := time.NewTicker(2 * time.Second)
 	if runId == "" {
-		threadRun, err := BOT.API.GetLastThreadRun(ctx, threadId)
+		threadRun, err := openai.GetLastThreadRun(ctx, threadId)
 		if err != nil {
 			return nil, err
 		}
@@ -420,7 +426,7 @@ func pollThreadRun(ctx context.Context, threadId string, chatIDString string, ru
 			log.Infof("[pollThreadRun] Context cancelled, closing streaming connection in chat: %s", chatIDString)
 			return nil, fmt.Errorf("context cancelled in chat %s", chatIDString)
 		case <-ticker.C:
-			threadRun, err := BOT.API.GetThreadRun(ctx, threadId, runId)
+			threadRun, err := openai.GetThreadRun(ctx, threadId, runId)
 			if err != nil {
 				return nil, err
 			}
@@ -524,7 +530,7 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, message *telego.Messag
 	chatID := message.Chat.ChatID()
 	for _, chunk := range util.ChunkString(text, 1000) {
 		sendAudioAction(bot, message)
-		voiceReader, err := BOT.API.CreateSpeech(ctx, &models.TTSRequest{
+		voiceReader, err := openai.CreateSpeech(ctx, &models.TTSRequest{
 			Model: models.TTS,
 			Input: chunk,
 		})
@@ -667,4 +673,18 @@ func processMessageChannel(
 			log.Debugf("Received message (new size %d, total size %d) in chat: %s", len(message), len(responseText), chatIDString)
 		}
 	}
+}
+
+func overrideModelForThreads(model models.Engine) models.Engine {
+	// override engine model for LlamaV3_8b since it doesn't work with threads
+	if model == models.LlamaV3_8b {
+		return models.ChatGpt35Turbo
+	}
+
+	// override engine model for Llamav3_70b since it doesn't work with threads
+	if model == models.LlamaV3_70b {
+		return models.ChatGpt4Turbo
+	}
+
+	return model
 }

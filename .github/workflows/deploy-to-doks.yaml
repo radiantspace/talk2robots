@@ -69,6 +69,7 @@ jobs:
         env:
           BACKEND_BASE_URL: ${{ secrets.BACKEND_BASE_URL }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
           STRIPE_ENDPOINT_SECRET: ${{ secrets.STRIPE_ENDPOINT_SECRET }}
@@ -81,6 +82,7 @@ jobs:
           cd ./infra/kustomize
           echo BACKEND_BASE_URL=$BACKEND_BASE_URL > environment-properties.env
           echo OPENAI_API_KEY=$OPENAI_API_KEY >> environment-properties.env
+          echo FIREWORKS_API_KEY=$FIREWORKS_API_KEY >> environment-properties.env
           echo SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN >> environment-properties.env
           echo SLACK_SIGNING_SECRET=$SLACK_SIGNING_SECRET >> environment-properties.env
           echo STRIPE_ENDPOINT_SECRET=$STRIPE_ENDPOINT_SECRET >> environment-properties.env

@@ -29,10 +29,11 @@ func Run() {
 
 func FetchStatus() (string, error) {
 	w := WORKER
-	systemStatus := status.New(mongo.MongoDBClient, redis.RedisClient, w.OpenAI).GetSystemStatus()
+	systemStatus := status.New(mongo.MongoDBClient, redis.RedisClient, w.AI).GetSystemStatus()
 	config.CONFIG.DataDogClient.Gauge("status_worker.mongo_db_available", boolToFloat64(systemStatus.MongoDB.Available), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.redis_available", boolToFloat64(systemStatus.Redis.Available), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.open_ai_available", boolToFloat64(systemStatus.OpenAI.Available), nil, 1)
+	config.CONFIG.DataDogClient.Gauge("status_worker.fireworks_ai_available", boolToFloat64(systemStatus.FireworksAI.Available), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.audio_duration_minutes", systemStatus.Usage.AudioDurationMinutes, nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.total_cost", systemStatus.Usage.TotalCost, nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.total_tokens", float64(systemStatus.Usage.TotalTokens), nil, 1)
@@ -47,6 +48,9 @@ func FetchStatus() (string, error) {
 	}
 	if !systemStatus.OpenAI.Available {
 		reportUnavailableStatus(w.TelegramSystemBot, w.SystemTelegramChatID, w.MainBotName, "OpenAI")
+	}
+	if !systemStatus.FireworksAI.Available {
+		reportUnavailableStatus(w.TelegramSystemBot, w.SystemTelegramChatID, w.MainBotName, "FireworksAI")
 	}
 	statusBytes, _ := json.Marshal(systemStatus)
 	return string(statusBytes), nil

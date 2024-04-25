@@ -1,5 +1,5 @@
-// package to connect to OpenAI API
-package openai
+// package to connect to AI API
+package ai
 
 import (
 	"context"
@@ -15,30 +15,23 @@ const (
 	TIMEOUT = 60 * time.Second
 )
 
-// API is a type for OpenAI API
 type API struct {
-	authToken string
-	client    *http.Client
+	client *http.Client
 }
 
-// NewAPI creates new OpenAI API
+// NewAPI creates new AI API
 func NewAPI(cfg *config.Config) *API {
 	return &API{
-		authToken: cfg.OpenAIAPIKey,
 		client: &http.Client{
 			Timeout: TIMEOUT,
 		},
 	}
 }
 
-// IsAvailable checks whether OpenAI API is available
-func (a *API) IsAvailable(ctx context.Context) bool {
-	if a.authToken == "" {
-		log.Errorf("PING: OpenAI API key is not set")
-		return false
-	}
-
+// IsAvailable checks whether AI API is available
+func (a *API) IsAvailable(ctx context.Context, model models.Engine) bool {
 	response, err := a.ChatComplete(ctx, models.ChatCompletion{
+		Model: string(model),
 		Messages: []models.Message{
 			{
 				Role:    "system",
@@ -51,10 +44,10 @@ func (a *API) IsAvailable(ctx context.Context) bool {
 		},
 	})
 	if err != nil {
-		log.Errorf("PING: OpenAI API error: %+v", err)
+		log.Errorf("PING: API error: %+v", err)
 		return false
 	}
 
-	log.Debugf("PING: OpenAI API response: %+v", response)
+	log.Debugf("PING: API response: %+v", response)
 	return true
 }

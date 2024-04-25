@@ -41,10 +41,11 @@ func main() {
 	}
 
 	config.CONFIG = &config.Config{
-		BotUrl:        "https://t.me/gienjibot",
-		DataDogClient: dataDogClient,
-		Environment:   env,
-		OpenAIAPIKey:  util.Env("OPENAI_API_KEY"),
+		BotUrl:          "https://t.me/gienjibot",
+		DataDogClient:   dataDogClient,
+		Environment:     env,
+		OpenAIAPIKey:    util.Env("OPENAI_API_KEY"),
+		FireworksAPIKey: util.Env("FIREWORKS_API_KEY"),
 		Redis: config.Redis{
 			Host:     util.Env("REDIS_HOST"),
 			Port:     "6379",

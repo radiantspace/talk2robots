@@ -16,7 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (a *API) CreateSpeech(ctx context.Context, tts *models.TTSRequest) (io.ReadCloser, error) {
+func CreateSpeech(ctx context.Context, tts *models.TTSRequest) (io.ReadCloser, error) {
 	if tts.Input == "" {
 		log.Warnf("input is required for tts")
 		return nil, errors.New("input is required for tts")
@@ -66,7 +66,7 @@ func (a *API) CreateSpeech(ctx context.Context, tts *models.TTSRequest) (io.Read
 
 	// Set the request headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 
 	usage := models.CostAndUsage{
 		Engine:            tts.Model,

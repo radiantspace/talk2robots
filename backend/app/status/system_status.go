@@ -2,21 +2,22 @@ package status
 
 import (
 	"context"
+	"talk2robots/m/v2/app/ai"
 	"talk2robots/m/v2/app/db/mongo"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/models"
-	"talk2robots/m/v2/app/openai"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
 type SystemStatus struct {
-	MongoDB *Status     `json:"mongodb"`
-	Redis   *Status     `json:"redis"`
-	OpenAI  *Status     `json:"openai"`
-	Time    time.Time   `json:"time"`
-	Usage   SystemUsage `json:"usage"`
+	MongoDB     *Status     `json:"mongodb"`
+	Redis       *Status     `json:"redis"`
+	OpenAI      *Status     `json:"openai"`
+	FireworksAI *Status     `json:"fireworksai"`
+	Time        time.Time   `json:"time"`
+	Usage       SystemUsage `json:"usage"`
 }
 
 type SystemUsage struct {
@@ -43,15 +44,15 @@ type RedisStatus struct {
 type SystemStatusHandler struct {
 	MongoDB mongo.MongoClient
 	Redis   redis.Client
-	OpenAI  *openai.API
+	AI      *ai.API
 }
 
 // New creates a new instance of SystemStatusHandler
-func New(mongoDB mongo.MongoClient, redis redis.Client, openAI *openai.API) *SystemStatusHandler {
+func New(mongoDB mongo.MongoClient, redis redis.Client, ai *ai.API) *SystemStatusHandler {
 	return &SystemStatusHandler{
 		MongoDB: mongoDB,
 		Redis:   redis,
-		OpenAI:  openAI,
+		AI:      ai,
 	}
 }
 
@@ -66,10 +67,10 @@ func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
 	} else {
 		mongoAvailable = true
 	}
-	openAIContext := context.WithValue(context.Background(), models.UserContext{}, "SYSTEM:STATUS")
-	openAIContext = context.WithValue(openAIContext, models.ClientContext{}, "none")
-	openAIContext = context.WithValue(openAIContext, models.SubscriptionContext{}, models.FreeSubscriptionName)
-	openAIContext = context.WithValue(openAIContext, models.ChannelContext{}, "none")
+	aiContext := context.WithValue(context.Background(), models.UserContext{}, "SYSTEM:STATUS")
+	aiContext = context.WithValue(aiContext, models.ClientContext{}, "none")
+	aiContext = context.WithValue(aiContext, models.SubscriptionContext{}, models.FreeSubscriptionName)
+	aiContext = context.WithValue(aiContext, models.ChannelContext{}, "none")
 	status := SystemStatus{
 		MongoDB: &Status{
 			Available: mongoAvailable,
@@ -78,7 +79,10 @@ func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
 			Available: h.Redis != nil && h.Redis.Ping(context.Background()).Err() == nil,
 		},
 		OpenAI: &Status{
-			Available: h.OpenAI != nil && h.OpenAI.IsAvailable(openAIContext),
+			Available: h.AI != nil && h.AI.IsAvailable(aiContext, models.ChatGpt35Turbo),
+		},
+		FireworksAI: &Status{
+			Available: h.AI != nil && h.AI.IsAvailable(aiContext, models.LlamaV3_8b),
 		},
 		Usage: SystemUsage{},
 		Time:  time.Now(),

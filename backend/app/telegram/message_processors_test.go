@@ -3,11 +3,11 @@ package telegram
 import (
 	"context"
 	"reflect"
+	"talk2robots/m/v2/app/ai/openai"
 	"talk2robots/m/v2/app/db/mongo"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
-	"talk2robots/m/v2/app/openai"
 	"testing"
 	"time"
 
@@ -52,10 +52,9 @@ func TestProcessThreadedStreamingMessage(t *testing.T) {
 	ctx = context.WithValue(ctx, models.ChannelContext{}, "123")
 
 	// OpenAI API patch
-	openAIPatch, _ := mpatch.PatchInstanceMethodByName(
-		reflect.TypeOf(BOT.API),
-		"CreateThreadAndRunStreaming",
-		func(a *openai.API, ctx context.Context, assistantId string, model models.Engine, thread *models.Thread, cancelContext context.CancelFunc) (chan string, error) {
+	openAIPatch, _ := mpatch.PatchMethod(
+		openai.CreateThreadAndRunStreaming,
+		func(ctx context.Context, assistantId string, model models.Engine, thread *models.Thread, cancelContext context.CancelFunc) (chan string, error) {
 			messages := make(chan string)
 			go func() {
 				defer close(messages)

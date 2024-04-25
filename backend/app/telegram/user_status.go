@@ -30,7 +30,7 @@ func GetUserStatus(ctx context.Context) string {
 	return fmt.Sprintf(`⚙️ User status:
 		Mode: %s
 		Subscription: %s
-		Maximum OpenAI usage: $%.2f/mo
+		Maximum AI usage: $%.2f/mo
 		Monthly consumption: %.1f%%
 		Monthly tokens processed: %d
 		Monthly audio transcribed, minutes: %.2f`, mode, subscriptionToDisplay, subscription.MaximumUsage, usagePercent, tokens, audioMinutes)
@@ -80,6 +80,16 @@ func GetStatusKeyboard(ctx context.Context) telego.ReplyMarkup {
 				{
 					Text:         "GPT 4",
 					CallbackData: string(models.ChatGpt4) + ":" + topicString,
+				},
+			},
+			{
+				{
+					Text:         "Small Llama3",
+					CallbackData: string(models.LlamaV3_8b) + ":" + topicString,
+				},
+				{
+					Text:         "Big Llama3",
+					CallbackData: string(models.LlamaV3_70b) + ":" + topicString,
 				},
 			},
 		},

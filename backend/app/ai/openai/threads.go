@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"talk2robots/m/v2/app/ai"
+	"talk2robots/m/v2/app/ai/sse"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
-	"talk2robots/m/v2/app/openai/sse"
 	"talk2robots/m/v2/app/payments"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 )
 
 // creates a thread and runs it in one request.
-func (a *API) CreateThreadAndRun(ctx context.Context, assistantId string, thread *models.Thread) (*models.ThreadRunResponse, error) {
+func CreateThreadAndRun(ctx context.Context, assistantId string, thread *models.Thread) (*models.ThreadRunResponse, error) {
 	if assistantId == "" {
 		return nil, fmt.Errorf("assistantId is required")
 	}
@@ -42,7 +43,7 @@ func (a *API) CreateThreadAndRun(ctx context.Context, assistantId string, thread
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	timeNow := time.Now()
@@ -52,7 +53,8 @@ func (a *API) CreateThreadAndRun(ctx context.Context, assistantId string, thread
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +80,7 @@ func (a *API) CreateThreadAndRun(ctx context.Context, assistantId string, thread
 }
 
 // create a run
-func (a *API) CreateRun(ctx context.Context, assistantId string, threadId string) (*models.ThreadRunResponse, error) {
+func CreateRun(ctx context.Context, assistantId string, threadId string) (*models.ThreadRunResponse, error) {
 	if assistantId == "" {
 		return nil, fmt.Errorf("assistantId is required")
 	}
@@ -105,7 +107,7 @@ func (a *API) CreateRun(ctx context.Context, assistantId string, threadId string
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	timeNow := time.Now()
@@ -115,7 +117,8 @@ func (a *API) CreateRun(ctx context.Context, assistantId string, threadId string
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -142,13 +145,13 @@ func (a *API) CreateRun(ctx context.Context, assistantId string, threadId string
 }
 
 // get a thread.
-func (a *API) GetThread(ctx context.Context, threadId string) (*models.ThreadResponse, error) {
+func GetThread(ctx context.Context, threadId string) (*models.ThreadResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/threads/"+threadId, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	timeNow := time.Now()
@@ -158,7 +161,8 @@ func (a *API) GetThread(ctx context.Context, threadId string) (*models.ThreadRes
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -186,16 +190,17 @@ func (a *API) GetThread(ctx context.Context, threadId string) (*models.ThreadRes
 }
 
 // cancels a thread run.
-func (a *API) CancelRun(ctx context.Context, threadId, runId string) (*models.ThreadRunResponse, error) {
+func CancelRun(ctx context.Context, threadId, runId string) (*models.ThreadRunResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/threads/"+threadId+"/runs/"+runId+"/cancel", nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -221,13 +226,13 @@ func (a *API) CancelRun(ctx context.Context, threadId, runId string) (*models.Th
 }
 
 // retrieve a run by id and threadId.
-func (a *API) GetThreadRun(ctx context.Context, threadId, runId string) (*models.ThreadRunResponse, error) {
+func GetThreadRun(ctx context.Context, threadId, runId string) (*models.ThreadRunResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/threads/"+threadId+"/runs/"+runId, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	timeNow := time.Now()
@@ -237,7 +242,8 @@ func (a *API) GetThreadRun(ctx context.Context, threadId, runId string) (*models
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -264,14 +270,14 @@ func (a *API) GetThreadRun(ctx context.Context, threadId, runId string) (*models
 }
 
 // get last thread run by threadId.
-func (a *API) GetLastThreadRun(ctx context.Context, threadId string) (*models.ThreadRunResponse, error) {
+func GetLastThreadRun(ctx context.Context, threadId string) (*models.ThreadRunResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/threads/"+threadId+"/runs", nil)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	q := req.URL.Query()
@@ -285,7 +291,8 @@ func (a *API) GetLastThreadRun(ctx context.Context, threadId string) (*models.Th
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -316,13 +323,13 @@ func (a *API) GetLastThreadRun(ctx context.Context, threadId string) (*models.Th
 }
 
 // List run steps by threadId and runId.
-func (a *API) ListThreadRunSteps(ctx context.Context, threadId, runId string) (*models.ThreadRunStepsResponse, error) {
+func ListThreadRunSteps(ctx context.Context, threadId, runId string) (*models.ThreadRunStepsResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/threads/"+threadId+"/runs/"+runId+"/steps", nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	timeNow := time.Now()
@@ -332,7 +339,8 @@ func (a *API) ListThreadRunSteps(ctx context.Context, threadId, runId string) (*
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +367,7 @@ func (a *API) ListThreadRunSteps(ctx context.Context, threadId, runId string) (*
 }
 
 // create a message for threadId.
-func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message *models.Message) (*models.ThreadMessageResponse, error) {
+func CreateThreadMessage(ctx context.Context, threadId string, message *models.Message) (*models.ThreadMessageResponse, error) {
 	body, err := json.Marshal(message)
 	if err != nil {
 		return nil, err
@@ -370,7 +378,7 @@ func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message 
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	timeNow := time.Now()
@@ -380,7 +388,8 @@ func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message 
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -407,7 +416,7 @@ func (a *API) CreateThreadMessage(ctx context.Context, threadId string, message 
 }
 
 // retrieve a message by threadId and messageId.
-func (a *API) GetThreadMessage(ctx context.Context, threadId, messageId string) (*models.ThreadMessageResponse, error) {
+func GetThreadMessage(ctx context.Context, threadId, messageId string) (*models.ThreadMessageResponse, error) {
 	if threadId == "" {
 		return nil, fmt.Errorf("threadId is required")
 	}
@@ -420,7 +429,7 @@ func (a *API) GetThreadMessage(ctx context.Context, threadId, messageId string) 
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	timeNow := time.Now()
@@ -430,7 +439,8 @@ func (a *API) GetThreadMessage(ctx context.Context, threadId, messageId string) 
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -456,7 +466,7 @@ func (a *API) GetThreadMessage(ctx context.Context, threadId, messageId string) 
 	return &threadMessageResponse, nil
 }
 
-func (a *API) DeleteThread(ctx context.Context, threadId string) (*models.DeletedResponse, error) {
+func DeleteThread(ctx context.Context, threadId string) (*models.DeletedResponse, error) {
 	if threadId == "" {
 		return nil, fmt.Errorf("threadId is required")
 	}
@@ -466,7 +476,7 @@ func (a *API) DeleteThread(ctx context.Context, threadId string) (*models.Delete
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	timeNow := time.Now()
@@ -476,7 +486,8 @@ func (a *API) DeleteThread(ctx context.Context, threadId string) (*models.Delete
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +513,7 @@ func (a *API) DeleteThread(ctx context.Context, threadId string) (*models.Delete
 	return &threadDeletedResponse, nil
 }
 
-func (a *API) ListThreadMessagesForARun(ctx context.Context, threadId string, runId string) ([]models.ThreadMessageResponse, error) {
+func ListThreadMessagesForARun(ctx context.Context, threadId string, runId string) ([]models.ThreadMessageResponse, error) {
 	if threadId == "" {
 		return nil, fmt.Errorf("threadId is required")
 	}
@@ -512,7 +523,7 @@ func (a *API) ListThreadMessagesForARun(ctx context.Context, threadId string, ru
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	q := req.URL.Query()
@@ -526,7 +537,8 @@ func (a *API) ListThreadMessagesForARun(ctx context.Context, threadId string, ru
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	resp, err := a.client.Do(req)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -563,7 +575,7 @@ func (a *API) ListThreadMessagesForARun(ctx context.Context, threadId string, ru
 	return messages, nil
 }
 
-func (a *API) CreateThreadAndRunStreaming(ctx context.Context, assistantId string, model models.Engine, thread *models.Thread, cancelContext context.CancelFunc) (chan string, error) {
+func CreateThreadAndRunStreaming(ctx context.Context, assistantId string, model models.Engine, thread *models.Thread, cancelContext context.CancelFunc) (chan string, error) {
 	if assistantId == "" {
 		return nil, fmt.Errorf("assistantId is required")
 	}
@@ -584,8 +596,8 @@ func (a *API) CreateThreadAndRunStreaming(ctx context.Context, assistantId strin
 	timeNow := time.Now()
 	usage := models.CostAndUsage{
 		Engine:             model,
-		PricePerInputUnit:  PricePerInputToken(model),
-		PricePerOutputUnit: PricePerOutputToken(model),
+		PricePerInputUnit:  ai.PricePerInputToken(model),
+		PricePerOutputUnit: ai.PricePerOutputToken(model),
 		Cost:               0,
 		Usage:              models.Usage{},
 	}
@@ -595,7 +607,7 @@ func (a *API) CreateThreadAndRunStreaming(ctx context.Context, assistantId strin
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	client := sse.NewClientFromReq(req)
@@ -604,7 +616,7 @@ func (a *API) CreateThreadAndRunStreaming(ctx context.Context, assistantId strin
 	return messages, nil
 }
 
-func (a *API) CreateRunStreaming(ctx context.Context, assistantId string, model models.Engine, threadId string, cancelContext context.CancelFunc) (chan string, error) {
+func CreateRunStreaming(ctx context.Context, assistantId string, model models.Engine, threadId string, cancelContext context.CancelFunc) (chan string, error) {
 	if assistantId == "" {
 		return nil, fmt.Errorf("assistantId is required")
 	}
@@ -630,8 +642,8 @@ func (a *API) CreateRunStreaming(ctx context.Context, assistantId string, model 
 	timeNow := time.Now()
 	usage := models.CostAndUsage{
 		Engine:             model,
-		PricePerInputUnit:  PricePerInputToken(model),
-		PricePerOutputUnit: PricePerOutputToken(model),
+		PricePerInputUnit:  ai.PricePerInputToken(model),
+		PricePerOutputUnit: ai.PricePerOutputToken(model),
 		Cost:               0,
 		Usage:              models.Usage{},
 	}
@@ -641,7 +653,7 @@ func (a *API) CreateRunStreaming(ctx context.Context, assistantId string, model 
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
 	client := sse.NewClientFromReq(req)

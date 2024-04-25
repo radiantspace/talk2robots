@@ -1,5 +1,6 @@
 // https://platform.openai.com/docs/api-reference/chat/create
-package openai
+// https://readme.fireworks.ai/reference/createchatcompletion
+package ai
 
 import (
 	"bytes"
@@ -10,9 +11,9 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"talk2robots/m/v2/app/ai/sse"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/models"
-	"talk2robots/m/v2/app/openai/sse"
 	"talk2robots/m/v2/app/payments"
 	"time"
 	"unicode/utf8"
@@ -22,18 +23,22 @@ import (
 )
 
 // https://openai.com/pricing
+// https://fireworks.ai/pricing
 const (
 	// gpt-3.5-turbo-0125
-	CHAT_INPUT_PRICE  = 0.0005 / 1000
-	CHAT_OUTPUT_PRICE = 0.0015 / 1000
+	CHAT_INPUT_PRICE  = 0.5 / 1000000
+	CHAT_OUTPUT_PRICE = 1.5 / 1000000
 
 	// gpt-4
-	CHAT_GPT4_INPUT_PRICE  = 0.03 / 1000
-	CHAT_GPT4_OUTPUT_PRICE = 0.06 / 1000
+	CHAT_GPT4_INPUT_PRICE  = 30.0 / 1000000
+	CHAT_GPT4_OUTPUT_PRICE = 60.0 / 1000000
 
 	// gpt-4-turbo (-0125, -1106, -vision)
-	CHAT_GPT4_TURBO_INPUT_PRICE  = 0.01 / 1000
-	CHAT_GPT4_TURBO_OUTPUT_PRICE = 0.03 / 1000
+	CHAT_GPT4_TURBO_INPUT_PRICE  = 10.0 / 1000000
+	CHAT_GPT4_TURBO_OUTPUT_PRICE = 30.0 / 1000000
+
+	FIREWORKS_16B_80B_PRICE = 0.9 / 1000000
+	FIREWORKS_0B_16B_PRICE  = 0.2 / 1000000
 
 	CHARS_PER_TOKEN = 2.0 // average number of characters per token, must be tuned or moved to tiktoken
 )
@@ -73,12 +78,13 @@ func (a *API) ChatComplete(ctx context.Context, completion models.ChatCompletion
 		return "", err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(body))
+	url := urlFromModel(models.Engine(completion.Model))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+authTokenFromModel(models.Engine(completion.Model)))
 
 	status := fmt.Sprintf("status:%d", 0)
 	resp, err := a.client.Do(req)
@@ -144,12 +150,13 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(body))
+	url := urlFromModel(models.Engine(completion.Model))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.authToken)
+	req.Header.Set("Authorization", "Bearer "+authTokenFromModel(models.Engine(completion.Model)))
 
 	client := sse.NewClientFromReq(req)
 	messages := make(chan string)
@@ -189,6 +196,24 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 	return messages, nil
 }
 
+func urlFromModel(model models.Engine) string {
+	switch model {
+	case models.LlamaV3_70b, models.LlamaV3_8b, models.Firellava_13b, models.Llava_yi_34b:
+		return "https://api.fireworks.ai/inference/v1/chat/completions"
+	default:
+		return "https://api.openai.com/v1/chat/completions"
+	}
+}
+
+func authTokenFromModel(model models.Engine) string {
+	switch model {
+	case models.LlamaV3_70b, models.LlamaV3_8b, models.Firellava_13b, models.Llava_yi_34b:
+		return config.CONFIG.FireworksAPIKey
+	default:
+		return config.CONFIG.OpenAIAPIKey
+	}
+}
+
 // if this snippet will make too much mistakes, we can use this
 // https://github.com/pkoukk/tiktoken-go
 func ApproximateTokensCount(message string) float64 {
@@ -201,6 +226,10 @@ func PricePerInputToken(model models.Engine) float64 {
 		return CHAT_GPT4_INPUT_PRICE
 	case models.ChatGpt4TurboVision, models.ChatGpt4Turbo:
 		return CHAT_GPT4_TURBO_INPUT_PRICE
+	case models.LlamaV3_8b:
+		return FIREWORKS_0B_16B_PRICE
+	case models.LlamaV3_70b:
+		return FIREWORKS_16B_80B_PRICE
 	default:
 		return CHAT_INPUT_PRICE
 	}
@@ -212,6 +241,10 @@ func PricePerOutputToken(model models.Engine) float64 {
 		return CHAT_GPT4_OUTPUT_PRICE
 	case models.ChatGpt4TurboVision, models.ChatGpt4Turbo:
 		return CHAT_GPT4_TURBO_OUTPUT_PRICE
+	case models.LlamaV3_8b:
+		return FIREWORKS_0B_16B_PRICE
+	case models.LlamaV3_70b:
+		return FIREWORKS_16B_80B_PRICE
 	default:
 		return CHAT_OUTPUT_PRICE
 	}
@@ -226,6 +259,8 @@ func LimitPromptTokensForModel(model models.Engine, promptTokensCount float64) i
 		return int(math.Min(7*1024, promptTokensCount))
 	case models.ChatGpt35Turbo:
 		return int(math.Min(15*1024, promptTokensCount))
+	case models.LlamaV3_70b, models.LlamaV3_8b:
+		return int(math.Min(7*1024, promptTokensCount))
 	default:
 		return int(math.Min(3*1024, promptTokensCount))
 	}

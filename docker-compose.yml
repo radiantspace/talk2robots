@@ -16,6 +16,7 @@ services:
       BACKEND_LISTEN_ADDRESS: 0.0.0.0:8080
       BACKEND_LISTEN_URL: http://0.0.0.0:8080
       OPENAI_API_KEY:
+      FIREWORKS_API_KEY:
       STRIPE_TOKEN: setup-for-testing
       TELEGRAM_BOT_TOKEN:
       MONGO_DB_CONNECTION_STRING: mongodb://root:example@localhost:27017/?tls=false

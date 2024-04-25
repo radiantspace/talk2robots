@@ -20,6 +20,7 @@ const (
 	VoiceGPT   ModeName = "voicegpt"
 	Transcribe ModeName = "transcribe"
 	Summarize  ModeName = "summarize"
+	Translate  ModeName = "translate"
 )
 
 func SaveMode(chatID string, topicID string, mode ModeName, params string) {

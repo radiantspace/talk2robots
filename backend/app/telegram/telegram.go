@@ -11,13 +11,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"talk2robots/m/v2/app/ai"
+	"talk2robots/m/v2/app/ai/openai"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/converters"
 	"talk2robots/m/v2/app/db/mongo"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
-	"talk2robots/m/v2/app/openai"
 	"talk2robots/m/v2/app/payments"
 	"talk2robots/m/v2/app/util"
 	"time"
@@ -32,7 +33,7 @@ import (
 )
 
 type Bot struct {
-	*openai.API
+	*ai.API
 	*telego.Bot
 	*th.BotHandler
 	Name  string
@@ -74,7 +75,7 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 	go bh.Start()
 
 	BOT = &Bot{
-		API:        openai.NewAPI(cfg),
+		API:        ai.NewAPI(cfg),
 		Bot:        bot,
 		BotHandler: bh,
 		Name:       cfg.BotName,
@@ -289,7 +290,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 		})
 	case string(lib.ChatGPT), string(lib.VoiceGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe):
 		handleCommandsInCallbackQuery(callbackQuery, topicString)
-	case string(models.ChatGpt35Turbo), string(models.ChatGpt4):
+	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.LlamaV3_8b), string(models.LlamaV3_70b):
 		handleEngineSwitchCallbackQuery(callbackQuery, topicString)
 	case "downgradefromfreeplus":
 		_, ctx, _, _ := lib.SetupUserAndContext(chatString, "telegram", chatString, topicString)
@@ -371,6 +372,21 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		}
 		return
 	}
+	if callbackQuery.Data == string(models.LlamaV3_8b) {
+		redis.SaveEngine(chatIDString, models.LlamaV3_8b)
+		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to small Llama3 model, fast and cheap! Note that /chatgpt and /voicegpt modes will use GPT-3.5 Turbo to keep context awareness.").WithMessageThreadID(topicID))
+		if err != nil {
+			log.Errorf("handleEngineSwitchCallbackQuery failed to send Llama3 small message: %v", err)
+		}
+		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+			CallbackQueryID: callbackQuery.ID,
+			Text:            "Switched to small Llama3 model!",
+		})
+		if err != nil {
+			log.Errorf("handleEngineSwitchCallbackQuery failed to answer callback query: %v", err)
+		}
+		return
+	}
 	if callbackQuery.Data == string(models.ChatGpt35Turbo) {
 		redis.SaveEngine(chatIDString, models.ChatGpt35Turbo)
 		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-3.5 Turbo model, fast and cheap!").WithMessageThreadID(topicID))
@@ -391,11 +407,11 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {
 			log.Errorf("Failed to get user: %v", err)
-			BOT.SendMessage(tu.Message(tu.ID(chatID), "Failed to switch to GPT model, please try again later").WithMessageThreadID(topicID))
+			BOT.SendMessage(tu.Message(tu.ID(chatID), "Failed to switch to GPT-4 model, please try again later").WithMessageThreadID(topicID))
 			return
 		}
 		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
-			notification := "You need to /upgrade your subscription to use GPT-4 engine! Meanwhile, you can still use GPT-3.5 Turbo model, it's fast, cheap and quite smart."
+			notification := "You need to /upgrade your subscription to use GPT-4 model! Meanwhile, you can still use GPT-3.5 Turbo, it's fast, cheap and quite smart."
 			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 			BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 			return
@@ -416,6 +432,37 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		}
 		return
 	}
+	if callbackQuery.Data == string(models.LlamaV3_70b) {
+		// fetch user subscription
+		user, err := mongo.MongoDBClient.GetUser(ctx)
+		if err != nil {
+			log.Errorf("Failed to get user: %v", err)
+			BOT.SendMessage(tu.Message(tu.ID(chatID), "Failed to switch to Llama3 big model, please try again later").WithMessageThreadID(topicID))
+			return
+		}
+		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
+			notification := "You need to /upgrade your subscription to use big Llama3 model! Meanwhile, you can still use small Llama3 model, it's fast, cheap and quite smart."
+			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+			BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+			return
+		}
+		redis.SaveEngine(chatIDString, models.LlamaV3_70b)
+		notification := "Switched to big Llama3 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap. Note that /chatgpt and /voicegpt modes will use GPT-4 to keep context awareness."
+		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+		if err != nil {
+			log.Errorf("handleEngineSwitchCallbackQuery failed to send big Llama3 message: %v", err)
+		}
+		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+			CallbackQueryID: callbackQuery.ID,
+			Text:            "Switched to big Llama3 engine!",
+		})
+		if err != nil {
+			log.Errorf("handleEngineSwitchCallbackQuery failed to answer callback query: %v", err)
+		}
+		return
+	}
+
 	log.Errorf("Unknown engine switch callback query: %s, chat id: %s", callbackQuery.Data, chatIDString)
 }
 
@@ -437,6 +484,7 @@ func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
 
 	// get the response
 	response, err := BOT.API.ChatComplete(ctx, models.ChatCompletion{
+		Model: string(models.LlamaV3_8b),
 		Messages: []models.Message{
 			{
 				Role:    "system",

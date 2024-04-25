@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"talk2robots/m/v2/app/ai/openai"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/db/mongo"
 	"talk2robots/m/v2/app/db/redis"
@@ -22,7 +23,7 @@ type Command string
 
 var EMILY_BIRTHDAY = time.Date(2023, 5, 25, 0, 18, 0, 0, time.FixedZone("UTC+2", 3*60*60))
 var VASILISA_BIRTHDAY = time.Date(2007, 12, 13, 23, 45, 0, 0, time.FixedZone("UTC+3", 3*60*60))
-var ONBOARDING_TEXT = `Hi, I'm a bot powered by OpenAI! I can:
+var ONBOARDING_TEXT = `Hi, I'm a bot powered by AI! I can:
 - Default 🧠: chat with or answer any questions (/chatgpt)
 - ✨ New feature 🎙️: talk to AI using voice messages (/voicegpt)
 - Correct grammar: (/grammar)
@@ -241,7 +242,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 			return
 		}
 
-		notification := "Press the subscribe button below and navigate to our partner, Stripe, to proceed with the payment. You will upgrade to the basic paid plan, which includes:\n💪 200x usage limits compared to the Free+ plan of OpenAI tokens and voice/audio recognition\n🧠 Access to more intelligent GPT-4 model (and more models that OpenAI will release)\n💁🏽 Priority support\n\nBy proceeding with the payments, you agree to /terms of usage.\n\nCancel your subscription at any time with the /downgrade command."
+		notification := "Press the subscribe button below and navigate to our partner, Stripe, to proceed with the payment. You will upgrade to the basic paid plan, which includes:\n💪 200x usage limits compared to the Free+ plan of AI credits\n🧠 Access to more intelligent AI models (GPT-4 and Llava3 70b)\n💁🏽 Priority support\n\nBy proceeding with the payments, you agree to /terms of usage.\n\nCancel your subscription at any time with the /downgrade command."
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 
 		// send link to customer as a button in telegram
@@ -359,7 +360,7 @@ func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Me
 
 	redis.RedisClient.Del(ctx, lib.UserCurrentThreadKey(chatIDString, topicIDString))
 	redis.RedisClient.Del(ctx, lib.UserCurrentThreadPromptKey(chatIDString, topicIDString))
-	_, err := BOT.API.DeleteThread(ctx, threadId)
+	_, err := openai.DeleteThread(ctx, threadId)
 	if err != nil {
 		log.Errorf("Failed to clear thread: %v", err)
 	}

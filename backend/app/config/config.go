@@ -15,6 +15,7 @@ type Config struct {
 	BotUrl                 string
 	DataDogClient          *statsd.Client
 	Environment            string
+	FireworksAPIKey        string
 	MongoDBName            string
 	MongoDBConnection      string
 	OpenAIAPIKey           string

@@ -81,6 +81,8 @@ spec:
               value: $(TELEGRAM_SYSTEM_TO)
             - name: OPENAI_API_KEY
               value: $(OPENAI_API_KEY)
+            - name: FIREWORKS_API_KEY
+              value: $(FIREWORKS_API_KEY)
             - name: BACKEND_BASE_URL
               value: $(BACKEND_BASE_URL)
             - name: PROMETHEUS_LISTEN_ADDRESS
