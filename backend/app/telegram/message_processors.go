@@ -75,7 +75,10 @@ func ProcessThreadedStreamingMessage(
 	chatIDString := util.GetChatIDString(message)
 	topicID := util.GetTopicID(message)
 
-	engineModel = overrideModelForThreads(engineModel)
+	if ai.IsFireworksAI(engineModel) {
+		ProcessChatCompleteStreamingMessage(ctx, bot, message, nil, "", mode, engineModel, nil)
+		return
+	}
 
 	var messages chan string
 
@@ -133,7 +136,10 @@ func ProcessThreadedNonStreamingMessage(
 	chatIDString := util.GetChatIDString(message)
 	topicID := util.GetTopicID(message)
 
-	engineModel = overrideModelForThreads(engineModel)
+	if ai.IsFireworksAI(engineModel) {
+		ProcessChatCompleteNonStreamingMessage(ctx, bot, message, nil, "", mode, engineModel)
+		return
+	}
 
 	usage := models.CostAndUsage{
 		Engine:             engineModel,
@@ -673,18 +679,4 @@ func processMessageChannel(
 			log.Debugf("Received message (new size %d, total size %d) in chat: %s", len(message), len(responseText), chatIDString)
 		}
 	}
-}
-
-func overrideModelForThreads(model models.Engine) models.Engine {
-	// override engine model for LlamaV3_8b since it doesn't work with threads
-	if model == models.LlamaV3_8b {
-		return models.ChatGpt35Turbo
-	}
-
-	// override engine model for Llamav3_70b since it doesn't work with threads
-	if model == models.LlamaV3_70b {
-		return models.ChatGpt4Turbo
-	}
-
-	return model
 }

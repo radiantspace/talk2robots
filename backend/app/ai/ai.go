@@ -51,3 +51,11 @@ func (a *API) IsAvailable(ctx context.Context, model models.Engine) bool {
 	log.Debugf("PING: API response: %+v", response)
 	return true
 }
+
+func IsFireworksAI(model models.Engine) bool {
+	if model == models.LlamaV3_70b || model == models.LlamaV3_8b || model == models.Firellava_13b || model == models.Llava_yi_34b {
+		return true
+	}
+
+	return false
+}

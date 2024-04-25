@@ -197,21 +197,25 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 }
 
 func urlFromModel(model models.Engine) string {
-	switch model {
-	case models.LlamaV3_70b, models.LlamaV3_8b, models.Firellava_13b, models.Llava_yi_34b:
+	switch IsFireworksAI(model) {
+	case true:
 		return "https://api.fireworks.ai/inference/v1/chat/completions"
-	default:
+	case false:
 		return "https://api.openai.com/v1/chat/completions"
 	}
+
+	return ""
 }
 
 func authTokenFromModel(model models.Engine) string {
-	switch model {
-	case models.LlamaV3_70b, models.LlamaV3_8b, models.Firellava_13b, models.Llava_yi_34b:
+	switch IsFireworksAI(model) {
+	case true:
 		return config.CONFIG.FireworksAPIKey
-	default:
+	case false:
 		return config.CONFIG.OpenAIAPIKey
 	}
+
+	return ""
 }
 
 // if this snippet will make too much mistakes, we can use this
