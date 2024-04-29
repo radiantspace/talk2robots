@@ -42,6 +42,7 @@ func main() {
 
 	config.CONFIG = &config.Config{
 		BotUrl:          "https://t.me/gienjibot",
+		ClaudeAPIKey:    util.Env("CLAUDE_API_KEY"),
 		DataDogClient:   dataDogClient,
 		Environment:     env,
 		OpenAIAPIKey:    util.Env("OPENAI_API_KEY"),

@@ -172,7 +172,7 @@ var chatGPTSeed = []models.Message{}
 var summarizeSeed = []models.Message{
 	{
 		Role:    "system",
-		Content: "You will summarize a conversation provided as a transcript. Summarize the conversation in a few paragraphs. Structure should include context, participants/actors (<@mentions>), and the main points of the conversation. If there were major decisions and/or action items, you will add them as a bullet list. Keep the mentions in slack format, i.e. <@U12345678>.",
+		Content: "You will summarize a conversation provided as a transcript. Summarize the conversation in a few paragraphs. Structure should include context, participants/actors (<@mentions>), and the main points of the conversation. If there were major decisions and/or action items, you will add them as a bullet list. If the mentions are in Slack format, i.e. <@U12345678> keep this formatting.",
 	},
 }
 

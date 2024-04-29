@@ -9,7 +9,6 @@ type AssistantKey string
 
 // Engine types
 const (
-	// OpenAI
 	Ada                 Engine = "ada"
 	Babbage             Engine = "babbage"
 	Curie               Engine = "curie"
@@ -21,12 +20,6 @@ const (
 	ChatGpt4Turbo       Engine = "gpt-4-turbo-preview"
 	Whisper             Engine = "whisper-1"
 	TTS                 Engine = "tts-1"
-
-	// Fireworks
-	Firellava_13b Engine = "accounts/fireworks/models/firellava-13b"
-	LlamaV3_70b   Engine = "accounts/fireworks/models/llama-v3-70b-instruct"
-	LlamaV3_8b    Engine = "accounts/fireworks/models/llama-v3-8b-instruct"
-	Llava_yi_34b  Engine = "accounts/fireworks/models/llava-yi-34b"
 
 	// used as Redis keys
 	AssistantGpt4  AssistantKey = "assistant:gpt-4"
@@ -361,54 +354,6 @@ type ThreadMessagesResponse struct {
 	LastID  string                  `json:"last_id"`
 	HasMore bool                    `json:"has_more"`
 }
-
-// streamed response
-// event: thread.created
-// data: {"id":"thread_123","object":"thread","created_at":1710348075,"metadata":{}}
-
-// event: thread.run.created
-// data: {"id":"run_123","object":"thread.run","created_at":1710348075,"assistant_id":"asst_123","thread_id":"thread_123","status":"queued","started_at":null,"expires_at":1710348675,"cancelled_at":null,"failed_at":null,"completed_at":null,"required_action":null,"last_error":null,"model":"gpt-4-0125-preview","instructions":null,"tools":[],"file_ids":[],"metadata":{},"usage":null}
-
-// event: thread.run.queued
-// data: {"id":"run_123","object":"thread.run","created_at":1710348075,"assistant_id":"asst_123","thread_id":"thread_123","status":"queued","started_at":null,"expires_at":1710348675,"cancelled_at":null,"failed_at":null,"completed_at":null,"required_action":null,"last_error":null,"model":"gpt-4-0125-preview","instructions":null,"tools":[],"file_ids":[],"metadata":{},"usage":null}
-
-// event: thread.run.in_progress
-// data: {"id":"run_123","object":"thread.run","created_at":1710348075,"assistant_id":"asst_123","thread_id":"thread_123","status":"in_progress","started_at":1710348075,"expires_at":1710348675,"cancelled_at":null,"failed_at":null,"completed_at":null,"required_action":null,"last_error":null,"model":"gpt-4-0125-preview","instructions":null,"tools":[],"file_ids":[],"metadata":{},"usage":null}
-
-// event: thread.run.step.created
-// data: {"id":"step_001","object":"thread.run.step","created_at":1710348076,"run_id":"run_123","assistant_id":"asst_123","thread_id":"thread_123","type":"message_creation","status":"in_progress","cancelled_at":null,"completed_at":null,"expires_at":1710348675,"failed_at":null,"last_error":null,"step_details":{"type":"message_creation","message_creation":{"message_id":"msg_001"}},"usage":null}
-
-// event: thread.run.step.in_progress
-// data: {"id":"step_001","object":"thread.run.step","created_at":1710348076,"run_id":"run_123","assistant_id":"asst_123","thread_id":"thread_123","type":"message_creation","status":"in_progress","cancelled_at":null,"completed_at":null,"expires_at":1710348675,"failed_at":null,"last_error":null,"step_details":{"type":"message_creation","message_creation":{"message_id":"msg_001"}},"usage":null}
-
-// event: thread.message.created
-// data: {"id":"msg_001","object":"thread.message","created_at":1710348076,"assistant_id":"asst_123","thread_id":"thread_123","run_id":"run_123","status":"in_progress","incomplete_details":null,"incomplete_at":null,"completed_at":null,"role":"assistant","content":[],"file_ids":[],"metadata":{}}
-
-// event: thread.message.in_progress
-// data: {"id":"msg_001","object":"thread.message","created_at":1710348076,"assistant_id":"asst_123","thread_id":"thread_123","run_id":"run_123","status":"in_progress","incomplete_details":null,"incomplete_at":null,"completed_at":null,"role":"assistant","content":[],"file_ids":[],"metadata":{}}
-
-// event: thread.message.delta
-// data: {"id":"msg_001","object":"thread.message.delta","delta":{"content":[{"index":0,"type":"text","text":{"value":"Hello","annotations":[]}}]}}
-
-// ...
-
-// event: thread.message.delta
-// data: {"id":"msg_001","object":"thread.message.delta","delta":{"content":[{"index":0,"type":"text","text":{"value":" today"}}]}}
-
-// event: thread.message.delta
-// data: {"id":"msg_001","object":"thread.message.delta","delta":{"content":[{"index":0,"type":"text","text":{"value":"?"}}]}}
-
-// event: thread.message.completed
-// data: {"id":"msg_001","object":"thread.message","created_at":1710348076,"assistant_id":"asst_123","thread_id":"thread_123","run_id":"run_123","status":"completed","incomplete_details":null,"incomplete_at":null,"completed_at":1710348077,"role":"assistant","content":[{"type":"text","text":{"value":"Hello! How can I assist you today?","annotations":[]}}],"file_ids":[],"metadata":{}}
-
-// event: thread.run.step.completed
-// data: {"id":"step_001","object":"thread.run.step","created_at":1710348076,"run_id":"run_123","assistant_id":"asst_123","thread_id":"thread_123","type":"message_creation","status":"completed","cancelled_at":null,"completed_at":1710348077,"expires_at":1710348675,"failed_at":null,"last_error":null,"step_details":{"type":"message_creation","message_creation":{"message_id":"msg_001"}},"usage":{"prompt_tokens":20,"completion_tokens":11,"total_tokens":31}}
-
-// event: thread.run.completed
-// data: {"id":"run_123","object":"thread.run","created_at":1710348075,"assistant_id":"asst_123","thread_id":"thread_123","status":"completed","started_at":1710348075,"expires_at":null,"cancelled_at":null,"failed_at":null,"completed_at":1710348077,"required_action":null,"last_error":null,"model":"gpt-4-0125-preview","instructions":null,"tools":[],"file_ids":[],"metadata":{},"usage":{"prompt_tokens":20,"completion_tokens":11,"total_tokens":31}}
-
-// event: done
-// data: [DONE]
 
 type StreamDataResponse struct {
 	Id             string                   `json:"id"`

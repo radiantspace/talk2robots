@@ -13,6 +13,7 @@ type Config struct {
 	AssistantGpt35Id       string
 	BotName                string
 	BotUrl                 string
+	ClaudeAPIKey           string
 	DataDogClient          *statsd.Client
 	Environment            string
 	FireworksAPIKey        string

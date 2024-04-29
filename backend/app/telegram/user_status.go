@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"strings"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
@@ -27,20 +28,25 @@ func GetUserStatus(ctx context.Context) string {
 		subscriptionToDisplay = string(subscription.Name) + " ($9.99/mo)"
 	}
 
-	return fmt.Sprintf(`⚙️ User status:
+	entity := "User"
+	if strings.HasPrefix(userIdString, "-") {
+		entity = "Group"
+	}
+
+	return fmt.Sprintf(`⚙️ %s status:
 		Mode: %s
 		Subscription: %s
 		Maximum AI usage: $%.2f/mo
 		Monthly consumption: %.1f%%
 		Monthly tokens processed: %d
-		Monthly audio transcribed, minutes: %.2f`, mode, subscriptionToDisplay, subscription.MaximumUsage, usagePercent, tokens, audioMinutes)
+		Monthly audio transcribed, minutes: %.2f`, entity, mode, subscriptionToDisplay, subscription.MaximumUsage, usagePercent, tokens, audioMinutes)
 }
 
-func GetStatusKeyboard(ctx context.Context) telego.ReplyMarkup {
+func GetStatusKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 	// userIdString := ctx.Value(models.UserContext{}).(string)
 	// mode := GetMode(userIdString)
 	topicString := ctx.Value(models.TopicContext{}).(string)
-	keyboard := &telego.InlineKeyboardMarkup{
+	return &telego.InlineKeyboardMarkup{
 		InlineKeyboard: [][]telego.InlineKeyboardButton{
 			{
 				{
@@ -74,6 +80,20 @@ func GetStatusKeyboard(ctx context.Context) telego.ReplyMarkup {
 			},
 			{
 				{
+					Text:         "Models",
+					CallbackData: "models:" + topicString,
+				},
+			},
+		},
+	}
+}
+
+func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
+	topicString := ctx.Value(models.TopicContext{}).(string)
+	return &telego.InlineKeyboardMarkup{
+		InlineKeyboard: [][]telego.InlineKeyboardButton{
+			{
+				{
 					Text:         "GPT 3.5 Turbo",
 					CallbackData: string(models.ChatGpt35Turbo) + ":" + topicString,
 				},
@@ -92,9 +112,14 @@ func GetStatusKeyboard(ctx context.Context) telego.ReplyMarkup {
 					CallbackData: string(models.LlamaV3_70b) + ":" + topicString,
 				},
 			},
+			{
+				{
+					Text:         "Back 🔙",
+					CallbackData: "status:" + topicString,
+				},
+			},
 		},
 	}
-	return keyboard
 }
 
 func GetUserUsage(userId string) float64 {

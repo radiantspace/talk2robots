@@ -269,6 +269,9 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 		topicString = callbackParams[1]
 		topicId, _ = strconv.Atoi(topicString)
 	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, models.TopicContext{}, topicString)
+
 	callbackQuery.Data = callbackParams[0]
 
 	log.Infof("Callback query %s for user: %d in chat %d, topic %s, messageId %d", callbackQuery.Data, userId, chatId, topicString, messageId)
@@ -290,6 +293,18 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 		})
 	case string(lib.ChatGPT), string(lib.VoiceGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe):
 		handleCommandsInCallbackQuery(callbackQuery, topicString)
+	case "models":
+		bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+			ChatID:      chat.ChatID(),
+			MessageID:   messageId,
+			ReplyMarkup: GetModelsKeyboard(ctx),
+		})
+	case "status":
+		bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+			ChatID:      chat.ChatID(),
+			MessageID:   messageId,
+			ReplyMarkup: GetStatusKeyboard(ctx),
+		})
 	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.LlamaV3_8b), string(models.LlamaV3_70b):
 		handleEngineSwitchCallbackQuery(callbackQuery, topicString)
 	case "downgradefromfreeplus":
