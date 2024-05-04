@@ -137,6 +137,18 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 			log.Infof("Ignoring public command w/o @mention in channel: %s", chatIDString)
 			return
 		}
+		chatMember, err := bot.GetChatMember(&telego.GetChatMemberParams{
+			ChatID: chatID,
+			UserID: message.From.ID,
+		})
+		if err != nil {
+			log.Errorf("Error getting chat member: %v", err)
+			return
+		}
+		if err == nil && !isPrivate && chatMember.MemberStatus() != telego.MemberStatusCreator && chatMember.MemberStatus() != telego.MemberStatusAdministrator {
+			log.Infof("Ignoring public command from non-admin in channel: %s", chatIDString)
+			return
+		}
 		AllCommandHandlers.handleCommand(ctx, BOT, &message)
 		return
 	}
