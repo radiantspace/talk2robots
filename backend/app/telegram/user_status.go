@@ -80,7 +80,7 @@ func GetStatusKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 			},
 			{
 				{
-					Text:         "Models",
+					Text:         "Choose AI 🧠",
 					CallbackData: "models:" + topicString,
 				},
 			},
@@ -94,27 +94,31 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 		InlineKeyboard: [][]telego.InlineKeyboardButton{
 			{
 				{
-					Text:         "GPT 3.5 Turbo",
+					Text:         "GPT 3.5 💰💰🚀🚀🚀🧠",
 					CallbackData: string(models.ChatGpt35Turbo) + ":" + topicString,
 				},
+			},
+			{
 				{
-					Text:         "GPT 4",
+					Text:         "GPT 4 💰💰💰💰🚀🧠🧠🧠🧠",
 					CallbackData: string(models.ChatGpt4) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Small Llama3",
+					Text:         "Small Llama3 💰🚀🚀🚀🚀🧠",
 					CallbackData: string(models.LlamaV3_8b) + ":" + topicString,
 				},
+			},
+			{
 				{
-					Text:         "Big Llama3",
+					Text:         "Big Llama3 💰💰💰🚀🚀🧠🧠🧠",
 					CallbackData: string(models.LlamaV3_70b) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Back 🔙",
+					Text:         "Back ⬅️",
 					CallbackData: "status:" + topicString,
 				},
 			},

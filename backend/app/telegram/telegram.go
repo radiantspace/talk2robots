@@ -464,23 +464,10 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		return
 	}
 	if callbackQuery.Data == string(models.LlamaV3_70b) {
-		// fetch user subscription
-		user, err := mongo.MongoDBClient.GetUser(ctx)
-		if err != nil {
-			log.Errorf("Failed to get user: %v", err)
-			BOT.SendMessage(tu.Message(tu.ID(chatID), "Failed to switch to Llama3 big model, please try again later").WithMessageThreadID(topicID))
-			return
-		}
-		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
-			notification := "You need to /upgrade your subscription to use big Llama3 model! Meanwhile, you can still use small Llama3 model, it's fast, cheap and quite smart."
-			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-			BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
-			return
-		}
 		redis.SaveEngine(chatIDString, models.LlamaV3_70b)
-		notification := "Switched to big Llama3 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap. Note that /chatgpt and /voicegpt modes don't have context awareness (memory) when using Llama models at the moment."
+		notification := "Switched to big Llama3 model, intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap. Note that /chatgpt and /voicegpt modes don't have context awareness (memory) when using Llama models at the moment."
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send big Llama3 message: %v", err)
 		}
