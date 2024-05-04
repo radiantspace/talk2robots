@@ -21,6 +21,8 @@ const (
 	Whisper             Engine = "whisper-1"
 	TTS                 Engine = "tts-1"
 
+	DallE3 Engine = "dall-e-3"
+
 	// used as Redis keys
 	AssistantGpt4  AssistantKey = "assistant:gpt-4"
 	AssistantGpt35 AssistantKey = "assistant:gpt-3.5"
@@ -170,6 +172,8 @@ type Usage struct {
 	CompletionTokens int     `json:"completion_tokens"`
 	TotalTokens      int     `json:"total_tokens"`
 	AudioDuration    float64 `json:"audio_duration"` // only for Whisper API
+	ImagesCount      int     `json:"images_count,omitempty"`
+	ImagePrice       float64 `json:"image_price,omitempty"`
 }
 
 type ThreadRunRequest struct {

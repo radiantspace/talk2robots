@@ -21,6 +21,7 @@ const (
 	Transcribe ModeName = "transcribe"
 	Summarize  ModeName = "summarize"
 	Translate  ModeName = "translate"
+	Image      ModeName = "image"
 )
 
 func SaveMode(chatID string, topicID string, mode ModeName, params string) {

@@ -241,6 +241,22 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		return
 	}
 
+	if IsCreateImageCommand(message.Text) {
+		url, err := openai.CreateImage(ctx, message.Text)
+		if err != nil {
+			log.Errorf("Error creating image in chat %s: %v", chatIDString, err)
+			return
+		}
+		log.Infof("Sending image to chat %s: %s", chatIDString, url)
+		if url != "" {
+			bot.SendPhoto(&telego.SendPhotoParams{
+				ChatID: chatID,
+				Photo:  telego.InputFile{URL: url},
+			})
+		}
+		return
+	}
+
 	if message.Photo != nil {
 		config.CONFIG.DataDogClient.Incr("telegram.photo_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
 	}
@@ -249,7 +265,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	var userMessagePrimer string
 	seedData, userMessagePrimer = lib.GetSeedDataAndPrimer(mode)
 
-	log.Debugf("Received message: %d, in chat: %d, initiating request to OpenAI", message.MessageID, chatID.ID)
+	log.Debugf("Received message: %d, in chat: %d, initiating request to AI", message.MessageID, chatID.ID)
 	engineModel := redis.GetChatEngine(chatIDString)
 
 	// send action to show that bot is working
