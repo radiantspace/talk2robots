@@ -21,6 +21,7 @@ func GetUserStatus(ctx context.Context) string {
 	usage := GetUserUsage(userIdString)
 	tokens := GetUserTokens(userIdString)
 	audioMinutes := GetUserAudioMinutes(userIdString)
+	imagesCount := GetUserImages(userIdString)
 	usagePercent := usage / subscription.MaximumUsage * 100
 
 	subscriptionToDisplay := string(subscription.Name)
@@ -39,7 +40,8 @@ func GetUserStatus(ctx context.Context) string {
 		Maximum AI usage: $%.2f/mo
 		Monthly consumption: %.1f%%
 		Monthly tokens processed: %d
-		Monthly audio transcribed, minutes: %.2f`, entity, mode, subscriptionToDisplay, subscription.MaximumUsage, usagePercent, tokens, audioMinutes)
+		Monthly audio transcribed, minutes: %.2f
+		Monthly images created: %d`, entity, mode, subscriptionToDisplay, subscription.MaximumUsage, usagePercent, tokens, audioMinutes, imagesCount)
 }
 
 func GetStatusKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
@@ -160,4 +162,16 @@ func GetUserAudioMinutes(userId string) float64 {
 		return 0
 	}
 	return minutes
+}
+
+func GetUserImages(userId string) int64 {
+	imagesCount, err := redis.RedisClient.Get(context.Background(), lib.UserTotalImagesKey(userId)).Int64()
+	if err != nil {
+		if err.Error() == "redis: nil" {
+			return 0
+		}
+		log.Errorf("GetUserImages: failed to get user %s images count: %v", userId, err)
+		return 0
+	}
+	return imagesCount
 }
