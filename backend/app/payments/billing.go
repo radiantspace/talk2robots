@@ -105,7 +105,8 @@ func Bill(originalContext context.Context, usage models.CostAndUsage) models.Cos
 	usage.Cost =
 		float64(usage.Usage.PromptTokens)*usage.PricePerInputUnit +
 			float64(usage.Usage.CompletionTokens)*usage.PricePerOutputUnit +
-			usage.Usage.AudioDuration*usage.PricePerInputUnit
+			usage.Usage.AudioDuration*usage.PricePerInputUnit +
+			float64(usage.Usage.ImagesCount)*usage.ImagePrice
 	_, err := redis.RedisClient.IncrByFloat(ctx, "system_totals:cost", usage.Cost).Result()
 	if err != nil {
 		log.Errorf("[billing] error incrementing system cost: %v", err)
@@ -147,6 +148,18 @@ func Bill(originalContext context.Context, usage models.CostAndUsage) models.Cos
 			log.Errorf("[billing] error incrementing system total audio minutes: %v", err)
 		}
 		config.CONFIG.DataDogClient.Distribution("billing.audio_minutes", usage.Usage.AudioDuration, []string{"engine:" + string(usage.Engine), "user_type:" + userType}, 1)
+	}
+
+	if usage.Usage.ImagesCount > 0 {
+		_, err = redis.RedisClient.IncrBy(context.Background(), lib.UserTotalImagesKey(usage.User), int64(usage.Usage.ImagesCount)).Result()
+		if err != nil {
+			log.Errorf("[billing] error incrementing user total images: %v", err)
+		}
+		_, err = redis.RedisClient.IncrBy(context.Background(), "system_totals:images", int64(usage.Usage.ImagesCount)).Result()
+		if err != nil {
+			log.Errorf("[billing] error incrementing system total images: %v", err)
+		}
+		config.CONFIG.DataDogClient.Distribution("billing.images", float64(usage.Usage.ImagesCount), []string{"engine:" + string(usage.Engine), "user_type:" + userType}, 1)
 	}
 
 	userTotalCost, err := redis.RedisClient.IncrByFloat(context.Background(), lib.UserTotalCostKey(usage.User), usage.Cost).Result()

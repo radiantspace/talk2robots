@@ -12,6 +12,10 @@ func UserTotalAudioMinutesKey(user string) string {
 	return user + ":total_audio_minutes"
 }
 
+func UserTotalImagesKey(user string) string {
+	return user + ":total_images"
+}
+
 func UserCurrentThreadPromptKey(user string, topic string) string {
 	if topic != "" && topic != "0" {
 		return user + ":" + topic + ":current-thread-prompt-tokens"

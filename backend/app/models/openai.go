@@ -54,6 +54,7 @@ type CostAndUsage struct {
 	Engine             Engine  `json:"engine"`
 	PricePerInputUnit  float64 `json:"price_per_input_unit"`
 	PricePerOutputUnit float64 `json:"price_per_output_unit"`
+	ImagePrice         float64 `json:"image_price,omitempty"`
 	Cost               float64 `json:"cost"`
 	Usage              Usage   `json:"usage"`
 	User               string  `json:"user"`
@@ -173,7 +174,6 @@ type Usage struct {
 	TotalTokens      int     `json:"total_tokens"`
 	AudioDuration    float64 `json:"audio_duration"` // only for Whisper API
 	ImagesCount      int     `json:"images_count,omitempty"`
-	ImagePrice       float64 `json:"image_price,omitempty"`
 }
 
 type ThreadRunRequest struct {

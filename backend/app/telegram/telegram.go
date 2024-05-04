@@ -242,17 +242,29 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	}
 
 	if IsCreateImageCommand(message.Text) {
-		url, err := openai.CreateImage(ctx, message.Text)
+		config.CONFIG.DataDogClient.Incr("telegram.create_image_received", []string{"channel_type:" + message.Chat.Type}, 1)
+		log.Infof("Generating image in a chat %s..", chatIDString)
+		sendImageAction(bot, &message)
+		url, revisedPrompt, err := openai.CreateImage(ctx, message.Text)
 		if err != nil {
 			log.Errorf("Error creating image in chat %s: %v", chatIDString, err)
 			return
 		}
-		log.Infof("Sending image to chat %s: %s", chatIDString, url)
+		log.Infof("Sending image to chat %s", chatIDString)
+		if len(revisedPrompt) > 1000 {
+			revisedPrompt = revisedPrompt[:997] + "..."
+		}
 		if url != "" {
-			bot.SendPhoto(&telego.SendPhotoParams{
-				ChatID: chatID,
-				Photo:  telego.InputFile{URL: url},
+			_, err := bot.SendPhoto(&telego.SendPhotoParams{
+				ChatID:          chatID,
+				Photo:           telego.InputFile{URL: url},
+				Caption:         revisedPrompt,
+				MessageThreadID: message.MessageThreadID,
 			})
+
+			if err != nil {
+				log.Errorf("Error sending image to chat %s: %v", chatIDString, err)
+			}
 		}
 		return
 	}
@@ -679,6 +691,14 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 func sendTypingAction(bot *telego.Bot, message *telego.Message) {
 	chatID := message.Chat.ChatID()
 	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionTyping, MessageThreadID: message.MessageThreadID})
+	if err != nil {
+		log.Errorf("Failed to send chat action: %v", err)
+	}
+}
+
+func sendImageAction(bot *telego.Bot, message *telego.Message) {
+	chatID := message.Chat.ChatID()
+	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionUploadPhoto, MessageThreadID: message.MessageThreadID})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %v", err)
 	}

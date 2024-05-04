@@ -43,7 +43,7 @@ in Slack:
 - [x] Voice response (OpenAI TTS)
 - [x] Threads, i.e. context awareness and memory (OpenAI Assistant Threads)
 - [ ] Image recognition
-- [ ] Image generation
+- [x] Image generation
 
 
 ## Telegram Features
