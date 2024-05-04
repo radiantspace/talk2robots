@@ -147,8 +147,8 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 				log.Errorf("Error getting chat member: %v", err)
 				return
 			}
-			if err == nil && (chatMember.MemberStatus() != telego.MemberStatusCreator || chatMember.MemberStatus() != telego.MemberStatusAdministrator) {
-				log.Infof("Ignoring public command from non-admin in channel: %s", chatIDString)
+			if err == nil && (chatMember.MemberStatus() != telego.MemberStatusCreator && chatMember.MemberStatus() != telego.MemberStatusAdministrator) {
+				log.Infof("Ignoring public command from user %d with status %s in channel: %s", message.From.ID, chatMember.MemberStatus(), chatIDString)
 				return
 			}
 		}
