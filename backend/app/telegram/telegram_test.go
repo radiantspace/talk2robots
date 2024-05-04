@@ -58,6 +58,19 @@ func setupTestDatadog() {
 	}
 }
 
+func getChatMemberFuncAssertion(t *testing.T, expectedChatID int64, expectedUserID int64) func(bot *telego.Bot, params *telego.GetChatMemberParams) (telego.ChatMember, error) {
+	return func(bot *telego.Bot, params *telego.GetChatMemberParams) (telego.ChatMember, error) {
+		if params.ChatID.ID != expectedChatID {
+			t.Errorf("Expected chat ID %d, got %d", expectedChatID, params.ChatID.ID)
+		}
+		if params.UserID != expectedUserID {
+			t.Errorf("Expected user ID %d, got %d", expectedUserID, params.UserID)
+		}
+
+		return &telego.ChatMemberAdministrator{}, nil
+	}
+}
+
 func getSendMessageFuncAssertion(t *testing.T, expectedRegex string, expectedChatID int64) func(bot *telego.Bot, params *telego.SendMessageParams) (*telego.Message, error) {
 	return func(bot *telego.Bot, params *telego.SendMessageParams) (*telego.Message, error) {
 		if params.ChatID.ID != expectedChatID {
@@ -166,8 +179,11 @@ func TestHandlePrivateStartCommandMessage(t *testing.T) {
 func TestHandlePublicStartCommandMessage(t *testing.T) {
 	// arrange
 	message := telego.Message{
+		From: &telego.User{
+			ID: 234,
+		},
 		Chat: telego.Chat{
-			ID:   123,
+			ID:   -123,
 			Type: "supergroup",
 		},
 		Text: "/start@testbot",
@@ -176,12 +192,22 @@ func TestHandlePublicStartCommandMessage(t *testing.T) {
 	sendMessagePatch, err := mpatch.PatchInstanceMethodByName(
 		reflect.TypeOf(BOT.Bot),
 		"SendMessage",
-		getSendMessageFuncAssertion(t, "Hi, I'm a bot powered by AI!", 123),
+		getSendMessageFuncAssertion(t, "Hi, I'm a bot powered by AI!", -123),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer sendMessagePatch.Unpatch()
+
+	getChatMemberPatch, err := mpatch.PatchInstanceMethodByName(
+		reflect.TypeOf(BOT.Bot),
+		"GetChatMember",
+		getChatMemberFuncAssertion(t, -123, 234),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer getChatMemberPatch.Unpatch()
 
 	// act
 	handleMessage(BOT.Bot, message)
@@ -204,8 +230,11 @@ func TestHandlePublicStartCommandNoMentionMessage(t *testing.T) {
 func TestHandlePublicUnknownCommandMessage(t *testing.T) {
 	// arrange
 	message := telego.Message{
+		From: &telego.User{
+			ID: 234,
+		},
 		Chat: telego.Chat{
-			ID:   123,
+			ID:   -123,
 			Type: "supergroup",
 		},
 		Text: "/destroy@testbot",
@@ -214,12 +243,22 @@ func TestHandlePublicUnknownCommandMessage(t *testing.T) {
 	sendMessagePatch, err := mpatch.PatchInstanceMethodByName(
 		reflect.TypeOf(BOT.Bot),
 		"SendMessage",
-		getSendMessageFuncAssertion(t, "Unknown command", 123),
+		getSendMessageFuncAssertion(t, "Unknown command", -123),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer sendMessagePatch.Unpatch()
+
+	getChatMemberPatch, err := mpatch.PatchInstanceMethodByName(
+		reflect.TypeOf(BOT.Bot),
+		"GetChatMember",
+		getChatMemberFuncAssertion(t, -123, 234),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer getChatMemberPatch.Unpatch()
 
 	// act
 	handleMessage(BOT.Bot, message)

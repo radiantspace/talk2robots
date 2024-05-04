@@ -133,22 +133,26 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	// process commands
 	if message.Voice == nil && message.Audio == nil && message.Video == nil && message.VideoNote == nil && message.Document == nil && message.Photo == nil && (message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/")) {
-		if !isPrivate && !strings.Contains(message.Text, "@"+BOT.Name) {
-			log.Infof("Ignoring public command w/o @mention in channel: %s", chatIDString)
-			return
+		if !isPrivate {
+			if !strings.Contains(message.Text, "@"+BOT.Name) {
+				log.Infof("Ignoring public command w/o @mention in channel: %s", chatIDString)
+				return
+			}
+
+			chatMember, err := bot.GetChatMember(&telego.GetChatMemberParams{
+				ChatID: chatID,
+				UserID: message.From.ID,
+			})
+			if err != nil {
+				log.Errorf("Error getting chat member: %v", err)
+				return
+			}
+			if err == nil && chatMember.MemberStatus() != telego.MemberStatusCreator && chatMember.MemberStatus() != telego.MemberStatusAdministrator {
+				log.Infof("Ignoring public command from non-admin in channel: %s", chatIDString)
+				return
+			}
 		}
-		chatMember, err := bot.GetChatMember(&telego.GetChatMemberParams{
-			ChatID: chatID,
-			UserID: message.From.ID,
-		})
-		if err != nil {
-			log.Errorf("Error getting chat member: %v", err)
-			return
-		}
-		if err == nil && !isPrivate && chatMember.MemberStatus() != telego.MemberStatusCreator && chatMember.MemberStatus() != telego.MemberStatusAdministrator {
-			log.Infof("Ignoring public command from non-admin in channel: %s", chatIDString)
-			return
-		}
+
 		AllCommandHandlers.handleCommand(ctx, BOT, &message)
 		return
 	}
