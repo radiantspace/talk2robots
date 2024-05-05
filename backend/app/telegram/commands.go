@@ -24,12 +24,12 @@ type Command string
 
 var EMILY_BIRTHDAY = time.Date(2023, 5, 25, 0, 18, 0, 0, time.FixedZone("UTC+2", 3*60*60))
 var VASILISA_BIRTHDAY = time.Date(2007, 12, 13, 23, 45, 0, 0, time.FixedZone("UTC+3", 3*60*60))
-var ONBOARDING_TEXT = `Hi, I'm a bot powered by AI! I can:
-- Default 🧠: chat with or answer any questions (/chatgpt)
-- ✨ New feature 🎙️: talk to AI using voice messages (/voicegpt)
-- ✨ New feature 🖼️: draw, just ask me to draw something ('create/draw/picture an image of a fish riding a bicycle')
+var ONBOARDING_TEXT = `Hi, I'm a smart assistant powered by AI! While you can ask me anything, here are some of the things I can do:
+- Default 🧠: chat about any topic or answer any questions (/chatgpt), understands voice messages
+- 🎙️ respond with voice messages, for full conversation experience (/voicegpt)
+- 🖼️ draw, just ask me to picture anything (Example: 'create an image of a fish riding a bicycle')
 - Correct grammar: (/grammar)
-- Explain grammar and mistakes: (/teacher)
+- Fix grammar and correct mistakes: (/teacher)
 - Remember context in /chatgpt and /voicegpt modes (use /clear to clear current thread)
 - Transcribe voice/audio/video messages (/transcribe)
 - Summarize text/voice/audio/video messages (/summarize)
@@ -64,7 +64,7 @@ grammar - 👀 grammar checking mode only, no explanations
 teacher - 🧑‍🏫 grammar correction and explanations
 transcribe - 🎙 transcribe voice/audio/video
 summarize - 📝 summarize text/voice/audio/video
-status - 📊 subscription status
+status - 📊 status and settings
 support - 🤔 contact developer for support
 terms - 📜 usage terms
 `
