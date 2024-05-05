@@ -269,7 +269,7 @@ func handleMessageEvent(userId string, channel string, messageTS string, message
 	// user usage exceeded monthly limit, send message and return
 	ok := lib.ValidateUserUsage(currentContext)
 	if !ok {
-		BOT.SendMessage(channel, slack.MsgOptionText("Your monthly usage limit has been exceeded. Please /upgrade your plan.", false), slack.MsgOptionPostEphemeral(userId))
+		BOT.SendMessage(channel, slack.MsgOptionText("Your monthly usage limit has been exceeded. Check /upgrade options.", false), slack.MsgOptionPostEphemeral(userId))
 		config.CONFIG.DataDogClient.Incr("usage_exceeded", []string{"client:slack"}, 1)
 		return
 	}
@@ -310,7 +310,7 @@ func summarizeThread(userId string, messageTS string, channelId string) {
 	// user usage exceeded monthly limit, send message and return
 	ok := lib.ValidateUserUsage(currentContext)
 	if !ok {
-		BOT.SendMessage(channelId, slack.MsgOptionText("Your monthly usage limit has been exceeded. Please /upgrade your plan.", false), slack.MsgOptionPostEphemeral(userId))
+		BOT.SendMessage(channelId, slack.MsgOptionText("Your monthly usage limit has been exceeded. Check /upgrade option.", false), slack.MsgOptionPostEphemeral(userId))
 		config.CONFIG.DataDogClient.Incr("usage_exceeded", []string{"client:slack"}, 1)
 		return
 	}

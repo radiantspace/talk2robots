@@ -325,7 +325,7 @@ func prepareMessages(
 		if strings.Contains(err.Error(), "free plan") {
 			bot.SendMessage(&telego.SendMessageParams{
 				ChatID:          chatID,
-				Text:            "Image vision is not currently available on free plans, since it's kinda expensive. Please /upgrade to use this feature.",
+				Text:            "Image vision is not currently available on free plans, since it's kinda expensive. Check /upgrade options to use this feature.",
 				MessageThreadID: message.MessageThreadID,
 			})
 		} else {

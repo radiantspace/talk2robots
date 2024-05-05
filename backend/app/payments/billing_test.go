@@ -94,7 +94,7 @@ func TestCheckThresholdsAndNotify(t *testing.T) {
 	CheckThresholdsAndNotify(ctx, 0.05)
 
 	// Verify that the expected notification was sent
-	expectedNotifications := []string{"⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage."}
+	expectedNotifications := []string{"⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage."}
 	assert.Equal(t, expectedNotifications, notifications, "Unexpected notifications sent")
 }
 
@@ -132,10 +132,9 @@ func TestCheckThresholdsAndNotifyMaximum(t *testing.T) {
 
 	// Verify that the expected notification was sent
 	expectedNotifications := []string{
-		"⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
-		"⚠️ You are 80% through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
-		"🚫 You have reached your free monthly usage limit. Further requests may not be served until the next month. If you find this bot useful, please consider an /upgrade to a paid plan.",
-	}
+		"⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage.",
+		"⚠️ You are 80% through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage.",
+		"🚫 You have reached your free monthly usage limit. Further requests may not be served until the next month. If you find this bot useful, check available options to /upgrade and continue using it."}
 	assert.Equal(t, expectedNotifications, notifications, "Unexpected notifications sent")
 }
 
@@ -176,6 +175,6 @@ func TestCheckThresholdsAndNotifyGroup(t *testing.T) {
 	CheckThresholdsAndNotify(ctx, 0.05)
 
 	// Verify that the expected notification was sent
-	expectedNotifications := []string{"⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Please consider an /upgrade@testbot to a paid plan. Use /status@testbot to see your current usage."}
+	expectedNotifications := []string{"⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Check available options for /upgrade@testbot. Use /status@testbot to see your current usage."}
 	assert.Equal(t, expectedNotifications, notifications, "Unexpected notifications sent")
 }

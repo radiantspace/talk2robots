@@ -31,15 +31,15 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 		Thresholds: []models.UsageThreshold{
 			{
 				Percentage: 0.5,
-				Message:    "⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
+				Message:    "⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage.",
 			},
 			{
 				Percentage: 0.8,
-				Message:    "⚠️ You are 80% through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
+				Message:    "⚠️ You are 80% through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage.",
 			},
 			{
 				Percentage: 1.0,
-				Message:    "🚫 You have reached your free monthly usage limit. Further requests may not be served until the next month. If you find this bot useful, please consider an /upgrade to a paid plan.",
+				Message:    "🚫 You have reached your free monthly usage limit. Further requests may not be served until the next month. If you find this bot useful, check available options to /upgrade and continue using it.",
 			},
 		},
 	},
@@ -47,15 +47,15 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 		Thresholds: []models.UsageThreshold{
 			{
 				Percentage: 0.5,
-				Message:    "⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
+				Message:    "⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage.",
 			},
 			{
 				Percentage: 0.8,
-				Message:    "⚠️ You are 80% through your free monthly usage. Please consider an /upgrade to a paid plan. Use /status to see your current usage.",
+				Message:    "⚠️ You are 80% through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage.",
 			},
 			{
 				Percentage: 1.0,
-				Message:    "🚫 You have reached your free monthly usage limit. Further requests may not be served until the next month. If you find this bot useful, please consider an /upgrade to a paid plan.",
+				Message:    "🚫 You have reached your free monthly usage limit. Further requests may not be served until the next month. If you find this bot useful, check available options to /upgrade and continue using it.",
 			},
 		},
 	},
@@ -63,15 +63,15 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 		Thresholds: []models.UsageThreshold{
 			{
 				Percentage: 0.5,
-				Message:    "⚠️ Thanks for using the bot! You are halfway through your paid monthly usage. Use /status to track your current usage.",
+				Message:    "⚠️ Thanks for using the bot! You are halfway through your paid monthly usage. Use /status to track your current usage. You can /clear long conversations to avoid overly consuming your usage.",
 			},
 			{
 				Percentage: 0.8,
-				Message:    "⚠️ You are 80% through your paid monthly usage. Use /status to track your current usage.",
+				Message:    "⚠️ You are 80% through your paid monthly usage. Use /status to track your current usage. You can /clear long conversations to avoid overly consuming your usage.",
 			},
 			{
 				Percentage: 1.0,
-				Message:    "🚫 You have reached your paid monthly usage limit. Further requests may not be served until the next month. Use /status to track your current usage.",
+				Message:    "🚫 You have reached your paid monthly usage limit. Further requests may not be served until the 1st of next month. Use /status to track your current usage.",
 			},
 		},
 	},

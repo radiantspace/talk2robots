@@ -181,7 +181,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	// user usage exceeded monthly limit, send message and return
 	ok := lib.ValidateUserUsage(ctx)
 	if !ok {
-		notification := "Your monthly usage limit has been exceeded. Check /status and /upgrade your subscription to continue using the bot. The limits are reset on the 1st of every month."
+		notification := "Your monthly usage limit has been exceeded. Check available /upgrade options to continue using the bot. The limits are reset on the 1st of every month."
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 		bot.SendMessage(tu.Message(chatID, notification).WithMessageThreadID(message.MessageThreadID))
 		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
@@ -474,7 +474,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 			return
 		}
 		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
-			notification := "You need to /upgrade your subscription to use GPT-4 model! Meanwhile, you can still use GPT-3.5 Turbo, it's fast, cheap and quite smart."
+			notification := "To use GPT-4 model check available /upgrade options! Meanwhile, you can still use GPT-3.5 Turbo, it's fast, cheap and quite smart."
 			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 			BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 			return
