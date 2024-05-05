@@ -139,6 +139,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 				return
 			}
 
+			// only allow admins to use commands in channels
 			chatMember, err := bot.GetChatMember(&telego.GetChatMemberParams{
 				ChatID: chatID,
 				UserID: message.From.ID,
@@ -147,7 +148,8 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 				log.Errorf("Error getting chat member: %v", err)
 				return
 			}
-			if err == nil && (chatMember.MemberStatus() != telego.MemberStatusCreator && chatMember.MemberStatus() != telego.MemberStatusAdministrator) {
+			chatMemberStatus := chatMember.MemberStatus()
+			if err == nil && (chatMemberStatus != telego.MemberStatusCreator && chatMemberStatus != telego.MemberStatusAdministrator && chatMemberStatus != telego.MemberStatusLeft) {
 				log.Infof("Ignoring public command from user %d with status %s in channel: %s", message.From.ID, chatMember.MemberStatus(), chatIDString)
 				return
 			}
