@@ -251,6 +251,12 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		sendImageAction(bot, &message)
 		url, revisedPrompt, err := openai.CreateImage(ctx, message.Text)
 		if err != nil {
+			if strings.Contains(err.Error(), "content_policy_violation") {
+				log.Warnf("Content policy violation in chat %s", chatIDString)
+				config.CONFIG.DataDogClient.Incr("telegram.image.content_policy_violation", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
+				bot.SendMessage(tu.Message(chatID, "Sorry, I can't create an image with that content. Please try again with a different prompt."))
+				return
+			}
 			log.Errorf("Error creating image in chat %s: %v", chatIDString, err)
 			return
 		}
@@ -396,6 +402,8 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			ChatID:    tu.ID(chatId),
 			MessageID: callbackQuery.Message.GetMessageID(),
 		})
+	case "pending":
+		// do nothing
 	default:
 		log.Errorf("Unknown callback query: %s, chat id: %s", callbackQuery.Data, chatString)
 	}
@@ -717,6 +725,11 @@ func sendAudioAction(bot *telego.Bot, message *telego.Message) {
 }
 
 func safeOsDelete(filename string) {
+	// test file does not exist
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return
+	}
+
 	err := os.Remove(filename)
 	if err != nil {
 		log.Errorf("Error deleting file %s: %v", filename, err)
