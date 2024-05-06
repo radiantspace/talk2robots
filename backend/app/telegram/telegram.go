@@ -254,7 +254,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 			if strings.Contains(err.Error(), "content_policy_violation") {
 				log.Warnf("Content policy violation in chat %s", chatIDString)
 				config.CONFIG.DataDogClient.Incr("telegram.image.content_policy_violation", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
-				bot.SendMessage(tu.Message(chatID, "Sorry, I can't create an image with that content. Please try again with a different prompt."))
+				bot.SendMessage(tu.Message(chatID, "Sorry, I can't create an image with that content. Please try again with a different prompt.").WithMessageThreadID(message.MessageThreadID))
 				return
 			}
 			log.Errorf("Error creating image in chat %s: %v", chatIDString, err)
