@@ -30,32 +30,16 @@ var UsageThresholds = map[models.MongoSubscriptionName]models.UsageThresholds{
 	models.FreeSubscriptionName: {
 		Thresholds: []models.UsageThreshold{
 			{
-				Percentage: 0.5,
-				Message:    "⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage.",
-			},
-			{
-				Percentage: 0.8,
-				Message:    "⚠️ You are 80% through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage.",
-			},
-			{
 				Percentage: 1.0,
-				Message:    "🚫 You have reached your free monthly usage limit. Further requests may not be served until the next month. If you find this bot useful, check available options to /upgrade and continue using it.",
+				Message:    "Check available options to /upgrade and continue using me.",
 			},
 		},
 	},
 	models.FreePlusSubscriptionName: {
 		Thresholds: []models.UsageThreshold{
 			{
-				Percentage: 0.5,
-				Message:    "⚠️ Thanks for using the bot! You are halfway through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage.",
-			},
-			{
-				Percentage: 0.8,
-				Message:    "⚠️ You are 80% through your free monthly usage. Check available options for /upgrade. Use /status to see your current usage.",
-			},
-			{
 				Percentage: 1.0,
-				Message:    "🚫 You have reached your free monthly usage limit. Further requests may not be served until the next month. If you find this bot useful, check available options to /upgrade and continue using it.",
+				Message:    "Check available options to /upgrade and continue using me.",
 			},
 		},
 	},

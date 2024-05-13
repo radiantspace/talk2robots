@@ -18,7 +18,7 @@ const (
 var Subscriptions = map[MongoSubscriptionName]MongoSubscription{
 	FreeSubscriptionName: {
 		Name:         FreeSubscriptionName,
-		MaximumUsage: 0.05,
+		MaximumUsage: 0.10,
 	},
 	FreePlusSubscriptionName: {
 		Name:         FreePlusSubscriptionName,

@@ -24,15 +24,18 @@ type Command string
 
 var EMILY_BIRTHDAY = time.Date(2023, 5, 25, 0, 18, 0, 0, time.FixedZone("UTC+2", 3*60*60))
 var VASILISA_BIRTHDAY = time.Date(2007, 12, 13, 23, 45, 0, 0, time.FixedZone("UTC+3", 3*60*60))
-var ONBOARDING_TEXT = `Hi, I'm a smart assistant powered by AI! While you can ask me anything, here are some of the things I can do:
-- Default 🧠: chat about any topic or answer any questions (/chatgpt), understands voice messages
-- 🎙️ respond with voice messages, for full conversation experience (/voicegpt)
-- 🖼️ draw, just ask me to picture anything (Example: 'create an image of a fish riding a bicycle')
-- Correct grammar: (/grammar)
-- Fix grammar and correct mistakes: (/teacher)
-- Remember context in /chatgpt and /voicegpt modes (use /clear to clear current thread)
-- Transcribe voice/audio/video messages (/transcribe)
-- Summarize text/voice/audio/video messages (/summarize)
+var ONBOARDING_TEXT = `I'm Gienji, a smart assistant which is available 24/7 to amplify your 🧠 intelligence and 💬 communication skills! I'm here to unlock your full potential!
+
+Here are some of the things I can do:
+- 🧠 /chatgpt - chat or answer any questions, respond with text messages
+- 🎙️ /voicegpt - full conversation experience, respond using voice messages
+- remember context in /chatgpt and /voicegpt modes (use /clear to clear current thread)
+- 🖼️ draw, just ask to picture anything (Example: 'create an image of a fish riding a bicycle')
+- /grammar - correct grammar mode, will only correct last sent message
+- /teacher - correct and explain grammar and mistakes
+- /transcribe voice/audio/video messages only
+- /summarize text/voice/audio/video messages
+- /status to check usage limits, consumed tokens and audio transcription minutes. Usage limits for the assistant are reset every 1st of the month.
 
 Enjoy and let me know if any /support is needed!`
 
@@ -53,6 +56,7 @@ const (
 	TranscribeCommand         Command = "/transcribe"
 	SummarizeCommand          Command = "/summarize"
 	ClearThreadCommand        Command = "/clear"
+	BillingCommand            Command = "/billing"
 
 	// commands setting for BotFather
 	Commands string = `
@@ -65,6 +69,7 @@ teacher - 🧑‍🏫 grammar correction and explanations
 transcribe - 🎙 transcribe voice/audio/video
 summarize - 📝 summarize text/voice/audio/video
 status - 📊 status and settings
+billing - 💳 manage or cancel your subscription
 support - 🤔 contact developer for support
 terms - 📜 usage terms
 `
@@ -145,6 +150,39 @@ func setupCommandHandlers() {
 			bot.SendMessage(tu.Message(SystemBOT.ChatID, "Onboarding video saved").WithMessageThreadID(message.MessageThreadID))
 		}),
 		newCommandHandler(ClearThreadCommand, clearThreadCommandHandler),
+		newCommandHandler(BillingCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
+			// call stripe to get customer info link
+			chatID := util.GetChatID(message)
+			chatString := util.GetChatIDString(message)
+			user, err := mongo.MongoDBClient.GetUser(ctx)
+			if err != nil {
+				log.Errorf("Failed to get user %s: %v", chatString, err)
+				return
+			}
+
+			if user.StripeCustomerId == "" {
+				bot.SendMessage(tu.Message(chatID, "You don't have billing setup.").WithMessageThreadID(message.MessageThreadID))
+				return
+			}
+
+			notification := `Tap 'Continue' button to manage or cancel your subscription, use the email you used for registering. If you don't remember which email you used, check your inboxes for Stripe messages or reach out to /support 🚀`
+			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+			stripePortalLink := "https://billing.stripe.com/p/login/bIYbMG468cuR9a06oo"
+
+			// send link to customer as a button in telegram
+			bot.SendMessage(
+				tu.Message(chatID, notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
+					&telego.InlineKeyboardMarkup{
+						InlineKeyboard: [][]telego.InlineKeyboardButton{
+							{
+								telego.InlineKeyboardButton{
+									Text: "Continue",
+									URL:  stripePortalLink,
+								},
+							},
+						},
+					}))
+		}),
 	}
 }
 
@@ -197,25 +235,11 @@ func getModeHandlerFunction(mode lib.ModeName, response string) func(context.Con
 func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
 	chatString := util.GetChatIDString(message)
 	chatID := util.GetChatID(message)
-	if lib.IsUserFree(ctx) {
-		_, err := bot.SendMessage(tu.Message(chatID, "Upgrading to free+ gives you 5x monthly usage limits, effective immediately 🎉").WithMessageThreadID(message.MessageThreadID))
-		if err != nil {
-			log.Errorf("Failed to send upgrade message to %s: %v", chatString, err)
-		}
-		err = mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
-		if err != nil {
-			log.Errorf("Failed to update user %s subscription: %v", chatString, err)
-			bot.SendMessage(tu.Message(chatID, "Failed to upgrade your account to free+ plan. Please try again later.").WithMessageThreadID(message.MessageThreadID))
-			return
-		}
-		bot.SendMessage(tu.Message(chatID, "You are now a free+ user 🥳! Thanks for trying the bot and the wish to support it's development! 🙏").WithMessageThreadID(message.MessageThreadID))
-		return
-	}
-	if lib.IsUserFreePlus(ctx) {
-		_, err := bot.SendMessage(tu.Message(chatID, "Upgrading account to basic paid plan..").WithMessageThreadID(message.MessageThreadID))
-		if err != nil {
-			log.Errorf("Failed to send paid plan upgrade message to %s: %v", chatString, err)
-		}
+	if lib.IsUserFree(ctx) || lib.IsUserFreePlus(ctx) {
+		// _, err := bot.SendMessage(tu.Message(chatID, "Upgrading account to basic paid plan..").WithMessageThreadID(message.MessageThreadID))
+		// if err != nil {
+		// 	log.Errorf("Failed to send paid plan upgrade message to %s: %v", chatString, err)
+		// }
 		// fetch userStripeID from DB
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {
@@ -244,7 +268,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 			return
 		}
 
-		notification := "Press the subscribe button below and navigate to our partner, Stripe, to proceed with the payment. You will upgrade to the basic paid plan, which includes:\n💪 200x usage limits compared to the Free+ plan of AI credits\n🧠 Access to more intelligent AI models (GPT-4 and Llava3 70b)\n💁🏽 Priority support\n\nBy proceeding with the payments, you agree to /terms of usage.\n\nCancel your subscription at any time with the /downgrade command."
+		notification := "Tap 'Continue' button to keep using me.\n\n" + ONBOARDING_TEXT
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 
 		// send link to customer as a button in telegram
@@ -254,7 +278,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 					InlineKeyboard: [][]telego.InlineKeyboardButton{
 						{
 							telego.InlineKeyboardButton{
-								Text: "Subscribe for $9.99/month",
+								Text: "Continue",
 								URL:  session.URL,
 							},
 						},
@@ -291,7 +315,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 	}
 
 	if lib.IsUserBasic(ctx) {
-		confirmationMessage = "Are you sure you want to cancel your subscription to the basic plan?\n\nYou will be downgraded to the free+ plan immediately, loosing access to GPT-4 model and increased usage limits. Unused limits will not be refunded."
+		confirmationMessage = "Are you sure you want to cancel your subscription to the basic plan?\n\nYou will be downgraded to the free+ plan immediately, loosing access to GPT-4 model and increased usage limits. Unused limits will NOT be refunded."
 		callbackData = "downgradefrombasic:" + topicString
 	}
 

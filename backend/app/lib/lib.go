@@ -68,7 +68,7 @@ func SetupUserAndContext(userId string, client ClientName, channelId string, top
 	return user, currentContext, cancelContext, err
 }
 
-func ValidateUserUsage(ctx context.Context) bool {
+func ValidateUserUsage(ctx context.Context) (bool, models.MongoSubscriptionName) {
 	userId := ctx.Value(models.UserContext{}).(string)
 	currentSubscriptionName := ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName)
 	currentSubscription := models.Subscriptions[currentSubscriptionName]
@@ -79,10 +79,10 @@ func ValidateUserUsage(ctx context.Context) bool {
 		}
 		if userTotalCost >= currentSubscription.MaximumUsage {
 			log.Infof("User %s usage limit exceeded", userId)
-			return false
+			return false, currentSubscriptionName
 		}
 	}
-	return true
+	return true, currentSubscriptionName
 }
 
 // ConvertFasthttpRequest converts a fasthttp.Request to a net/http.Request

@@ -179,12 +179,16 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	}
 
 	// user usage exceeded monthly limit, send message and return
-	ok := lib.ValidateUserUsage(ctx)
+	ok, subscription := lib.ValidateUserUsage(ctx)
 	if !ok {
-		notification := "Your monthly usage limit has been exceeded. Check available /upgrade options to continue using the bot. The limits are reset on the 1st of every month."
-		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-		bot.SendMessage(tu.Message(chatID, notification).WithMessageThreadID(message.MessageThreadID))
-		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
+		// notification := "Your monthly usage limit has been exceeded. Check available /upgrade options to continue using the bot. The limits are reset on the 1st of every month."
+		// notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+		// bot.SendMessage(tu.Message(chatID, notification).WithMessageThreadID(message.MessageThreadID))
+
+		upgradeCommand := lib.AddBotSuffixToGroupCommands(ctx, string(UpgradeCommand))
+		message.Text = upgradeCommand
+		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:" + message.Chat.Type, "subscription:" + string(subscription)}, 1)
+		AllCommandHandlers.handleCommand(ctx, BOT, &message)
 		return
 	}
 
@@ -533,9 +537,9 @@ func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
 	}
 	log.Infof("Inline query from ID: %d, query size: %d", inlineQuery.From.ID, len(inlineQuery.Query))
 
-	ok := lib.ValidateUserUsage(ctx)
+	ok, subscription := lib.ValidateUserUsage(ctx)
 	if !ok {
-		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:inline"}, 1)
+		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:inline", "subscription:" + string(subscription)}, 1)
 	}
 
 	config.CONFIG.DataDogClient.Incr("telegram.inline_message_received", []string{"channel_type:" + inlineQuery.ChatType}, 1)
