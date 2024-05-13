@@ -206,7 +206,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		case message.Document != nil:
 			voice_type = "document"
 
-			if !strings.HasPrefix(message.Document.MimeType, "audio/") {
+			if !strings.HasPrefix(message.Document.MimeType, "audio/") && !strings.HasPrefix(message.Document.MimeType, "video/") {
 				log.Warnf("Ignoring non-audio document message in chat %s, mimetype: %s", chatIDString, message.Document.MimeType)
 
 				bot.SendMessage(tu.Message(chatID, "I don't support non-audio documents yet, stay tuned for updates.").WithMessageThreadID(message.MessageThreadID))
