@@ -53,6 +53,14 @@ func StripeWebhook(ctx *fasthttp.RequestCtx) {
 
 	// Unmarshal the event data into an appropriate struct depending on its Type
 	switch event.Type {
+	case "checkout.session.expired":
+		// TODO: handle this event
+		log.Infof("Checkout session expired: %v", event.Data.Raw)
+		return
+	case "customer.subscription.created":
+		// we handle this event in handleCheckoutSessionCompleted
+		log.Infof("Customer subscription created: %v", event.Data.Raw)
+		return
 	case "checkout.session.completed":
 		var session stripe.CheckoutSession
 		err := json.Unmarshal(event.Data.Raw, &session)
