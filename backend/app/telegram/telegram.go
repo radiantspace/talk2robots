@@ -613,12 +613,25 @@ func handleGeneralUpdate(bot *telego.Bot, update telego.Update) {
 		for _, reaction := range update.MessageReaction.NewReaction {
 			reactionType := reaction.ReactionType()
 			reactionString := "none"
+			mood := "neutral"
 			if reactionType == "emoji" {
 				// cast to telego.ReactionTypeEmoji
-				reactionString = reaction.(*telego.ReactionTypeEmoji).Emoji
+				reactionEmoji := reaction.(*telego.ReactionTypeEmoji).Emoji
+
+				// convert emoji to string representation
+				if name, exists := positiveEmojiMap[reactionEmoji]; exists {
+					reactionString = name
+					mood = "positive"
+				} else if name, exists := negativeEmojiMap[reactionEmoji]; exists {
+					reactionString = name
+					mood = "negative"
+				} else {
+					log.Warnf("Unknown emoji reaction: %s", reactionEmoji)
+				}
 			}
+
 			log.Infof("Message reaction in chat %s: %s", fmt.Sprintf("%d", update.MessageReaction.Chat.ID), reactionString)
-			config.CONFIG.DataDogClient.Incr("telegram.message_reaction", []string{"channel_type:" + update.MessageReaction.Chat.Type, "reaction:" + reactionString}, 1)
+			config.CONFIG.DataDogClient.Incr("telegram.message_reaction", []string{"channel_type:" + update.MessageReaction.Chat.Type, "reaction:" + reactionString, "mood:" + mood}, 1)
 		}
 	}
 
@@ -627,12 +640,24 @@ func handleGeneralUpdate(bot *telego.Bot, update telego.Update) {
 		for _, reaction := range update.MessageReactionCount.Reactions {
 			reactionType := reaction.Type.ReactionType()
 			reactionString := "none"
+			mood := "neutral"
 			if reactionType == "emoji" {
 				// cast to telego.ReactionTypeEmoji
-				reactionString = reaction.Type.(*telego.ReactionTypeEmoji).Emoji
+				reactionEmoji := reaction.Type.(*telego.ReactionTypeEmoji).Emoji
+
+				// convert emoji to string representation
+				if name, exists := positiveEmojiMap[reactionEmoji]; exists {
+					reactionString = name
+					mood = "positive"
+				} else if name, exists := negativeEmojiMap[reactionEmoji]; exists {
+					reactionString = name
+					mood = "negative"
+				} else {
+					log.Warnf("Unknown emoji reaction: %s", reactionEmoji)
+				}
 			}
 			reactionCount := reaction.TotalCount
-			config.CONFIG.DataDogClient.Count("telegram.message_reaction_count", int64(reactionCount), []string{"channel_type:" + update.MessageReactionCount.Chat.Type, "reaction:" + reactionString}, 1)
+			config.CONFIG.DataDogClient.Count("telegram.message_reaction_count", int64(reactionCount), []string{"channel_type:" + update.MessageReactionCount.Chat.Type, "reaction:" + reactionString, "mood:" + mood}, 1)
 		}
 	}
 }
