@@ -609,11 +609,16 @@ func handleChosenInlineResult(bot *telego.Bot, chosenInlineResult telego.ChosenI
 func handleGeneralUpdate(bot *telego.Bot, update telego.Update) {
 	log.Debugf("handleGeneralUpdate: %v", update)
 
-	if update.MessageReaction != nil {
+	if update.MessageReaction != nil && update.MessageReaction.NewReaction != nil {
 		for _, reaction := range update.MessageReaction.NewReaction {
 			reactionType := reaction.ReactionType()
-			log.Infof("Message reaction in chat %s: %s", fmt.Sprintf("%d", update.MessageReaction.Chat.ID), reaction.ReactionType())
-			config.CONFIG.DataDogClient.Incr("telegram.message_reaction", []string{"channel_type:" + update.MessageReaction.Chat.Type, "reaction:" + reactionType}, 1)
+			reactionString := "none"
+			if reactionType == "emoji" {
+				// cast to telego.ReactionTypeEmoji
+				reactionString = reaction.(*telego.ReactionTypeEmoji).Emoji
+			}
+			log.Infof("Message reaction in chat %s: %s", fmt.Sprintf("%d", update.MessageReaction.Chat.ID), reactionString)
+			config.CONFIG.DataDogClient.Incr("telegram.message_reaction", []string{"channel_type:" + update.MessageReaction.Chat.Type, "reaction:" + reactionString}, 1)
 		}
 	}
 
@@ -621,8 +626,13 @@ func handleGeneralUpdate(bot *telego.Bot, update telego.Update) {
 		log.Infof("Message reaction count in chat %s: %+v", fmt.Sprintf("%d", update.MessageReactionCount.Chat.ID), update.MessageReactionCount.Reactions)
 		for _, reaction := range update.MessageReactionCount.Reactions {
 			reactionType := reaction.Type.ReactionType()
+			reactionString := "none"
+			if reactionType == "emoji" {
+				// cast to telego.ReactionTypeEmoji
+				reactionString = reaction.Type.(*telego.ReactionTypeEmoji).Emoji
+			}
 			reactionCount := reaction.TotalCount
-			config.CONFIG.DataDogClient.Count("telegram.message_reaction_count", int64(reactionCount), []string{"channel_type:" + update.MessageReactionCount.Chat.Type, "reaction:" + reactionType}, 1)
+			config.CONFIG.DataDogClient.Count("telegram.message_reaction_count", int64(reactionCount), []string{"channel_type:" + update.MessageReactionCount.Chat.Type, "reaction:" + reactionString}, 1)
 		}
 	}
 }
