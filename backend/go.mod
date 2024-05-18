@@ -5,14 +5,14 @@ go 1.21
 require (
 	github.com/DataDog/datadog-go/v5 v5.3.0
 	github.com/carousell/fasthttp-prometheus-middleware v1.0.8
-	github.com/fasthttp/router v1.4.22
+	github.com/fasthttp/router v1.5.0
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.0
-	github.com/mymmrac/telego v0.29.1
+	github.com/mymmrac/telego v0.29.2
 	github.com/sirupsen/logrus v1.9.0
 	github.com/slack-go/slack v0.12.3
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/stripe/stripe-go/v74 v74.18.0
 	github.com/undefinedlabs/go-mpatch v1.0.7
 	github.com/valyala/fasthttp v1.52.0
@@ -24,7 +24,7 @@ require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bytedance/sonic v1.11.0 // indirect
+	github.com/bytedance/sonic v1.11.3 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
 	github.com/chenzhuoyu/iasm v0.9.1 // indirect
@@ -44,7 +44,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
-	github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee // indirect
+	github.com/savsgio/gotils v0.0.0-20240303185622-093b76447511 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect

@@ -72,6 +72,7 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 	bh.HandleCallbackQuery(handleCallbackQuery)
 	bh.HandleInlineQuery(handleInlineQuery)
 	bh.HandleChosenInlineResult(handleChosenInlineResult)
+	bh.Handle(handleGeneralUpdate, th.Any())
 	go bh.Start()
 
 	BOT = &Bot{
@@ -97,13 +98,12 @@ func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Updat
 		telego.WithWebhookSet(&telego.SetWebhookParams{
 			URL: util.Env("BACKEND_BASE_URL") + "/bot" + bot.Token(),
 			AllowedUpdates: []string{
-				"message",
-				"callback_query",
-				"inline_query",
-				"chosen_inline_result",
-				// TODO: uncomment these when https://github.com/mymmrac/telego/pull/157/files lands
-				// "message_reaction",
-				// "message_reaction_count",
+				telego.MessageUpdates,
+				telego.CallbackQueryUpdates,
+				telego.InlineQueryUpdates,
+				telego.ChosenInlineResultUpdates,
+				telego.MessageReaction,
+				telego.MessageReactionCount,
 			},
 		}),
 		telego.WithWebhookServer(telego.FastHTTPWebhookServer{
@@ -604,6 +604,10 @@ func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
 func handleChosenInlineResult(bot *telego.Bot, chosenInlineResult telego.ChosenInlineResult) {
 	userID := chosenInlineResult.From.ID
 	log.Infof("Chosen inline result from ID: %d, result ID: %s", userID, chosenInlineResult.ResultID)
+}
+
+func handleGeneralUpdate(bot *telego.Bot, update telego.Update) {
+	log.Infof("handleGeneralUpdate: %+v", update)
 }
 
 func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Message) string {
