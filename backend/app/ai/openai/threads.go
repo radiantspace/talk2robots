@@ -725,7 +725,7 @@ func subscribeAndProcess(
 			return
 		}
 
-		log.Infof("[%s] got event %s for user id %s, skipping processing..", apiName, string(msg.Event), userId)
+		log.Debugf("[%s] got event %s for user id %s, skipping processing..", apiName, string(msg.Event), userId)
 	})
 	if err != nil {
 		log.Errorf("[%s] couldn't subscribe: %v, user id: %s", apiName, err, userId)
