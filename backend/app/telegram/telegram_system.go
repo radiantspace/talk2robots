@@ -286,9 +286,9 @@ func handleUnbanUser(ctx context.Context, bot *Bot, message *telego.Message) {
 }
 
 func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Message) {
-	commandUsage := fmt.Sprintf("Usage: %s <maximum users> <message>", SYSTEMSendMessageToUsers)
+	commandUsage := fmt.Sprintf("Usage: %s <maximum_users_to_notify> <days_after_last_notification> <message>", SYSTEMSendMessageToUsers)
 	commandArray := strings.Split(message.Text, " ")
-	if len(commandArray) < 3 {
+	if len(commandArray) < 4 {
 		bot.SendMessage(tu.Message(SystemBOT.ChatID, commandUsage))
 		return
 	}
@@ -297,7 +297,13 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 		bot.SendMessage(tu.Message(SystemBOT.ChatID, commandUsage))
 		return
 	}
-	messageText := strings.Join(commandArray[2:], " ")
+	// skip users who were notified after this amount of days ago
+	daysAfterLastNotification, err := strconv.Atoi(commandArray[2])
+	if err != nil {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, commandUsage))
+		return
+	}
+	messageText := strings.Join(commandArray[3:], " ")
 
 	page := 0
 	pageSize := 10
@@ -324,7 +330,7 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 	}()
 
 	for {
-		users, err := mongo.MongoDBClient.GetUserIdsNotifiedBefore(context.Background(), time.Now().AddDate(0, 0, -1), page, pageSize)
+		users, err := mongo.MongoDBClient.GetUserIdsNotifiedBefore(context.Background(), time.Now().AddDate(0, 0, -1*daysAfterLastNotification), page, pageSize)
 		if err != nil {
 			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users page %d (page size %d): %s", page, pageSize, err)))
 			return
