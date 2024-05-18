@@ -265,7 +265,12 @@ func (c *Client) GetUserIdsNotifiedBefore(ctx context.Context, before time.Time,
 	findOptions := options.Find()
 	findOptions.SetSkip(int64(page * pageSize))
 	findOptions.SetLimit(int64(pageSize))
-	cursor, err := collection.Find(ctx, bson.M{"last_notified_at": bson.M{"$lte": before.Format("2006-01-02T15:04:05")}}, findOptions)
+	// where last_notified_at is lte than before or empty/nil
+	cursor, err := collection.Find(ctx, bson.M{"$or": []bson.M{
+		{"last_notified_at": bson.M{"$lte": before.Format("2006-01-02T15:04:05")}},
+		{"last_notified_at": nil},
+		{"last_notified_at": ""},
+	}}, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("GetUserIdsNotifiedBefore: failed to find users: %w", err)
 	}
