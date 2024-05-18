@@ -242,7 +242,7 @@ func (c *Client) GetUserIdsUsedSince(ctx context.Context, since time.Time, page 
 	findOptions := options.Find()
 	findOptions.SetSkip(int64(page * pageSize))
 	findOptions.SetLimit(int64(pageSize))
-	cursor, err := collection.Find(ctx, bson.M{"subscription_date": bson.M{"$gte": since.Format("2006-01-02T15:04:05")}}, findOptions)
+	cursor, err := collection.Find(ctx, bson.M{"last_used_at": bson.M{"$gte": since.Format("2006-01-02T15:04:05")}}, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("GetUserIdsSince: failed to find users: %w", err)
 	}
