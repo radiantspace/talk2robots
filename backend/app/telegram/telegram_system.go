@@ -35,6 +35,7 @@ const (
 	SYSTEMUserCommand                 Command = "/user"
 	SYSTEMUsersCountCommand           Command = "/userscount"
 	SYSTEMUsersForSubscriptionCommand Command = "/usersforsubscription"
+	SYSTEMSendMessageToUsers          Command = "/sendmessagetousers"
 )
 
 var SystemCommandHandlers CommandHandlers = CommandHandlers{}
@@ -139,130 +140,221 @@ func setupSystemCommandHandlers() {
 		newCommandHandler(EmptyCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
 			bot.SendMessage(tu.Message(SystemBOT.ChatID, "There is no message provided to correct or comment on. If you have a message you would like me to review, please provide it."))
 		}),
-		newCommandHandler(SYSTEMStatusCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			systemStatus := redis.RedisClient.Get(context.Background(), "system-status")
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, systemStatus.Val()))
-		}),
-		newCommandHandler(SYSTEMUserCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			commandArray := strings.Split(message.Text, " ")
-			if len(commandArray) < 2 {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide user id"))
-				return
-			}
-			userId := commandArray[1]
-			user, err := mongo.MongoDBClient.GetUser(context.WithValue(context.Background(), models.UserContext{}, userId))
-			if err != nil {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get user: %s", err)))
-				return
-			}
-			userJson, err := json.Marshal(user)
-			if err != nil {
-				log.Errorf("Failed to marshal user: %s", err)
-			}
-			userString := "DB:\n" + string(userJson) + "\n\n"
+		newCommandHandler(SYSTEMStatusCommand, handleStatus),
+		newCommandHandler(SYSTEMUserCommand, handleUser),
+		newCommandHandler(SYSTEMStripeResetCommand, handleStripeReset),
+		newCommandHandler(SYSTEMUsersCountCommand, handleUsersCount),
+		newCommandHandler(SYSTEMUsageResetCommand, handleUsageReset),
+		newCommandHandler(SYSTEMUsersForSubscriptionCommand, handleUsersForSubscription),
+		newCommandHandler(SYSTEMBanUserCommand, handleBanUser),
+		newCommandHandler(SYSTEMUnbanUserCommand, handleUnbanUser),
+		newCommandHandler(SYSTEMSendMessageToUsers, handleSendMessageToUsers),
+	}
+}
 
-			userString += "Redis:\ntotal cost            - " + redis.RedisClient.Get(ctx, lib.UserTotalCostKey(userId)).Val() + "\n"
-			userString += "total audio minutes   - " + redis.RedisClient.Get(ctx, lib.UserTotalAudioMinutesKey(userId)).Val() + "\n"
-			userString += "total tokens          - " + redis.RedisClient.Get(ctx, lib.UserTotalTokensKey(userId)).Val() + "\n\n"
-			userString += "current thread        - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(userId, "")).Val() + "\n"
-			userString += "current prompt tokens - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadPromptKey(userId, "")).Val()
+func handleStatus(ctx context.Context, bot *Bot, message *telego.Message) {
+	systemStatus := redis.RedisClient.Get(context.Background(), "system-status")
+	bot.SendMessage(tu.Message(SystemBOT.ChatID, systemStatus.Val()))
+}
 
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("User: %+v", userString)))
-		}),
-		newCommandHandler(SYSTEMStripeResetCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			commandArray := strings.Split(message.Text, " ")
-			if len(commandArray) < 2 {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide user id"))
-				return
-			}
-			userId := commandArray[1]
-			ctx = context.WithValue(ctx, models.UserContext{}, userId)
-			user, err := mongo.MongoDBClient.GetUser(ctx)
+func handleUser(ctx context.Context, bot *Bot, message *telego.Message) {
+	commandArray := strings.Split(message.Text, " ")
+	if len(commandArray) < 2 {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide user id"))
+		return
+	}
+	userId := commandArray[1]
+	user, err := mongo.MongoDBClient.GetUser(context.WithValue(context.Background(), models.UserContext{}, userId))
+	if err != nil {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get user: %s", err)))
+		return
+	}
+	userJson, err := json.Marshal(user)
+	if err != nil {
+		log.Errorf("Failed to marshal user: %s", err)
+	}
+	userString := "DB:\n" + string(userJson) + "\n\n"
+
+	userString += "Redis:\ntotal cost            - " + redis.RedisClient.Get(ctx, lib.UserTotalCostKey(userId)).Val() + "\n"
+	userString += "total audio minutes   - " + redis.RedisClient.Get(ctx, lib.UserTotalAudioMinutesKey(userId)).Val() + "\n"
+	userString += "total tokens          - " + redis.RedisClient.Get(ctx, lib.UserTotalTokensKey(userId)).Val() + "\n\n"
+	userString += "current thread        - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(userId, "")).Val() + "\n"
+	userString += "current prompt tokens - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadPromptKey(userId, "")).Val()
+
+	bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("User: %+v", userString)))
+}
+
+func handleStripeReset(ctx context.Context, bot *Bot, message *telego.Message) {
+	commandArray := strings.Split(message.Text, " ")
+	if len(commandArray) < 2 {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide user id"))
+		return
+	}
+	userId := commandArray[1]
+	ctx = context.WithValue(ctx, models.UserContext{}, userId)
+	user, err := mongo.MongoDBClient.GetUser(ctx)
+	if err != nil {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get user: %s", err)))
+		return
+	}
+	stripeCustomerId := user.StripeCustomerId
+	if stripeCustomerId != "" {
+		payments.StripeCancelSubscription(ctx, stripeCustomerId)
+		customer, err := customer.Del(stripeCustomerId, nil)
+		if err != nil {
+			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to delete customer: %s", err)))
+		} else {
+			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Customer deleted from Stripe: %+v", customer)))
+		}
+		err = mongo.MongoDBClient.UpdateUserStripeCustomerId(ctx, "")
+		if err != nil {
+			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to update user: %s", err)))
+			return
+		}
+		//  downgrade engine to GPT-3.5 Turbo
+		redis.SaveEngine(userId, models.ChatGpt35Turbo)
+	}
+
+	bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Stripe Reset for: %+v", user)))
+}
+
+func handleUsersCount(ctx context.Context, bot *Bot, message *telego.Message) {
+	users, err := mongo.MongoDBClient.GetUsersCount(context.Background())
+	if err != nil {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users: %s", err)))
+		return
+	}
+	bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Users: %+v", users)))
+}
+
+func handleUsageReset(ctx context.Context, bot *Bot, message *telego.Message) {
+	commandArray := strings.Split(message.Text, " ")
+	if len(commandArray) < 2 {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide user id"))
+		return
+	}
+	userId := commandArray[1]
+	redis.RedisClient.Del(ctx, lib.UserTotalCostKey(userId))
+	redis.RedisClient.Del(ctx, lib.UserTotalAudioMinutesKey(userId))
+	redis.RedisClient.Del(ctx, lib.UserTotalTokensKey(userId))
+	bot.SendMessage(tu.Message(SystemBOT.ChatID, "Usage reset for user: "+userId))
+}
+
+func handleUsersForSubscription(ctx context.Context, bot *Bot, message *telego.Message) {
+	commandArray := strings.Split(message.Text, " ")
+	if len(commandArray) < 2 {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide subscription name"))
+		return
+	}
+	subscriptionName := commandArray[1]
+	usersCount, err := mongo.MongoDBClient.GetUsersCountForSubscription(context.Background(), subscriptionName)
+	if err != nil {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users: %s", err)))
+		return
+	}
+	bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Users count for %s subscription: %d", subscriptionName, usersCount)))
+}
+
+func handleBanUser(ctx context.Context, bot *Bot, message *telego.Message) {
+	commandArray := strings.Split(message.Text, " ")
+	if len(commandArray) < 2 {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide user id"))
+		return
+	}
+	userId := commandArray[1]
+	err := redis.RedisClient.Set(ctx, userId+":banned", "true", 0).Err()
+	if err != nil {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to ban user: %v", err)))
+		return
+	}
+	bot.SendMessage(tu.Message(SystemBOT.ChatID, "User "+userId+" banned"))
+}
+
+func handleUnbanUser(ctx context.Context, bot *Bot, message *telego.Message) {
+	commandArray := strings.Split(message.Text, " ")
+	if len(commandArray) < 2 {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide user id"))
+		return
+	}
+	userId := commandArray[1]
+	err := redis.RedisClient.Del(ctx, userId+":banned").Err()
+	if err != nil {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to unban user: %v", err)))
+		return
+	}
+	bot.SendMessage(tu.Message(SystemBOT.ChatID, "User "+userId+" unbanned"))
+}
+
+func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Message) {
+	commandUsage := fmt.Sprintf("Usage: %s <maximum users> <message>", SYSTEMSendMessageToUsers)
+	commandArray := strings.Split(message.Text, " ")
+	if len(commandArray) < 3 {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, commandUsage))
+		return
+	}
+	maximumUsers, err := strconv.Atoi(commandArray[1])
+	if err != nil {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, commandUsage))
+		return
+	}
+	messageText := strings.Join(commandArray[2:], " ")
+
+	page := 0
+	pageSize := 10
+	sleepBetweenPages := 1 * time.Second
+	notifiedUsers := 0.0
+	skippedUsers := 0.0
+
+	defer func() {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Message sent to %f users, %f users skipped", notifiedUsers, skippedUsers)))
+		config.CONFIG.DataDogClient.Incr("custom_message_sent_total", []string{}, notifiedUsers)
+		config.CONFIG.DataDogClient.Incr("custom_message_skipped_total", []string{}, skippedUsers)
+	}()
+
+	for {
+		users, err := mongo.MongoDBClient.GetUserIds(context.Background(), page, pageSize)
+		if err != nil {
+			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users page %d (page size %d): %s", page, pageSize, err)))
+			return
+		}
+		if len(users) == 0 {
+			break
+		}
+		for _, user := range users {
+			userId, err := strconv.ParseInt(user, 10, 64)
 			if err != nil {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get user: %s", err)))
-				return
-			}
-			stripeCustomerId := user.StripeCustomerId
-			if stripeCustomerId != "" {
-				payments.StripeCancelSubscription(ctx, stripeCustomerId)
-				customer, err := customer.Del(stripeCustomerId, nil)
-				if err != nil {
-					bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to delete customer: %s", err)))
-				} else {
-					bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Customer deleted from Stripe: %+v", customer)))
-				}
-				err = mongo.MongoDBClient.UpdateUserStripeCustomerId(ctx, "")
-				if err != nil {
-					bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to update user: %s", err)))
-					return
-				}
-				//  downgrade engine to GPT-3.5 Turbo
-				redis.SaveEngine(userId, models.ChatGpt35Turbo)
+				log.Errorf("Failed to convert user id %s to int: %s", user, err)
+				skippedUsers++
+				continue
 			}
 
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Stripe Reset for: %+v", user)))
-		}),
-		newCommandHandler(SYSTEMUsersCountCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			users, err := mongo.MongoDBClient.GetUsersCount(context.Background())
+			if userId < 0 {
+				// skip groups
+				skippedUsers++
+				continue
+			}
+
+			if userId != SystemBOT.ChatID.ID {
+				// skip anything else but system user for now
+				skippedUsers++
+				continue
+			}
+
+			_, err = BOT.SendMessage(tu.Message(tu.ID(userId), messageText))
 			if err != nil {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users: %s", err)))
+				skippedUsers++
+				log.Errorf("Failed to send message to user %d: %s", userId, err)
+			} else {
+				notifiedUsers++
+				log.Infof("Custom message sent to user %d", userId)
+			}
+
+			if notifiedUsers >= float64(maximumUsers) {
+				log.Infof("Maximum users reached: %f", notifiedUsers)
 				return
 			}
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Users: %+v", users)))
-		}),
-		newCommandHandler(SYSTEMUsageResetCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			commandArray := strings.Split(message.Text, " ")
-			if len(commandArray) < 2 {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide user id"))
-				return
-			}
-			userId := commandArray[1]
-			redis.RedisClient.Del(ctx, lib.UserTotalCostKey(userId))
-			redis.RedisClient.Del(ctx, lib.UserTotalAudioMinutesKey(userId))
-			redis.RedisClient.Del(ctx, lib.UserTotalTokensKey(userId))
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, "Usage reset for user: "+userId))
-		}),
-		newCommandHandler(SYSTEMUsersForSubscriptionCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			commandArray := strings.Split(message.Text, " ")
-			if len(commandArray) < 2 {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide subscription name"))
-				return
-			}
-			subscriptionName := commandArray[1]
-			usersCount, err := mongo.MongoDBClient.GetUsersCountForSubscription(context.Background(), subscriptionName)
-			if err != nil {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users: %s", err)))
-				return
-			}
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Users count for %s subscription: %d", subscriptionName, usersCount)))
-		}),
-		newCommandHandler(SYSTEMBanUserCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			commandArray := strings.Split(message.Text, " ")
-			if len(commandArray) < 2 {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide user id"))
-				return
-			}
-			userId := commandArray[1]
-			err := redis.RedisClient.Set(ctx, userId+":banned", "true", 0).Err()
-			if err != nil {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to ban user: %v", err)))
-				return
-			}
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, "User "+userId+" banned"))
-		}),
-		newCommandHandler(SYSTEMUnbanUserCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			commandArray := strings.Split(message.Text, " ")
-			if len(commandArray) < 2 {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide user id"))
-				return
-			}
-			userId := commandArray[1]
-			err := redis.RedisClient.Del(ctx, userId+":banned").Err()
-			if err != nil {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to unban user: %v", err)))
-				return
-			}
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, "User "+userId+" unbanned"))
-		}),
+		}
+		time.Sleep(sleepBetweenPages)
+		page++
 	}
 }

@@ -22,6 +22,7 @@ type Client struct {
 type MongoClient interface {
 	Disconnect(ctx context.Context) error
 	GetUser(ctx context.Context) (*models.MongoUser, error)
+	GetUserIds(ctx context.Context, page int, pageSize int) ([]string, error)
 	GetUsersCount(ctx context.Context) (int64, error)
 	GetUsersCountForSubscription(ctx context.Context, subscription string) (int64, error)
 	MigrateUsersToSubscription(ctx context.Context, from, to string) error
@@ -188,4 +189,27 @@ func (c *Client) UpdateUserStripeCustomerId(ctx context.Context, stripeCustomerI
 	options := options.Update().SetUpsert(true)
 	_, err := collection.UpdateOne(ctx, filter, update, options)
 	return err
+}
+
+func (c *Client) GetUserIds(ctx context.Context, page int, pageSize int) ([]string, error) {
+	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	findOptions := options.Find()
+	findOptions.SetSkip(int64(page * pageSize))
+	findOptions.SetLimit(int64(pageSize))
+	cursor, err := collection.Find(ctx, bson.M{}, findOptions)
+	if err != nil {
+		return nil, fmt.Errorf("GetUserIds: failed to find users: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var userIds []string
+	for cursor.Next(ctx) {
+		var user models.MongoUser
+		err := cursor.Decode(&user)
+		if err != nil {
+			return nil, fmt.Errorf("GetUserIds: failed to decode user: %w", err)
+		}
+		userIds = append(userIds, user.ID)
+	}
+	return userIds, nil
 }

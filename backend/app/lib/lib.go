@@ -121,6 +121,7 @@ func AddBotSuffixToGroupCommands(ctx context.Context, message string) string {
 	client := ctx.Value(models.ClientContext{}).(string)
 	if client == string(TelegramClientName) && strings.HasPrefix(chatString, "-") {
 		message = strings.ReplaceAll(message, "/chatgpt", "/chatgpt@"+config.CONFIG.BotName)
+		message = strings.ReplaceAll(message, "/voicegpt", "/voicegpt@"+config.CONFIG.BotName)
 		message = strings.ReplaceAll(message, "/clear", "/clear@"+config.CONFIG.BotName)
 		message = strings.ReplaceAll(message, "/downgrade", "/downgrade@"+config.CONFIG.BotName)
 		message = strings.ReplaceAll(message, "/grammar", "/grammar@"+config.CONFIG.BotName)
@@ -132,7 +133,8 @@ func AddBotSuffixToGroupCommands(ctx context.Context, message string) string {
 		message = strings.ReplaceAll(message, "/terms", "/terms@"+config.CONFIG.BotName)
 		message = strings.ReplaceAll(message, "/transcribe", "/transcribe@"+config.CONFIG.BotName)
 		message = strings.ReplaceAll(message, "/upgrade", "/upgrade@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/voicegpt", "/voicegpt@"+config.CONFIG.BotName)
+		message = strings.ReplaceAll(message, "/translate", "/translate@"+config.CONFIG.BotName)
+		message = strings.ReplaceAll(message, "/billing", "/billing@"+config.CONFIG.BotName)
 	}
 	return message
 }

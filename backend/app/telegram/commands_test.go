@@ -15,6 +15,7 @@ import (
 
 func TestIsCreateImageCommandTrue(t *testing.T) {
 	prompts := []string{
+		"Can you create a drawin of a sunset?",
 		"Can you create an image of a sunset?",
 		"Draw, please, an image of a cat",
 		"I'd like a picture! Of a mountain",
@@ -31,7 +32,6 @@ func TestIsCreateImageCommandTrue(t *testing.T) {
 
 func TestIsCreateImageCommandFalse(t *testing.T) {
 	prompts := []string{
-		"Can you create a text?",
 		"Imagene, please, an article about a cat",
 		"I'd like a video! Of a mountain",
 	}

@@ -40,23 +40,24 @@ Here are some of the things I can do:
 Enjoy and let me know if any /support is needed!`
 
 const (
-	CancelSubscriptionCommand Command = "/downgrade"
-	EmiliCommand              Command = "/emily"
-	EmptyCommand              Command = ""
+	StartCommand              Command = "/start"
 	ChatGPTCommand            Command = "/chatgpt"
 	VoiceGPTCommand           Command = "/voicegpt"
 	GrammarCommand            Command = "/grammar"
-	StartCommand              Command = "/start"
+	ClearThreadCommand        Command = "/clear"
+	TeacherCommand            Command = "/teacher"
+	TranscribeCommand         Command = "/transcribe"
+	SummarizeCommand          Command = "/summarize"
+	TranslateCommand          Command = "/translate"
 	StatusCommand             Command = "/status"
 	SupportCommand            Command = "/support"
 	TermsCommand              Command = "/terms"
-	TeacherCommand            Command = "/teacher"
 	UpgradeCommand            Command = "/upgrade"
-	VasilisaCommand           Command = "/vasilisa"
-	TranscribeCommand         Command = "/transcribe"
-	SummarizeCommand          Command = "/summarize"
-	ClearThreadCommand        Command = "/clear"
+	CancelSubscriptionCommand Command = "/downgrade"
 	BillingCommand            Command = "/billing"
+	VasilisaCommand           Command = "/vasilisa"
+	EmiliCommand              Command = "/emily"
+	EmptyCommand              Command = ""
 
 	// commands setting for BotFather
 	Commands string = `
@@ -634,8 +635,8 @@ func IsCreateImageCommand(prompt string) bool {
 
 	log.Debugf("Cleaned prompt: %s", cleanPrompt)
 
-	triggerWords := []string{"create", "draw", "picture", "imagine", "image"}
-	stopWords := []string{"text", "write", "article"}
+	triggerWords := []string{"create", "draw", "drawing", "picture", "imagine", "image"}
+	stopWords := []string{"write", "article"}
 
 	// Split the prompt into words
 	words := strings.Fields(cleanPrompt)
