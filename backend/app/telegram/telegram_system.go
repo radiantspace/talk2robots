@@ -306,7 +306,7 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 	skippedUsers := 0.0
 
 	defer func() {
-		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Message sent to %f users, %f users skipped", notifiedUsers, skippedUsers)))
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Message sent to %.f users, %.f users skipped", notifiedUsers, skippedUsers)))
 		config.CONFIG.DataDogClient.Incr("custom_message_sent_total", []string{}, notifiedUsers)
 		config.CONFIG.DataDogClient.Incr("custom_message_skipped_total", []string{}, skippedUsers)
 	}()
@@ -321,15 +321,14 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 			break
 		}
 		for _, user := range users {
-			userId, err := strconv.ParseInt(user, 10, 64)
-			if err != nil {
-				log.Errorf("Failed to convert user id %s to int: %s", user, err)
-				skippedUsers++
+			if user == "" || strings.HasPrefix(user, "SYSTEM:STATUS") || strings.HasPrefix(user, "U") || strings.HasPrefix(user, "slack") || strings.HasPrefix(user, "-") {
+				// skip non telegram users, groups and channels
 				continue
 			}
 
-			if userId < 0 {
-				// skip groups
+			userId, err := strconv.ParseInt(user, 10, 64)
+			if err != nil {
+				log.Errorf("Failed to convert user id %s to int: %s", user, err)
 				skippedUsers++
 				continue
 			}
