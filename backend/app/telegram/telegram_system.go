@@ -318,6 +318,8 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 		err := mongo.MongoDBClient.UpdateUsersNotified(context.Background(), notifiedUsersIds)
 		if err != nil {
 			log.Errorf("Failed to update users notified: %s", err)
+		} else {
+			log.Infof("%d users notified updated", len(notifiedUsersIds))
 		}
 	}()
 
@@ -353,15 +355,20 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 			_, err = BOT.SendMessage(tu.Message(tu.ID(userId), messageText))
 			if err != nil {
 				skippedErrorUsers++
-				log.Errorf("Failed to send message to user %d: %v", userId, err)
+
+				if strings.Contains(err.Error(), "bot was blocked by the user") || strings.Contains(err.Error(), "user is deactivated") {
+					notifiedUsersIds = append(notifiedUsersIds, user)
+				} else {
+					log.Errorf("Failed to send message to user %d: %v", userId, err)
+				}
 			} else {
 				notifiedUsers++
 				notifiedUsersIds = append(notifiedUsersIds, user)
-				log.Infof("Custom message sent to user %d", userId)
+				log.Debugf("Custom message sent to user %d", userId)
 			}
 
 			if notifiedUsers >= float64(maximumUsers) {
-				log.Infof("Maximum users reached: %f", notifiedUsers)
+				log.Infof("Maximum users reached: %.f", notifiedUsers)
 				return
 			}
 		}
