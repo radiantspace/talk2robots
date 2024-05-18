@@ -468,6 +468,7 @@ func ChunkSendMessage(bot *telego.Bot, message *telego.Message, text string) {
 				log.Errorf("Failed to send message to telegram: %v, chatID: %s, threadID: %d", err, chatID, message.MessageThreadID)
 			}
 		}
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -508,6 +509,8 @@ func ChunkEditSendMessage(
 				params.ParseMode = ""
 				_, err = bot.EditMessageText(params)
 			}
+
+			time.Sleep(1 * time.Second) // sleep to prevent rate limiting
 		} else {
 			log.Debugf("[ChunkEditSendMessage] chunk %d (size %d) - sending new message in chat %s", i, len(chunk), chatID)
 			lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithParseMode("HTML").WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
@@ -515,6 +518,8 @@ func ChunkEditSendMessage(
 			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
 				lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
 			}
+
+			time.Sleep(1 * time.Second) // sleep to prevent rate limiting
 		}
 		if !last && voice {
 			ChunkSendVoice(ctx, bot, message, chunk, false)
@@ -572,6 +577,7 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, message *telego.Messag
 			voiceParams.ParseMode = ""
 			_, err = bot.SendVoice(voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
 		}
+		time.Sleep(1 * time.Second) // sleep to prevent rate limiting
 		if err != nil {
 			log.Errorf("Failed to send voice message: %v in chatID: %d", err, chatID.ID)
 			continue

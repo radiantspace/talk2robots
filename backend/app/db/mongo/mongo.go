@@ -25,12 +25,15 @@ type MongoClient interface {
 	GetUserIds(ctx context.Context, page int, pageSize int) ([]string, error)
 	GetUsersCount(ctx context.Context) (int64, error)
 	GetUsersCountForSubscription(ctx context.Context, subscription string) (int64, error)
+	GetUserIdsUsedSince(ctx context.Context, since time.Time, page int, pageSize int) ([]string, error)
+	GetUserIdsNotifiedBefore(ctx context.Context, before time.Time, page int, pageSize int) ([]string, error)
 	MigrateUsersToSubscription(ctx context.Context, from, to string) error
 	Ping(ctx context.Context, rp *readpref.ReadPref) error
 	UpdateUserContacts(ctx context.Context, name, phone, email string) error
 	UpdateUserSubscription(ctx context.Context, subscription models.MongoSubscription) error
 	UpdateUserUsage(ctx context.Context, userTotalCost float64) error
 	UpdateUserStripeCustomerId(ctx context.Context, stripeCustomerId string) error
+	UpdateUsersNotified(ctx context.Context, userIds []string) error
 }
 
 var MongoDBClient MongoClient
@@ -99,7 +102,7 @@ func (c *Client) UpdateUserSubscription(ctx context.Context, subscription models
 		update = bson.M{
 			"$set": bson.M{
 				"subscription":      subscription,
-				"subscription_date": time.Now().Format("2006-01-02"),
+				"subscription_date": time.Now().UTC().Format("2006-01-02"),
 			},
 		}
 	} else {
@@ -121,7 +124,8 @@ func (c *Client) UpdateUserUsage(ctx context.Context, newUsage float64) error {
 	if newUsage != 0 {
 		update = bson.M{
 			"$set": bson.M{
-				"usage": newUsage,
+				"usage":        newUsage,
+				"last_used_at": time.Now().UTC().Format("2006-01-02T15:04:05"),
 			},
 		}
 	} else {
@@ -130,6 +134,25 @@ func (c *Client) UpdateUserUsage(ctx context.Context, newUsage float64) error {
 
 	options := options.Update().SetUpsert(true)
 	_, err := collection.UpdateOne(ctx, filter, update, options)
+	return err
+}
+
+func (c *Client) UpdateUsersNotified(ctx context.Context, userIds []string) error {
+	if len(userIds) == 0 {
+		return nil
+	}
+
+	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+
+	filter := bson.M{"_id": bson.M{"$in": userIds}}
+	update := bson.M{
+		"$set": bson.M{
+			"last_notified_at": time.Now().UTC().Format("2006-01-02T15:04:05"),
+		},
+	}
+
+	options := options.Update().SetUpsert(true)
+	_, err := collection.UpdateMany(ctx, filter, update, options)
 	return err
 }
 
@@ -208,6 +231,52 @@ func (c *Client) GetUserIds(ctx context.Context, page int, pageSize int) ([]stri
 		err := cursor.Decode(&user)
 		if err != nil {
 			return nil, fmt.Errorf("GetUserIds: failed to decode user: %w", err)
+		}
+		userIds = append(userIds, user.ID)
+	}
+	return userIds, nil
+}
+
+func (c *Client) GetUserIdsUsedSince(ctx context.Context, since time.Time, page int, pageSize int) ([]string, error) {
+	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	findOptions := options.Find()
+	findOptions.SetSkip(int64(page * pageSize))
+	findOptions.SetLimit(int64(pageSize))
+	cursor, err := collection.Find(ctx, bson.M{"subscription_date": bson.M{"$gte": since.Format("2006-01-02T15:04:05")}}, findOptions)
+	if err != nil {
+		return nil, fmt.Errorf("GetUserIdsSince: failed to find users: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var userIds []string
+	for cursor.Next(ctx) {
+		var user models.MongoUser
+		err := cursor.Decode(&user)
+		if err != nil {
+			return nil, fmt.Errorf("GetUserIdsSince: failed to decode user: %w", err)
+		}
+		userIds = append(userIds, user.ID)
+	}
+	return userIds, nil
+}
+
+func (c *Client) GetUserIdsNotifiedBefore(ctx context.Context, before time.Time, page int, pageSize int) ([]string, error) {
+	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	findOptions := options.Find()
+	findOptions.SetSkip(int64(page * pageSize))
+	findOptions.SetLimit(int64(pageSize))
+	cursor, err := collection.Find(ctx, bson.M{"last_notified_at": bson.M{"$lte": before.Format("2006-01-02T15:04:05")}}, findOptions)
+	if err != nil {
+		return nil, fmt.Errorf("GetUserIdsNotifiedBefore: failed to find users: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var userIds []string
+	for cursor.Next(ctx) {
+		var user models.MongoUser
+		err := cursor.Decode(&user)
+		if err != nil {
+			return nil, fmt.Errorf("GetUserIdsNotifiedBefore: failed to decode user: %w", err)
 		}
 		userIds = append(userIds, user.ID)
 	}

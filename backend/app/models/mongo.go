@@ -9,6 +9,8 @@ type MongoUser struct {
 	SubscriptionDate string            `bson:"subscription_date"`
 	SubscriptionType MongoSubscription `bson:"subscription"`
 	Usage            float64           `bson:"usage"`
+	LastUsedAt       string            `bson:"last_used_at"`
+	LastNotifiedAt   string            `bson:"last_notified_at"`
 }
 
 type MongoSubscription struct {

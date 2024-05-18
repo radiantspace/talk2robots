@@ -30,16 +30,19 @@ func Run() {
 func FetchStatus() (string, error) {
 	w := WORKER
 	systemStatus := status.New(mongo.MongoDBClient, redis.RedisClient, w.AI).GetSystemStatus()
-	config.CONFIG.DataDogClient.Gauge("status_worker.mongo_db_available", boolToFloat64(systemStatus.MongoDB.Available), nil, 1)
-	config.CONFIG.DataDogClient.Gauge("status_worker.redis_available", boolToFloat64(systemStatus.Redis.Available), nil, 1)
-	config.CONFIG.DataDogClient.Gauge("status_worker.open_ai_available", boolToFloat64(systemStatus.OpenAI.Available), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.fireworks_ai_available", boolToFloat64(systemStatus.FireworksAI.Available), nil, 1)
+	config.CONFIG.DataDogClient.Gauge("status_worker.mongo_db_available", boolToFloat64(systemStatus.MongoDB.Available), nil, 1)
+	config.CONFIG.DataDogClient.Gauge("status_worker.open_ai_available", boolToFloat64(systemStatus.OpenAI.Available), nil, 1)
+	config.CONFIG.DataDogClient.Gauge("status_worker.redis_available", boolToFloat64(systemStatus.Redis.Available), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.audio_duration_minutes", systemStatus.Usage.AudioDurationMinutes, nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.total_cost", systemStatus.Usage.TotalCost, nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.total_tokens", float64(systemStatus.Usage.TotalTokens), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.total_users", float64(systemStatus.Usage.TotalUsers), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.total_free_plus_users", float64(systemStatus.Usage.TotalFreePlusUsers), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.total_basic_users", float64(systemStatus.Usage.TotalBasicUsers), nil, 1)
+	config.CONFIG.DataDogClient.Gauge("status_worker.total_images", float64(systemStatus.Usage.TotalImages), nil, 1)
+	config.CONFIG.DataDogClient.Gauge("status_worker.week_active_users", float64(systemStatus.Usage.WeekActiveUsers), nil, 1)
+	config.CONFIG.DataDogClient.Gauge("status_worker.month_active_users", float64(systemStatus.Usage.MonthActiveUsers), nil, 1)
 	if !systemStatus.MongoDB.Available {
 		reportUnavailableStatus(w.TelegramSystemBot, w.SystemTelegramChatID, w.MainBotName, "MongoDB")
 	}

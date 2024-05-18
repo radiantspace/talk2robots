@@ -26,7 +26,10 @@ type SystemUsage struct {
 	TotalBasicUsers      int64   `json:"total_basic_users"`
 	TotalTokens          int64   `json:"total_tokens"`
 	TotalCost            float64 `json:"total_cost"`
+	TotalImages          int64   `json:"total_images"`
 	AudioDurationMinutes float64 `json:"audio_duration_minutes"`
+	WeekActiveUsers      int64   `json:"week_active_users"`
+	MonthActiveUsers     int64   `json:"month_active_users"`
 }
 
 // Status
@@ -100,6 +103,10 @@ func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
 		if audioDurationMinutes.Err() == nil {
 			status.Usage.AudioDurationMinutes, _ = audioDurationMinutes.Float64()
 		}
+		images := h.Redis.Get(context.Background(), "system_totals:images")
+		if images.Err() == nil {
+			status.Usage.TotalImages, _ = images.Int64()
+		}
 	}
 	if status.MongoDB.Available {
 		users, _ := h.MongoDB.GetUsersCount(context.Background())
@@ -108,6 +115,12 @@ func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
 		status.Usage.TotalFreePlusUsers = freePlusUsers
 		basicUsers, _ := h.MongoDB.GetUsersCountForSubscription(context.Background(), "basic")
 		status.Usage.TotalBasicUsers = basicUsers
+
+		weekActiveUsers, _ := h.MongoDB.GetUserIdsUsedSince(context.Background(), time.Now().AddDate(0, 0, -7), 0, 1000000)
+		status.Usage.WeekActiveUsers = int64(len(weekActiveUsers))
+
+		monthActiveUsers, _ := h.MongoDB.GetUserIdsUsedSince(context.Background(), time.Now().AddDate(0, -1, 0), 0, 1000000)
+		status.Usage.MonthActiveUsers = int64(len(monthActiveUsers))
 	}
 	return status
 }

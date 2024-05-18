@@ -303,16 +303,26 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 	pageSize := 10
 	sleepBetweenPages := 1 * time.Second
 	notifiedUsers := 0.0
-	skippedUsers := 0.0
+	skippedNonTelegramUsers := 0.0
+	skippedGroupUsers := 0.0
+	skippedErrorUsers := 0.0
+	notifiedUsersIds := []string{}
 
 	defer func() {
-		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Message sent to %.f users, %.f users skipped", notifiedUsers, skippedUsers)))
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Message sent to %.f users, %.f groups skipped, %.f error users skipped, %.f non-telegram users skipped", notifiedUsers, skippedGroupUsers, skippedErrorUsers, skippedNonTelegramUsers)))
 		config.CONFIG.DataDogClient.Incr("custom_message_sent_total", []string{}, notifiedUsers)
-		config.CONFIG.DataDogClient.Incr("custom_message_skipped_total", []string{}, skippedUsers)
+		config.CONFIG.DataDogClient.Incr("custom_message_sent_groups_skipped", []string{}, skippedGroupUsers)
+		config.CONFIG.DataDogClient.Incr("custom_message_sent_non_telegram_users_skipped", []string{}, skippedNonTelegramUsers)
+		config.CONFIG.DataDogClient.Incr("custom_message_sent_error_users_skipped", []string{}, skippedErrorUsers)
+
+		err := mongo.MongoDBClient.UpdateUsersNotified(context.Background(), notifiedUsersIds)
+		if err != nil {
+			log.Errorf("Failed to update users notified: %s", err)
+		}
 	}()
 
 	for {
-		users, err := mongo.MongoDBClient.GetUserIds(context.Background(), page, pageSize)
+		users, err := mongo.MongoDBClient.GetUserIdsNotifiedBefore(context.Background(), time.Now().AddDate(0, 0, -1), page, pageSize)
 		if err != nil {
 			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users page %d (page size %d): %s", page, pageSize, err)))
 			return
@@ -321,30 +331,32 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 			break
 		}
 		for _, user := range users {
-			if user == "" || strings.HasPrefix(user, "SYSTEM:STATUS") || strings.HasPrefix(user, "U") || strings.HasPrefix(user, "slack") || strings.HasPrefix(user, "-") {
-				// skip non telegram users, groups and channels
+			if user == "" || strings.HasPrefix(user, "SYSTEM:STATUS") || strings.HasPrefix(user, "U") || strings.HasPrefix(user, "slack") {
+				// skip non telegram users
+				skippedNonTelegramUsers++
+				continue
+			}
+
+			if strings.HasPrefix(user, "-") {
+				// skip group users
+				skippedGroupUsers++
 				continue
 			}
 
 			userId, err := strconv.ParseInt(user, 10, 64)
 			if err != nil {
 				log.Errorf("Failed to convert user id %s to int: %s", user, err)
-				skippedUsers++
-				continue
-			}
-
-			if userId != SystemBOT.ChatID.ID {
-				// skip anything else but system user for now
-				skippedUsers++
+				skippedErrorUsers++
 				continue
 			}
 
 			_, err = BOT.SendMessage(tu.Message(tu.ID(userId), messageText))
 			if err != nil {
-				skippedUsers++
-				log.Errorf("Failed to send message to user %d: %s", userId, err)
+				skippedErrorUsers++
+				log.Errorf("Failed to send message to user %d: %v", userId, err)
 			} else {
 				notifiedUsers++
+				notifiedUsersIds = append(notifiedUsersIds, user)
 				log.Infof("Custom message sent to user %d", userId)
 			}
 
