@@ -116,10 +116,10 @@ func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
 		basicUsers, _ := h.MongoDB.GetUsersCountForSubscription(context.Background(), "basic")
 		status.Usage.TotalBasicUsers = basicUsers
 
-		weekActiveUsers, _ := h.MongoDB.GetUserIdsUsedSince(context.Background(), time.Now().AddDate(0, 0, -7), 0, 1000000)
+		weekActiveUsers, _ := h.MongoDB.GetUserIdsUsedSince(context.Background(), time.Now().UTC().AddDate(0, 0, -7), 0, 1000000)
 		status.Usage.WeekActiveUsers = int64(len(weekActiveUsers))
 
-		monthActiveUsers, _ := h.MongoDB.GetUserIdsUsedSince(context.Background(), time.Now().AddDate(0, -1, 0), 0, 1000000)
+		monthActiveUsers, _ := h.MongoDB.GetUserIdsUsedSince(context.Background(), time.Now().UTC().AddDate(0, -1, 0), 0, 1000000)
 		status.Usage.MonthActiveUsers = int64(len(monthActiveUsers))
 	}
 	return status
