@@ -26,8 +26,8 @@ func GetChatEngine(chatID string) models.Engine {
 		return models.ChatGpt35Turbo
 	}
 
-	// use new gpt-4o instead of gpt-4-turbo and gpt-4-turbo-vision
-	if models.Engine(engine) == models.ChatGpt4Turbo || models.Engine(engine) == models.ChatGpt4TurboVision {
+	// use new gpt-4o instead of gpt-4-turbo, gpt-4-turbo-vision or gpt-4
+	if models.Engine(engine) == models.ChatGpt4Turbo || models.Engine(engine) == models.ChatGpt4TurboVision || models.Engine(engine) == models.ChatGpt4 {
 		SaveEngine(chatID, models.ChatGpt4o)
 		return models.ChatGpt4o
 	}

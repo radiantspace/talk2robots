@@ -102,26 +102,20 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 			},
 			{
 				{
-					Text:         "GPT 4 💰💰💰💰💰🚀🧠🧠🧠🧠🧠",
-					CallbackData: string(models.ChatGpt4) + ":" + topicString,
-				},
-			},
-			{
-				{
 					Text:         "GPT 3.5 💰💰🚀🚀🚀🧠🧠",
 					CallbackData: string(models.ChatGpt35Turbo) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Small Llama3 💰🚀🚀🚀🚀🧠",
-					CallbackData: string(models.LlamaV3_8b) + ":" + topicString,
+					Text:         "Big Llama3 💰💰💰🚀🚀🧠🧠🧠",
+					CallbackData: string(models.LlamaV3_70b) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Big Llama3 💰💰💰🚀🚀🧠🧠🧠",
-					CallbackData: string(models.LlamaV3_70b) + ":" + topicString,
+					Text:         "Small Llama3 💰🚀🚀🚀🚀🧠",
+					CallbackData: string(models.LlamaV3_8b) + ":" + topicString,
 				},
 			},
 			{

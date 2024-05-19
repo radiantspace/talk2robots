@@ -21,6 +21,7 @@ func TestIsCreateImageCommandTrue(t *testing.T) {
 		"I'd like a picture! Of a mountain",
 		"Imagine this image: a futuristic city",
 		"Cam you creete an imege of a sunset?",
+		"Sketch a picture of a cat",
 	}
 
 	for _, prompt := range prompts {
@@ -34,6 +35,7 @@ func TestIsCreateImageCommandFalse(t *testing.T) {
 	prompts := []string{
 		"Imagene, please, an article about a cat",
 		"I'd like a video! Of a mountain",
+		"Don't you think this image is beautiful?",
 	}
 
 	for _, prompt := range prompts {

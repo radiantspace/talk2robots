@@ -635,8 +635,8 @@ func IsCreateImageCommand(prompt string) bool {
 
 	log.Debugf("Cleaned prompt: %s", cleanPrompt)
 
-	triggerWords := []string{"create", "draw", "drawing", "picture", "imagine", "image"}
-	stopWords := []string{"write", "article"}
+	triggerWords := []string{"draw", "drawing", "picture", "imagine", "image", "paint", "painting", "sketch", "sketching", "illustration", "illustrate", "art", "design"}
+	stopWords := []string{"write", "article", "dont", "work", "working", "job", "jobs", "task", "tasks", "assignment", "assignments", "homework", "homeworks", "essay", "essays", "report", "reports", "paper", "papers", "document", "documents", "text", "message", "letter", "email", "conversation", "speak", "speech"}
 
 	// Split the prompt into words
 	words := strings.Fields(cleanPrompt)
@@ -651,7 +651,7 @@ func IsCreateImageCommand(prompt string) bool {
 			foundTrigger = true
 		}
 
-		if isClose(word, stopWords, 1) {
+		if isClose(word, stopWords, 0) {
 			foundStop = true
 		}
 	}
