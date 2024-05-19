@@ -73,7 +73,7 @@ func CreateAssistant(ctx context.Context, assistant *models.AssistantRequest) (*
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
@@ -108,7 +108,7 @@ func GetAssistant(ctx context.Context, assistantID string) (*models.AssistantRes
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
@@ -143,7 +143,7 @@ func ListAssistants(ctx context.Context, limit int, order string, after string, 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	q := req.URL.Query()
 	if limit > 0 {

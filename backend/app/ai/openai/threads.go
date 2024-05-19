@@ -44,7 +44,7 @@ func CreateThreadAndRun(ctx context.Context, assistantId string, thread *models.
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	timeNow := time.Now()
 	status := fmt.Sprintf("status:%d", 0)
@@ -107,7 +107,7 @@ func CreateRun(ctx context.Context, assistantId string, threadId string) (*model
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	timeNow := time.Now()
 	status := fmt.Sprintf("status:%d", 0)
@@ -150,7 +150,7 @@ func GetThread(ctx context.Context, threadId string) (*models.ThreadResponse, er
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	timeNow := time.Now()
 	status := fmt.Sprintf("status:%d", 0)
@@ -194,7 +194,7 @@ func CancelRun(ctx context.Context, threadId, runId string) (*models.ThreadRunRe
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
@@ -229,7 +229,7 @@ func GetThreadRun(ctx context.Context, threadId, runId string) (*models.ThreadRu
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	timeNow := time.Now()
 	status := fmt.Sprintf("status:%d", 0)
@@ -273,7 +273,7 @@ func GetLastThreadRun(ctx context.Context, threadId string) (*models.ThreadRunRe
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	q := req.URL.Query()
 	q.Add("limit", fmt.Sprintf("%d", 1))
@@ -324,7 +324,7 @@ func ListThreadRunSteps(ctx context.Context, threadId, runId string) (*models.Th
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	timeNow := time.Now()
 	status := fmt.Sprintf("status:%d", 0)
@@ -372,7 +372,7 @@ func CreateThreadMessage(ctx context.Context, threadId string, message *models.M
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	timeNow := time.Now()
 	status := fmt.Sprintf("status:%d", 0)
@@ -422,7 +422,7 @@ func GetThreadMessage(ctx context.Context, threadId, messageId string) (*models.
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	timeNow := time.Now()
 	status := fmt.Sprintf("status:%d", 0)
@@ -468,7 +468,7 @@ func DeleteThread(ctx context.Context, threadId string) (*models.DeletedResponse
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	timeNow := time.Now()
 	status := fmt.Sprintf("status:%d", 0)
@@ -514,7 +514,7 @@ func ListThreadMessagesForARun(ctx context.Context, threadId string, runId strin
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	q := req.URL.Query()
 	q.Add("limit", fmt.Sprintf("%d", 10))
@@ -597,7 +597,7 @@ func CreateThreadAndRunStreaming(ctx context.Context, assistantId string, model 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	client := sse.NewClientFromReq(req)
 	messages := make(chan string)
@@ -643,7 +643,7 @@ func CreateRunStreaming(ctx context.Context, assistantId string, model models.En
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
-	req.Header.Set("OpenAI-Beta", "assistants=v1")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	client := sse.NewClientFromReq(req)
 	messages := make(chan string)
@@ -711,6 +711,11 @@ func subscribeAndProcess(
 					messages <- content.Text.Value
 				}
 			}
+			return
+		}
+
+		if string(msg.Event) == "thread.run.created" {
+			log.Infof("[%s] got thread.run.created event for user id %s", apiName, userId)
 			return
 		}
 
