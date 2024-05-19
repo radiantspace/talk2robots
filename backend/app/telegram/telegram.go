@@ -372,7 +372,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			MessageID:   messageId,
 			ReplyMarkup: GetStatusKeyboard(ctx),
 		})
-	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.LlamaV3_8b), string(models.LlamaV3_70b):
+	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.LlamaV3_8b), string(models.LlamaV3_70b):
 		handleEngineSwitchCallbackQuery(callbackQuery, topicString)
 	case "downgradefromfreeplus":
 		_, ctx, _, _ := lib.SetupUserAndContext(chatString, "telegram", chatString, topicString)
