@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"talk2robots/m/v2/app/config"
-	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
 	"talk2robots/m/v2/app/payments"
 	"time"
@@ -37,9 +36,9 @@ func CreateImage(ctx context.Context, prompt string) (string, string, error) {
 		Size:   "1024x1024",
 	}
 
-	if lib.IsUserBasic(ctx) {
-		requestBody.Quality = "hd"
-	}
+	// if lib.IsUserBasic(ctx) {
+	// 	requestBody.Quality = "hd"
+	// }
 
 	// Convert the request body to JSON
 	requestBodyJSON, err := json.Marshal(requestBody)
@@ -65,9 +64,9 @@ func CreateImage(ctx context.Context, prompt string) (string, string, error) {
 		},
 	}
 
-	if lib.IsUserBasic(ctx) {
-		usage.ImagePrice = DALLE3_HD
-	}
+	// if lib.IsUserBasic(ctx) {
+	// 	usage.ImagePrice = DALLE3_HD
+	// }
 
 	status := fmt.Sprintf("status:%d", 0)
 	defer func() {
@@ -75,8 +74,7 @@ func CreateImage(ctx context.Context, prompt string) (string, string, error) {
 	}()
 
 	// Send the HTTP request
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if resp != nil {
 		status = fmt.Sprintf("status:%d", resp.StatusCode)
 	}

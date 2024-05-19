@@ -53,8 +53,7 @@ func CreateThreadAndRun(ctx context.Context, assistantId string, thread *models.
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -117,8 +116,7 @@ func CreateRun(ctx context.Context, assistantId string, threadId string) (*model
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +159,7 @@ func GetThread(ctx context.Context, threadId string) (*models.ThreadResponse, er
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -199,8 +196,7 @@ func CancelRun(ctx context.Context, threadId, runId string) (*models.ThreadRunRe
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -242,8 +238,7 @@ func GetThreadRun(ctx context.Context, threadId, runId string) (*models.ThreadRu
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -291,8 +286,7 @@ func GetLastThreadRun(ctx context.Context, threadId string) (*models.ThreadRunRe
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -339,8 +333,7 @@ func ListThreadRunSteps(ctx context.Context, threadId, runId string) (*models.Th
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -388,8 +381,7 @@ func CreateThreadMessage(ctx context.Context, threadId string, message *models.M
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -439,8 +431,7 @@ func GetThreadMessage(ctx context.Context, threadId, messageId string) (*models.
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -486,8 +477,7 @@ func DeleteThread(ctx context.Context, threadId string) (*models.DeletedResponse
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -537,8 +527,7 @@ func ListThreadMessagesForARun(ctx context.Context, threadId string, runId strin
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, api_name}, 1)
 	}()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}

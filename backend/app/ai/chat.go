@@ -37,6 +37,10 @@ const (
 	CHAT_GPT4_TURBO_INPUT_PRICE  = 10.0 / 1000000
 	CHAT_GPT4_TURBO_OUTPUT_PRICE = 30.0 / 1000000
 
+	// gpt-4o
+	CHAT_GPT4O_INPUT_PRICE  = 5.0 / 1000000
+	CHAT_GPT4O_OUTPUT_PRICE = 15.0 / 1000000
+
 	FIREWORKS_16B_80B_PRICE = 0.9 / 1000000
 	FIREWORKS_0B_16B_PRICE  = 0.2 / 1000000
 
@@ -234,6 +238,8 @@ func PricePerInputToken(model models.Engine) float64 {
 		return FIREWORKS_0B_16B_PRICE
 	case models.LlamaV3_70b:
 		return FIREWORKS_16B_80B_PRICE
+	case models.ChatGpt4o:
+		return CHAT_GPT4O_INPUT_PRICE
 	default:
 		return CHAT_INPUT_PRICE
 	}
@@ -249,6 +255,8 @@ func PricePerOutputToken(model models.Engine) float64 {
 		return FIREWORKS_0B_16B_PRICE
 	case models.LlamaV3_70b:
 		return FIREWORKS_16B_80B_PRICE
+	case models.ChatGpt4o:
+		return CHAT_GPT4O_OUTPUT_PRICE
 	default:
 		return CHAT_OUTPUT_PRICE
 	}
@@ -257,7 +265,7 @@ func PricePerOutputToken(model models.Engine) float64 {
 func LimitPromptTokensForModel(model models.Engine, promptTokensCount float64) int {
 	// limit context to max - 1024 tokens
 	switch model {
-	case models.ChatGpt4Turbo, models.ChatGpt4TurboVision:
+	case models.ChatGpt4Turbo, models.ChatGpt4TurboVision, models.ChatGpt4o:
 		return int(math.Min(127*1024, promptTokensCount))
 	case models.ChatGpt4:
 		return int(math.Min(7*1024, promptTokensCount))

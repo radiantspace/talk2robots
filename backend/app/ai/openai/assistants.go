@@ -75,8 +75,7 @@ func CreateAssistant(ctx context.Context, assistant *models.AssistantRequest) (*
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +110,7 @@ func GetAssistant(ctx context.Context, assistantID string) (*models.AssistantRes
 	req.Header.Set("Authorization", "Bearer "+config.CONFIG.OpenAIAPIKey)
 	req.Header.Set("OpenAI-Beta", "assistants=v1")
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -162,8 +160,7 @@ func ListAssistants(ctx context.Context, limit int, order string, after string, 
 	}
 	req.URL.RawQuery = q.Encode()
 
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}

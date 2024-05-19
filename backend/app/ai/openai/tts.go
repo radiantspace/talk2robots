@@ -82,8 +82,7 @@ func CreateSpeech(ctx context.Context, tts *models.TTSRequest) (io.ReadCloser, e
 	}()
 
 	// Send the HTTP request
-	client := http.DefaultClient
-	resp, err := client.Do(req)
+	resp, err := HTTP_CLIENT.Do(req)
 	if err != nil {
 		return nil, err
 	}
