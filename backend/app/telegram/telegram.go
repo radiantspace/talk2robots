@@ -486,7 +486,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		}
 		return
 	}
-	if callbackQuery.Data == string(models.ChatGpt4) {
+	if callbackQuery.Data == string(models.ChatGpt4) || callbackQuery.Data == string(models.ChatGpt4o) {
 		// fetch user subscription
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {
@@ -495,13 +495,13 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 			return
 		}
 		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
-			notification := "To use GPT-4 model check available /upgrade options! Meanwhile, you can still use GPT-3.5 Turbo, it's fast, cheap and quite smart."
+			notification := fmt.Sprintf("To use %s model check available /upgrade options! Meanwhile, you can still use GPT-3.5 Turbo, it's fast, cheap and quite smart.", callbackQuery.Data)
 			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 			BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 			return
 		}
-		redis.SaveEngine(chatIDString, models.ChatGpt4)
-		notification := "Switched to GPT-4 model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap."
+		redis.SaveEngine(chatIDString, models.Engine(callbackQuery.Data))
+		notification := fmt.Sprintf("Switched to %s model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap.", callbackQuery.Data)
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 		if err != nil {

@@ -577,6 +577,7 @@ func CreateThreadAndRunStreaming(ctx context.Context, assistantId string, model 
 		AssistantID: assistantId,
 		Thread:      thread,
 		Stream:      true,
+		Model:       string(model),
 	})
 	if err != nil {
 		return nil, err
@@ -617,10 +618,11 @@ func CreateRunStreaming(ctx context.Context, assistantId string, model models.En
 	requestBody := struct {
 		AssistantId string `json:"assistant_id"`
 		Stream      bool   `json:"stream"`
-		// model, instructions, tools and metadata can be overriden here if needed
+		Model       string `json:"model,omitempty"`
 	}{
 		AssistantId: assistantId,
 		Stream:      true,
+		Model:       string(model),
 	}
 
 	requestBodyJSON, err := json.Marshal(requestBody)

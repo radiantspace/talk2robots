@@ -31,7 +31,7 @@ const (
 
 func AssistantKeyForModel(model Engine) AssistantKey {
 	switch model {
-	case ChatGpt4, ChatGpt4TurboVision, ChatGpt4Turbo:
+	case ChatGpt4, ChatGpt4TurboVision, ChatGpt4Turbo, ChatGpt4o:
 		return AssistantGpt4
 	case ChatGpt35Turbo:
 		return AssistantGpt35
@@ -42,7 +42,7 @@ func AssistantKeyForModel(model Engine) AssistantKey {
 
 func AssistantIdForModel(model Engine) string {
 	switch model {
-	case ChatGpt4, ChatGpt4TurboVision, ChatGpt4Turbo:
+	case ChatGpt4, ChatGpt4TurboVision, ChatGpt4Turbo, ChatGpt4o:
 		return config.CONFIG.AssistantGpt4Id
 	case ChatGpt35Turbo:
 		return config.CONFIG.AssistantGpt35Id
@@ -180,6 +180,7 @@ type Usage struct {
 type ThreadRunRequest struct {
 	AssistantID string  `json:"assistant_id"`
 	Thread      *Thread `json:"thread"`
+	Model       string  `json:"model,omitempty"`
 	Metadata    struct {
 	} `json:"metadata,omitempty"`
 	Stream bool `json:"stream,omitempty"`

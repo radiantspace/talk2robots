@@ -96,7 +96,7 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 		InlineKeyboard: [][]telego.InlineKeyboardButton{
 			{
 				{
-					Text:         "GPT 3.5 💰💰🚀🚀🚀🧠",
+					Text:         "GPT 3.5 💰💰🚀🚀🚀🧠🧠",
 					CallbackData: string(models.ChatGpt35Turbo) + ":" + topicString,
 				},
 			},
@@ -104,6 +104,12 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 				{
 					Text:         "GPT 4 💰💰💰💰🚀🧠🧠🧠🧠",
 					CallbackData: string(models.ChatGpt4) + ":" + topicString,
+				},
+			},
+			{
+				{
+					Text:         "GPT 4o 💰💰💰🚀🚀🧠🧠🧠🧠",
+					CallbackData: string(models.ChatGpt4o) + ":" + topicString,
 				},
 			},
 			{

@@ -356,7 +356,7 @@ func prepareMessages(
 		},
 	})
 
-	return messages, models.ChatGpt4TurboVision, nil
+	return messages, models.ChatGpt4o, nil
 }
 
 func getPhotoBase64(message *telego.Message, ctx context.Context, bot *telego.Bot) (photoBase64 string, err error) {
