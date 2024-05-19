@@ -372,7 +372,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			MessageID:   messageId,
 			ReplyMarkup: GetStatusKeyboard(ctx),
 		})
-	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.LlamaV3_8b), string(models.LlamaV3_70b):
+	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.ChatGpt4Turbo), string(models.ChatGpt4TurboVision), string(models.LlamaV3_8b), string(models.LlamaV3_70b):
 		handleEngineSwitchCallbackQuery(callbackQuery, topicString)
 	case "downgradefromfreeplus":
 		_, ctx, _, _ := lib.SetupUserAndContext(chatString, "telegram", chatString, topicString)
@@ -393,6 +393,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			return
 		}
 		if !lib.IsUserBasic(ctx) {
+			log.Warnf("User %s is not a basic user", chatString)
 			return
 		}
 
@@ -486,12 +487,12 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		}
 		return
 	}
-	if callbackQuery.Data == string(models.ChatGpt4) || callbackQuery.Data == string(models.ChatGpt4o) {
+	if callbackQuery.Data == string(models.ChatGpt4) || callbackQuery.Data == string(models.ChatGpt4Turbo) || callbackQuery.Data == string(models.ChatGpt4TurboVision) || callbackQuery.Data == string(models.ChatGpt4o) {
 		// fetch user subscription
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {
 			log.Errorf("Failed to get user: %v", err)
-			BOT.SendMessage(tu.Message(tu.ID(chatID), "Failed to switch to GPT-4 model, please try again later").WithMessageThreadID(topicID))
+			BOT.SendMessage(tu.Message(tu.ID(chatID), fmt.Sprintf("Failed to switch to %s model, please try again later", callbackQuery.Data)).WithMessageThreadID(topicID))
 			return
 		}
 		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
