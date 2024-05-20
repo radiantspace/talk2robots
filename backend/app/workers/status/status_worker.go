@@ -41,6 +41,7 @@ func FetchStatus() (string, error) {
 	config.CONFIG.DataDogClient.Gauge("status_worker.total_free_plus_users", float64(systemStatus.Usage.TotalFreePlusUsers), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.total_basic_users", float64(systemStatus.Usage.TotalBasicUsers), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.total_images", float64(systemStatus.Usage.TotalImages), nil, 1)
+	config.CONFIG.DataDogClient.Gauge("status_worker.day_active_users", float64(systemStatus.Usage.DayActiveUsers), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.week_active_users", float64(systemStatus.Usage.WeekActiveUsers), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.month_active_users", float64(systemStatus.Usage.MonthActiveUsers), nil, 1)
 	if !systemStatus.MongoDB.Available {

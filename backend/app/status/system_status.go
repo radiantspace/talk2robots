@@ -28,6 +28,7 @@ type SystemUsage struct {
 	TotalCost            float64 `json:"total_cost"`
 	TotalImages          int64   `json:"total_images"`
 	AudioDurationMinutes float64 `json:"audio_duration_minutes"`
+	DayActiveUsers       int64   `json:"day_active_users"`
 	WeekActiveUsers      int64   `json:"week_active_users"`
 	MonthActiveUsers     int64   `json:"month_active_users"`
 }
@@ -115,6 +116,9 @@ func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
 		status.Usage.TotalFreePlusUsers = freePlusUsers
 		basicUsers, _ := h.MongoDB.GetUsersCountForSubscription(context.Background(), "basic")
 		status.Usage.TotalBasicUsers = basicUsers
+
+		dayActiveUsers, _ := h.MongoDB.GetUserIdsUsedSince(context.Background(), time.Now().UTC().AddDate(0, 0, -1), 0, 1000000)
+		status.Usage.DayActiveUsers = int64(len(dayActiveUsers))
 
 		weekActiveUsers, _ := h.MongoDB.GetUserIdsUsedSince(context.Background(), time.Now().UTC().AddDate(0, 0, -7), 0, 1000000)
 		status.Usage.WeekActiveUsers = int64(len(weekActiveUsers))
