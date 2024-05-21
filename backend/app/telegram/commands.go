@@ -643,11 +643,11 @@ func IsCreateImageCommand(prompt string) bool {
 	foundTrigger := false
 	foundStop := false
 	for i, word := range words {
-		if i >= len(triggerWords) || i > 5 {
-			break
+		if i > 5 {
+			return foundTrigger && !foundStop
 		}
 
-		if isClose(word, triggerWords, 1) {
+		if isClose(word, triggerWords, 0) {
 			foundTrigger = true
 		}
 
