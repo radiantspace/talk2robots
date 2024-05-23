@@ -43,8 +43,7 @@ func GetUserStatus(ctx context.Context) string {
 		AI credits: $%.2f/mo
 
 		Monthly usage (will reset on the 1st of the next month)
-		consumption, $: %.3f$
-		consumption, %%: %.1f%%
+		consumption: %.3f$ (%.1f%%)
 		tokens processed: %d
 		audio transcribed, minutes: %.2f
 		images created: %d`, entity, mode, subscriptionToDisplay, subscription.MaximumUsage, usage, usagePercent, tokens, audioMinutes, imagesCount)
@@ -92,12 +91,12 @@ func GetStatusKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 					CallbackData: "models:" + topicString,
 				},
 			},
-			{
-				{
-					Text:         "Choose Image AI 🎨",
-					CallbackData: "images:" + topicString,
-				},
-			},
+			// {
+			// 	{
+			// 		Text:         "Choose Image AI 🎨",
+			// 		CallbackData: "images:" + topicString,
+			// 	},
+			// },
 		},
 	}
 }

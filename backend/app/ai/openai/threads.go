@@ -689,7 +689,6 @@ func subscribeAndProcess(
 			return // or handle error
 		}
 		status = fmt.Sprintf("status:%s", response.Status)
-
 		if string(msg.Event) == "thread.created" {
 			log.Infof("[%s] got thread.created event for user id %s, saving threadId..", apiName, userId)
 			redis.RedisClient.Set(context.Background(), lib.UserCurrentThreadKey(userId, topicId), response.Id, 0)

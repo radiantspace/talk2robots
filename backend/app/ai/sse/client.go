@@ -80,8 +80,10 @@ func NewClient(url string, opts ...func(c *Client)) *Client {
 
 func NewClientFromReq(req *http.Request, opts ...func(c *Client)) *Client {
 	c := &Client{
-		Request:       req,
-		Connection:    &http.Client{},
+		Request: req,
+		Connection: &http.Client{
+			Timeout: 60 * time.Second,
+		},
 		Headers:       make(map[string]string),
 		subscribed:    make(map[chan *Event]chan struct{}),
 		maxBufferSize: 1 << 16,
