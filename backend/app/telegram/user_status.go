@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"talk2robots/m/v2/app/ai/fireworks"
+	"talk2robots/m/v2/app/ai/midjourney"
+	"talk2robots/m/v2/app/ai/openai"
 	"talk2robots/m/v2/app/db/redis"
 	"talk2robots/m/v2/app/lib"
 	"talk2robots/m/v2/app/models"
@@ -37,11 +40,14 @@ func GetUserStatus(ctx context.Context) string {
 	return fmt.Sprintf(`⚙️ %s status:
 		Mode: %s
 		Subscription: %s
-		Maximum AI usage: $%.2f/mo
-		Monthly consumption: %.1f%%
-		Monthly tokens processed: %d
-		Monthly audio transcribed, minutes: %.2f
-		Monthly images created: %d`, entity, mode, subscriptionToDisplay, subscription.MaximumUsage, usagePercent, tokens, audioMinutes, imagesCount)
+		AI credits: $%.2f/mo
+
+		Monthly usage (will reset on the 1st of the next month)
+		consumption, $: %.3f$
+		consumption, %%: %.1f%%
+		tokens processed: %d
+		audio transcribed, minutes: %.2f
+		images created: %d`, entity, mode, subscriptionToDisplay, subscription.MaximumUsage, usage, usagePercent, tokens, audioMinutes, imagesCount)
 }
 
 func GetStatusKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
@@ -86,6 +92,12 @@ func GetStatusKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 					CallbackData: "models:" + topicString,
 				},
 			},
+			{
+				{
+					Text:         "Choose Image AI 🎨",
+					CallbackData: "images:" + topicString,
+				},
+			},
 		},
 	}
 }
@@ -116,6 +128,44 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 				{
 					Text:         "Small Llama3 💰🚀🚀🚀🚀🧠",
 					CallbackData: string(models.LlamaV3_8b) + ":" + topicString,
+				},
+			},
+			{
+				{
+					Text:         "Back ⬅️",
+					CallbackData: "status:" + topicString,
+				},
+			},
+		},
+	}
+}
+
+func GetImageModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
+	topicString := ctx.Value(models.TopicContext{}).(string)
+	return &telego.InlineKeyboardMarkup{
+		InlineKeyboard: [][]telego.InlineKeyboardButton{
+			{
+				{
+					Text:         fmt.Sprintf("Dalle-3 (best) %.2f$/image\n🚀🚀🧠🧠🧠🧠🎨🎨🎨", openai.DALLE3_S),
+					CallbackData: string(models.DallE3) + ":" + topicString,
+				},
+			},
+			{
+				{
+					Text:         fmt.Sprintf("Midjourney 6 %.2f$/image\n🚀🧠🧠🎨🎨🎨🎨", midjourney.MIDJOURNEY6),
+					CallbackData: string(models.Midjourney6) + ":" + topicString,
+				},
+			},
+			{
+				{
+					Text:         fmt.Sprintf("Stable Diffusion 3 %.3f$/image\n🚀🚀🚀🧠🧠🎨🎨🎨", fireworks.STABLEDIFFUSION3),
+					CallbackData: string(models.StableDiffusion3) + ":" + topicString,
+				},
+			},
+			{
+				{
+					Text:         fmt.Sprintf("Playground 2.5 %.2f$/image\n🚀🚀🚀🚀🧠🎨", fireworks.PLAYGROUND25),
+					CallbackData: string(models.Playground25) + ":" + topicString,
 				},
 			},
 			{

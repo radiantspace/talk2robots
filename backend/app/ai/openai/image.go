@@ -15,8 +15,8 @@ import (
 
 // https://openai.com/pricing
 const (
-	DALLE3_S  = 0.04
-	DALLE3_HD = 0.08
+	DALLE3_S  float64 = 0.04
+	DALLE3_HD float64 = 0.08
 )
 
 func CreateImage(ctx context.Context, prompt string) (string, string, error) {

@@ -284,7 +284,7 @@ func handleMessageEvent(userId string, channel string, messageTS string, message
 	seedData, userMessagePrimer = lib.GetSeedDataAndPrimer(mode)
 
 	log.Infof("Received message in slack chat: %s, user: %s, mode: %s, initiating request to OpenAI", channel, userId, mode)
-	engineModel := redis.GetChatEngine(userId)
+	engineModel := redis.GetModel(userId)
 
 	ProcessStreamingMessage(currentContext, channel, messageTS, messageText, seedData, userMessagePrimer, mode, engineModel, cancelFunc, replyInThread)
 }
@@ -327,7 +327,7 @@ func summarizeThread(userId string, messageTS string, channelId string) {
 	}
 
 	log.Infof("Received summarize request in slack chat: %s, user: %s, initiating request to OpenAI", channelId, userId)
-	engineModel := redis.GetChatEngine(userId)
+	engineModel := redis.GetModel(userId)
 
 	summarizeInThread := true
 	if messageTS == "" {

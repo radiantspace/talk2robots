@@ -212,7 +212,7 @@ func handleStripeReset(ctx context.Context, bot *Bot, message *telego.Message) {
 			return
 		}
 		//  downgrade engine to GPT-3.5 Turbo
-		redis.SaveEngine(userId, models.ChatGpt35Turbo)
+		redis.SaveModel(userId, models.ChatGpt35Turbo)
 	}
 
 	bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Stripe Reset for: %+v", user)))

@@ -301,7 +301,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	seedData, userMessagePrimer = lib.GetSeedDataAndPrimer(mode)
 
 	log.Debugf("Received message: %d, in chat: %d, initiating request to AI", message.MessageID, chatID.ID)
-	engineModel := redis.GetChatEngine(chatIDString)
+	engineModel := redis.GetModel(chatIDString)
 
 	// send action to show that bot is working
 	if mode != lib.VoiceGPT {
@@ -366,6 +366,12 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			MessageID:   messageId,
 			ReplyMarkup: GetModelsKeyboard(ctx),
 		})
+	case "images":
+		bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+			ChatID:      chat.ChatID(),
+			MessageID:   messageId,
+			ReplyMarkup: GetImageModelsKeyboard(ctx),
+		})
 	case "status":
 		bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
 			ChatID:      chat.ChatID(),
@@ -374,6 +380,8 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 		})
 	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.ChatGpt4Turbo), string(models.ChatGpt4TurboVision), string(models.LlamaV3_8b), string(models.LlamaV3_70b):
 		handleEngineSwitchCallbackQuery(callbackQuery, topicString)
+	case string(models.DallE3), string(models.Midjourney6), string(models.StableDiffusion3), string(models.Playground25):
+		handleImageModelSwitchCallbackQuery(callbackQuery, topicString)
 	case "downgradefromfreeplus":
 		_, ctx, _, _ := lib.SetupUserAndContext(chatString, "telegram", chatString, topicString)
 		if !lib.IsUserFreePlus(ctx) {
@@ -446,7 +454,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 	chatIDString := fmt.Sprint(chatID)
 	topicID, _ := strconv.Atoi(topicString)
 	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, topicString)
-	currentEngine := redis.GetChatEngine(chatIDString)
+	currentEngine := redis.GetModel(chatIDString)
 	if callbackQuery.Data == string(currentEngine) {
 		err := BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
@@ -458,7 +466,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		return
 	}
 	if callbackQuery.Data == string(models.LlamaV3_8b) {
-		redis.SaveEngine(chatIDString, models.LlamaV3_8b)
+		go redis.SaveModel(chatIDString, models.LlamaV3_8b)
 		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to small Llama3 model, fast and cheap! Note that /chatgpt and /voicegpt modes don't have context awareness (memory) when using Llama models at the moment.").WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send Llama3 small message: %v", err)
@@ -473,7 +481,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		return
 	}
 	if callbackQuery.Data == string(models.ChatGpt35Turbo) {
-		redis.SaveEngine(chatIDString, models.ChatGpt35Turbo)
+		go redis.SaveModel(chatIDString, models.ChatGpt35Turbo)
 		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-3.5 Turbo model, fast and cheap!").WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-3.5 message: %v", err)
@@ -501,7 +509,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 			BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 			return
 		}
-		redis.SaveEngine(chatIDString, models.Engine(callbackQuery.Data))
+		go redis.SaveModel(chatIDString, models.Engine(callbackQuery.Data))
 		notification := fmt.Sprintf("Switched to %s model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap.", callbackQuery.Data)
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
@@ -518,7 +526,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		return
 	}
 	if callbackQuery.Data == string(models.LlamaV3_70b) {
-		redis.SaveEngine(chatIDString, models.LlamaV3_70b)
+		go redis.SaveModel(chatIDString, models.LlamaV3_70b)
 		notification := "Switched to big Llama3 model, intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap. Note that /chatgpt and /voicegpt modes don't have context awareness (memory) when using Llama models at the moment."
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
@@ -536,6 +544,43 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 	}
 
 	log.Errorf("Unknown engine switch callback query: %s, chat id: %s", callbackQuery.Data, chatIDString)
+}
+
+func handleImageModelSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicString string) {
+	chat := callbackQuery.Message.GetChat()
+	chatID := callbackQuery.From.ID
+	if callbackQuery.Message != nil && chat.ID != chatID {
+		chatID = chat.ID
+	}
+	log.Infof("Callback query message in chat ID: %d, user ID: %d, topic: %s", chat.ID, chatID, util.GetTopicIDFromChat(chat))
+	chatIDString := fmt.Sprint(chatID)
+	topicID, _ := strconv.Atoi(topicString)
+	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, topicString)
+	currentModel := redis.GetImageModel(chatIDString)
+	if callbackQuery.Data == string(currentModel) {
+		err := BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+			CallbackQueryID: callbackQuery.ID,
+			Text:            "You are already using " + callbackQuery.Data + " model!",
+		})
+		if err != nil {
+			log.Errorf("handleImageModelSwitchCallbackQuery failed to answer callback query, already using: %v", err)
+		}
+		return
+	}
+	go redis.SaveImageModel(chatIDString, models.Engine(callbackQuery.Data))
+	notification := fmt.Sprintf("Switched to %s image model, enjoy!", callbackQuery.Data)
+	notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+	_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+	if err != nil {
+		log.Errorf("handleImageModelSwitchCallbackQuery failed to send image model message: %v", err)
+	}
+	err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		CallbackQueryID: callbackQuery.ID,
+		Text:            "Switched to " + callbackQuery.Data + " image model!",
+	})
+	if err != nil {
+		log.Errorf("handleImageModelSwitchCallbackQuery failed to answer callback query: %v", err)
+	}
 }
 
 func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {

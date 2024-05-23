@@ -262,7 +262,7 @@ func handleCustomerSubscriptionDeleted(subscription stripe.Subscription) {
 	}
 
 	//  downgrade engine to GPT-3.5 Turbo
-	redis.SaveEngine(chatIDString, models.ChatGpt35Turbo)
+	go redis.SaveModel(chatIDString, models.ChatGpt35Turbo)
 
 	PaymentsBot.SendMessage(tu.Message(chatID, "Your subscription has been canceled and the account downgraded to free+. No further charges will be made. If you were using GPT-4 it was downgraded to GPT-3.5 Turbo."))
 	log.Infof("Successfully deleted customer %s subscription %s, user id: %s", subscription.Customer.ID, subscription.ID, chatIDString)
