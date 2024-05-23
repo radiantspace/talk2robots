@@ -1,5 +1,5 @@
 package midjourney
 
 const (
-	MIDJOURNEY6 float64 = 0.01
+	MIDJOURNEY6 float64 = 0.02
 )
