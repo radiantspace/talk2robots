@@ -16,7 +16,6 @@ import (
 	"talk2robots/m/v2/app/payments"
 	"time"
 
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -675,7 +674,7 @@ func subscribeAndProcess(
 		config.CONFIG.DataDogClient.Timing("openai.threads.latency", time.Since(timeNow), []string{status, "api:" + apiName}, 1)
 	}()
 
-	err := client.SubscribeWithContext(ctx, uuid.New().String(), func(msg *sse.Event) {
+	err := client.SubscribeWithContext(ctx, "", func(msg *sse.Event) {
 		var response models.StreamDataResponse
 		if msg.Event == nil || msg.Data == nil {
 			return

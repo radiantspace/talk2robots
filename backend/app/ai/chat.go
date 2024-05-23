@@ -18,7 +18,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -175,7 +174,7 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 			config.CONFIG.DataDogClient.Timing("openai.chat_complete_streaming.latency", time.Since(timeNow), []string{"model:" + completion.Model}, 1)
 			config.CONFIG.DataDogClient.Timing("openai.chat_complete_streaming.latency_per_token", time.Since(timeNow), []string{"model:" + completion.Model}, float64(usage.Usage.CompletionTokens))
 		}()
-		err := client.SubscribeWithContext(ctx, uuid.New().String(), func(msg *sse.Event) {
+		err := client.SubscribeWithContext(ctx, "", func(msg *sse.Event) {
 			var response models.ChatResponse
 			if msg.Data != nil && len(msg.Data) > 2 && string(msg.Data[:1]) == "[" && string(msg.Data) == "[DONE]" {
 				log.Infof("ChatCompleteStreaming got [DONE] message for user id %s", ctx.Value(models.UserContext{}).(string))
