@@ -49,7 +49,7 @@ func StripeWebhook(ctx *fasthttp.RequestCtx) {
 		ctx.Response.Header.SetStatusCode(http.StatusBadRequest) // Return a 400 error on a bad signature
 		return
 	}
-	config.CONFIG.DataDogClient.Incr("stripe.webhook", []string{"event_type:" + event.Type}, 1)
+	config.CONFIG.DataDogClient.Incr("stripe.webhook", []string{"event_type:" + string(event.Type)}, 1)
 
 	// Unmarshal the event data into an appropriate struct depending on its Type
 	switch event.Type {
