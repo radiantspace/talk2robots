@@ -17,8 +17,10 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
+	"talk2robots/m/v2/app/models"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/cenkalti/backoff.v1"
 )
 
@@ -64,8 +66,10 @@ type Client struct {
 // NewClient creates a new client
 func NewClient(url string, opts ...func(c *Client)) *Client {
 	c := &Client{
-		URL:           url,
-		Connection:    &http.Client{},
+		URL: url,
+		Connection: &http.Client{
+			Timeout: 60 * time.Second,
+		},
 		Headers:       make(map[string]string),
 		subscribed:    make(map[chan *Event]chan struct{}),
 		maxBufferSize: 1 << 16,
@@ -79,14 +83,20 @@ func NewClient(url string, opts ...func(c *Client)) *Client {
 }
 
 func NewClientFromReq(req *http.Request, opts ...func(c *Client)) *Client {
+	reconnectionStrategy := backoff.NewExponentialBackOff()
+	reconnectionStrategy.InitialInterval = 2 * time.Second
+	reconnectionStrategy.Multiplier = 2
+	reconnectionStrategy.RandomizationFactor = 0.5
+	reconnectionStrategy.MaxElapsedTime = 60 * time.Second
 	c := &Client{
 		Request: req,
 		Connection: &http.Client{
 			Timeout: 60 * time.Second,
 		},
-		Headers:       make(map[string]string),
-		subscribed:    make(map[chan *Event]chan struct{}),
-		maxBufferSize: 1 << 16,
+		Headers:           make(map[string]string),
+		ReconnectStrategy: reconnectionStrategy,
+		subscribed:        make(map[chan *Event]chan struct{}),
+		maxBufferSize:     1 << 16,
 	}
 
 	for _, opt := range opts {
@@ -103,19 +113,24 @@ func (c *Client) Subscribe(stream string, handler func(msg *Event)) error {
 
 // SubscribeWithContext to a data stream with context
 func (c *Client) SubscribeWithContext(ctx context.Context, stream string, handler func(msg *Event)) error {
+	userId := ctx.Value(models.UserContext{}).(string)
 	operation := func() error {
 		resp, err := c.request(ctx, stream)
 		if err != nil {
+			log.Errorf("error connecting to stream for %s: %v", userId, err)
 			return err
 		}
 		if validator := c.ResponseValidator; validator != nil {
 			err = validator(c, resp)
 			if err != nil {
+				log.Errorf("error validating response for %s: %v", userId, err)
 				return err
 			}
 		} else if resp.StatusCode != 200 {
 			resp.Body.Close()
-			return fmt.Errorf("could not connect to stream: %s", http.StatusText(resp.StatusCode))
+			err = fmt.Errorf("could not connect to stream for %s: %s", userId, http.StatusText(resp.StatusCode))
+			log.Error(err)
+			return err
 		}
 		defer resp.Body.Close()
 

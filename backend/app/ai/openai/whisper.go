@@ -194,7 +194,9 @@ func (uw *whisper) onWhispered(reader io.Reader, fileName string) (string, error
 		req.Header.Set("Authorization", "Bearer "+uw.WhisperConfig.APIKey)
 	}
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: TIMEOUT * 2,
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		logrus.Debugf("Whisper: could not send request: %s, response: %+v", err, resp)

@@ -161,7 +161,6 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+authTokenFromModel(models.Engine(completion.Model)))
 
-	client := sse.NewClientFromReq(req)
 	messages := make(chan string)
 
 	go func() {
@@ -174,6 +173,7 @@ func (a *API) ChatCompleteStreaming(ctx context.Context, completion models.ChatM
 			config.CONFIG.DataDogClient.Timing("openai.chat_complete_streaming.latency", time.Since(timeNow), []string{"model:" + completion.Model}, 1)
 			config.CONFIG.DataDogClient.Timing("openai.chat_complete_streaming.latency_per_token", time.Since(timeNow), []string{"model:" + completion.Model}, float64(usage.Usage.CompletionTokens))
 		}()
+		client := sse.NewClientFromReq(req)
 		err := client.SubscribeWithContext(ctx, "", func(msg *sse.Event) {
 			var response models.ChatResponse
 			if msg.Data != nil && len(msg.Data) > 2 && string(msg.Data[:1]) == "[" && string(msg.Data) == "[DONE]" {

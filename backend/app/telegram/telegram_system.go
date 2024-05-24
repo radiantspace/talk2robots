@@ -36,6 +36,7 @@ const (
 	SYSTEMUsersCountCommand           Command = "/userscount"
 	SYSTEMUsersForSubscriptionCommand Command = "/usersforsubscription"
 	SYSTEMSendMessageToUsers          Command = "/sendmessagetousers"
+	SYSTEMSendMessageToAUser          Command = "/sendmessagetoauser"
 )
 
 var SystemCommandHandlers CommandHandlers = CommandHandlers{}
@@ -149,6 +150,7 @@ func setupSystemCommandHandlers() {
 		newCommandHandler(SYSTEMBanUserCommand, handleBanUser),
 		newCommandHandler(SYSTEMUnbanUserCommand, handleUnbanUser),
 		newCommandHandler(SYSTEMSendMessageToUsers, handleSendMessageToUsers),
+		newCommandHandler(SYSTEMSendMessageToAUser, handleSendMessageToAUser),
 	}
 }
 
@@ -315,7 +317,9 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 	notifiedUsersIds := []string{}
 
 	defer func() {
-		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Message sent to %.f users, %.f groups skipped, %.f error users skipped, %.f non-telegram users skipped", notifiedUsers, skippedGroupUsers, skippedErrorUsers, skippedNonTelegramUsers)))
+		message := fmt.Sprintf("Message sent to %.f users, %.f groups skipped, %.f error users skipped, %.f non-telegram users skipped", notifiedUsers, skippedGroupUsers, skippedErrorUsers, skippedNonTelegramUsers)
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, message))
+		log.Info("[SYSTEM] " + message)
 		config.CONFIG.DataDogClient.Incr("custom_message_sent_total", []string{}, notifiedUsers)
 		config.CONFIG.DataDogClient.Incr("custom_message_sent_groups_skipped", []string{}, skippedGroupUsers)
 		config.CONFIG.DataDogClient.Incr("custom_message_sent_non_telegram_users_skipped", []string{}, skippedNonTelegramUsers)
@@ -323,9 +327,9 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 
 		err := mongo.MongoDBClient.UpdateUsersNotified(context.Background(), notifiedUsersIds)
 		if err != nil {
-			log.Errorf("Failed to update users notified: %s", err)
+			log.Errorf("[SYSTEM] Failed to update users notified: %s", err)
 		} else {
-			log.Infof("%d users notified updated", len(notifiedUsersIds))
+			log.Infof("[SYSTEM] %d users notified updated", len(notifiedUsersIds))
 		}
 	}()
 
@@ -365,7 +369,7 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 				if strings.Contains(err.Error(), "bot was blocked by the user") || strings.Contains(err.Error(), "user is deactivated") {
 					notifiedUsersIds = append(notifiedUsersIds, user)
 				} else {
-					log.Errorf("Failed to send message to user %d: %v", userId, err)
+					log.Errorf("[SYSTEM] Failed to send message to user %d: %v", userId, err)
 				}
 			} else {
 				notifiedUsers++
@@ -374,11 +378,37 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 			}
 
 			if notifiedUsers >= float64(maximumUsers) {
-				log.Infof("Maximum users reached: %.f", notifiedUsers)
+				log.Infof("[SYSTEM] Maximum users reached with custom message: %.f", notifiedUsers)
 				return
 			}
 		}
 		time.Sleep(sleepBetweenPages)
 		page++
 	}
+}
+
+func handleSendMessageToAUser(ctx context.Context, bot *Bot, message *telego.Message) {
+	commandUsage := fmt.Sprintf("Usage: %s <user_id> <message>", SYSTEMSendMessageToAUser)
+	commandArray := strings.Split(message.Text, " ")
+	if len(commandArray) < 3 {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, commandUsage))
+		return
+	}
+	userId := commandArray[1]
+	userIdInt, err := strconv.ParseInt(userId, 10, 64)
+	if err != nil {
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, commandUsage))
+		return
+	}
+	messageText := strings.Join(commandArray[2:], " ")
+
+	_, err = BOT.SendMessage(tu.Message(tu.ID(userIdInt), messageText))
+	if err != nil {
+		log.Errorf("Failed to send message to user %s: %v", userId, err)
+		bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to send message to user %s: %v", userId, err)))
+		return
+	}
+
+	log.Infof("[SYSTEM] Message sent to user %s", userId)
+	bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Message sent to user %s", userId)))
 }
