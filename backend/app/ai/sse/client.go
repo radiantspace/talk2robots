@@ -144,7 +144,6 @@ func (c *Client) SubscribeWithContext(ctx context.Context, stream string, handle
 			case msg := <-eventChan:
 				handler(msg)
 			}
-			time.Sleep(200 * time.Millisecond)
 		}
 	}
 
