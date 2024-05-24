@@ -647,11 +647,11 @@ func IsCreateImageCommand(prompt string) bool {
 			return foundTrigger && !foundStop
 		}
 
-		if isClose(word, triggerWords, 0) {
+		if contains(triggerWords, word) {
 			foundTrigger = true
 		}
 
-		if isClose(word, stopWords, 0) {
+		if contains(stopWords, word) {
 			foundStop = true
 		}
 	}
@@ -659,37 +659,9 @@ func IsCreateImageCommand(prompt string) bool {
 	return foundTrigger && !foundStop
 }
 
-// Function to compute the Levenshtein distance between two strings
-func levenshteinDistance(s1, s2 string) int {
-	if len(s1) == 0 {
-		return len(s2)
-	}
-	if len(s2) == 0 {
-		return len(s1)
-	}
-
-	if s1[len(s1)-1] == s2[len(s2)-1] {
-		return levenshteinDistance(s1[:len(s1)-1], s2[:len(s2)-1])
-	}
-
-	a := levenshteinDistance(s1, s2[:len(s2)-1])             // Insertion
-	b := levenshteinDistance(s1[:len(s1)-1], s2)             // Deletion
-	c := levenshteinDistance(s1[:len(s1)-1], s2[:len(s2)-1]) // Substitution
-
-	// Return the min distance
-	if a < b && a < c {
-		return a + 1
-	} else if b < c {
-		return b + 1
-	} else {
-		return c + 1
-	}
-}
-
-// Helper function to check if a word is close to any word in a list
-func isClose(word string, list []string, maxDistance int) bool {
-	for _, item := range list {
-		if levenshteinDistance(word, item) <= maxDistance {
+func contains(arr []string, word string) bool {
+	for _, a := range arr {
+		if a == word {
 			return true
 		}
 	}
