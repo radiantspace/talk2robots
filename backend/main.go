@@ -25,7 +25,7 @@ import (
 	"github.com/fasthttp/router"
 	tu "github.com/mymmrac/telego/telegoutil"
 	log "github.com/sirupsen/logrus"
-	"github.com/stripe/stripe-go/v74"
+	"github.com/stripe/stripe-go/v78"
 	"github.com/valyala/fasthttp"
 )
 

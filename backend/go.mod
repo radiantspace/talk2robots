@@ -13,7 +13,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/slack-go/slack v0.12.3
 	github.com/stretchr/testify v1.9.0
-	github.com/stripe/stripe-go/v74 v74.18.0
+	github.com/stripe/stripe-go/v78 v78.8.0
 	github.com/undefinedlabs/go-mpatch v1.0.7
 	github.com/valyala/fasthttp v1.52.0
 	go.mongodb.org/mongo-driver v1.11.2

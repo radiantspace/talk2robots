@@ -23,7 +23,7 @@ import (
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
 	log "github.com/sirupsen/logrus"
-	"github.com/stripe/stripe-go/v74/customer"
+	"github.com/stripe/stripe-go/v78/customer"
 )
 
 const (
