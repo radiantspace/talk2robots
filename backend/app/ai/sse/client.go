@@ -144,6 +144,7 @@ func (c *Client) SubscribeWithContext(ctx context.Context, stream string, handle
 			case msg := <-eventChan:
 				handler(msg)
 			}
+			time.Sleep(200 * time.Millisecond)
 		}
 	}
 
@@ -268,7 +269,6 @@ func (c *Client) readLoop(reader *EventStreamReader, outCh chan *Event, erChan c
 			c.connectedcb(c)
 		}
 
-		// If we get an error, ignore it.
 		var msg *Event
 		if msg, err = c.processEvent(event); err == nil {
 			if len(msg.ID) > 0 {
@@ -281,6 +281,8 @@ func (c *Client) readLoop(reader *EventStreamReader, outCh chan *Event, erChan c
 			if msg.hasContent() {
 				outCh <- msg
 			}
+		} else {
+			erChan <- err
 		}
 	}
 }
@@ -397,6 +399,7 @@ func (c *Client) processEvent(msg []byte) (event *Event, err error) {
 		n, err := base64.StdEncoding.Decode(buf, e.Data)
 		if err != nil {
 			err = fmt.Errorf("failed to decode event message: %s", err)
+			log.Error(err)
 		}
 		e.Data = buf[:n]
 	}
