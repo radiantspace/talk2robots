@@ -37,6 +37,9 @@ func TestIsCreateImageCommandFalse(t *testing.T) {
 		"I'd like a video! Of a mountain",
 		"Don't you think this image is beautiful?",
 		"Can we talk about what you think about this image?",
+		`🗣:
+		Перечисли источники, из которых ты взял информацию.
+		`,
 	}
 
 	for _, prompt := range prompts {
