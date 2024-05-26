@@ -218,6 +218,7 @@ func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 		// this way we can immediately correlate subscription events to a user
 		params := &stripe.SubscriptionParams{}
 		params.AddMetadata(TelegramChatID, chatIDString)
+		params.AddMetadata(AppID, config.CONFIG.BotName)
 		_, err = subscription.Update(session.Subscription.ID, params)
 		if err != nil {
 			log.Errorf("Failed to update subscription metadata to add telegram chat id: %v, user_id: %s", err, chatIDString)
