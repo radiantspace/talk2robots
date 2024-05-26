@@ -57,11 +57,14 @@ func StripeWebhook(ctx *fasthttp.RequestCtx) {
 	switch event.Type {
 	case "checkout.session.expired":
 		// TODO: handle this event
-		log.Infof("Checkout session expired: %v", event.Data.Raw)
+		log.Debugf("Checkout session expired: %v", event.Data.Raw)
+		return
+	case "invoice.payment_succeeded":
+		log.Debugf("Invoice payment succeeded: %v", event.Data.Raw)
 		return
 	case "customer.subscription.created":
 		// we handle this event in handleCheckoutSessionCompleted
-		log.Infof("Customer subscription created: %v", event.Data.Raw)
+		log.Debugf("Customer subscription created: %v", event.Data.Raw)
 		return
 	case "checkout.session.completed":
 		var session stripe.CheckoutSession
@@ -71,7 +74,6 @@ func StripeWebhook(ctx *fasthttp.RequestCtx) {
 			ctx.Response.Header.SetStatusCode(http.StatusBadRequest)
 			return
 		}
-		log.Infof("Successful checkout session for %d.", session.AmountTotal)
 		handleCheckoutSessionCompleted(session)
 	case "customer.subscription.deleted":
 		var subscription stripe.Subscription
@@ -181,9 +183,10 @@ func StripeCancelSubscription(ctx context.Context, customerId string) error {
 func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 	// ignore sessions for other apps, if any
 	if session.Metadata[AppID] != config.CONFIG.BotName && session.Metadata[AppID] != "" {
-		log.Warnf("Ignoring checkout session %s for app %s", session.ID, session.Metadata[AppID])
+		log.Infof("Ignoring checkout session %s for app %s", session.ID, session.Metadata[AppID])
 		return
 	}
+	log.Infof("Successful checkout session for %d.", session.AmountTotal)
 	log.Infof("Processing checkout session %s, user_id: %s", session.ID, session.Metadata[TelegramChatID])
 	config.CONFIG.DataDogClient.Incr("stripe.checkout_session_completed", []string{"payment_status:" + string(session.PaymentStatus)}, 1)
 	chatIDString := session.Metadata[TelegramChatID]
@@ -242,7 +245,7 @@ func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 func handleCustomerSubscriptionDeleted(subscription stripe.Subscription) {
 	// ignore subscriptions for other apps, if any
 	if subscription.Metadata[AppID] != config.CONFIG.BotName && subscription.Metadata[AppID] != "" {
-		log.Warnf("Ignoring customer subscription %s for app %s", subscription.ID, subscription.Metadata[AppID])
+		log.Infof("Ignoring customer subscription %s for app %s", subscription.ID, subscription.Metadata[AppID])
 		return
 	}
 	log.Infof("Processing customer subscription deleted: %+v", subscription)
