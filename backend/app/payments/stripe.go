@@ -29,6 +29,8 @@ const (
 	// TestBasicPlanPriceId = "price_1N9MltLiy4WJgIwVyfxmfGGG"
 	BasicPlanPriceId = "price_1N9MjhLiy4WJgIwVLXPc41OQ"
 	ProPlanPriceId   = "price_1OoMCDLiy4WJgIwVhQml2Kxe"
+	TelegramChatID   = "telegram_chat_id"
+	AppID            = "app_id"
 )
 
 func StripeWebhook(ctx *fasthttp.RequestCtx) {
@@ -93,14 +95,15 @@ func StripeCreateCustomer(ctx context.Context, bot *telego.Bot, message *telego.
 	userName := config.CONFIG.BotName + ":" + userIDString
 	description := config.CONFIG.BotName + " telegram bot created customer: " + userIDString
 	if message.From != nil && message.From.Username != "" {
-		userName = message.From.Username + "," + userIDString
+		userName = userName + ":" + message.From.Username
 		description = message.From.FirstName + " " + message.From.LastName + ", " + config.CONFIG.BotName + " telegram bot created customer: " + userIDString
 	}
 	params := &stripe.CustomerParams{
 		Name:        stripe.String(userName),
 		Description: stripe.String(description),
 	}
-	params.AddMetadata("telegram_chat_id", userIDString)
+	params.AddMetadata(TelegramChatID, userIDString)
+	params.AddMetadata(AppID, config.CONFIG.BotName)
 
 	c, err := customer.New(params)
 	if err != nil {
@@ -125,7 +128,8 @@ func StripeCreateCheckoutSession(ctx context.Context, bot *telego.Bot, message *
 			},
 		},
 	}
-	params.AddMetadata("telegram_chat_id", util.GetChatIDString(message))
+	params.AddMetadata(TelegramChatID, util.GetChatIDString(message))
+	params.AddMetadata(AppID, config.CONFIG.BotName)
 	s, err := session.New(params)
 	if err != nil {
 		bot.SendMessage(tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
@@ -175,9 +179,14 @@ func StripeCancelSubscription(ctx context.Context, customerId string) error {
 }
 
 func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
-	log.Infof("Processing checkout session %s, user_id: %s", session.ID, session.Metadata["telegram_chat_id"])
+	// ignore sessions for other apps, if any
+	if session.Metadata[AppID] != config.CONFIG.BotName && session.Metadata[AppID] != "" {
+		log.Warnf("Ignoring checkout session %s for app %s", session.ID, session.Metadata[AppID])
+		return
+	}
+	log.Infof("Processing checkout session %s, user_id: %s", session.ID, session.Metadata[TelegramChatID])
 	config.CONFIG.DataDogClient.Incr("stripe.checkout_session_completed", []string{"payment_status:" + string(session.PaymentStatus)}, 1)
-	chatIDString := session.Metadata["telegram_chat_id"]
+	chatIDString := session.Metadata[TelegramChatID]
 	ctx := context.WithValue(context.Background(), models.UserContext{}, chatIDString)
 	ctx = context.WithValue(ctx, models.ClientContext{}, "telegram") //  TODO: fix for slack/other clients
 	chatIDInt64, err := strconv.ParseInt(chatIDString, 10, 64)
@@ -208,7 +217,7 @@ func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 		// update subscription metadata to include telegram chat id
 		// this way we can immediately correlate subscription events to a user
 		params := &stripe.SubscriptionParams{}
-		params.AddMetadata("telegram_chat_id", chatIDString)
+		params.AddMetadata(TelegramChatID, chatIDString)
 		_, err = subscription.Update(session.Subscription.ID, params)
 		if err != nil {
 			log.Errorf("Failed to update subscription metadata to add telegram chat id: %v, user_id: %s", err, chatIDString)
@@ -230,10 +239,15 @@ func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 }
 
 func handleCustomerSubscriptionDeleted(subscription stripe.Subscription) {
+	// ignore subscriptions for other apps, if any
+	if subscription.Metadata[AppID] != config.CONFIG.BotName && subscription.Metadata[AppID] != "" {
+		log.Warnf("Ignoring customer subscription %s for app %s", subscription.ID, subscription.Metadata[AppID])
+		return
+	}
 	log.Infof("Processing customer subscription deleted: %+v", subscription)
 	config.CONFIG.DataDogClient.Incr("stripe.customer_subscription_deleted", nil, 1)
 
-	chatIDString := subscription.Metadata["telegram_chat_id"]
+	chatIDString := subscription.Metadata[TelegramChatID]
 	if chatIDString == "" {
 		log.Errorf("handleCustomerSubscriptionDeleted: failed to get telegram_chat_id from Stripe subscription metadata, try to get from customer %s", subscription.Customer.ID)
 		customer, err := customer.Get(subscription.Customer.ID, nil)
@@ -241,7 +255,7 @@ func handleCustomerSubscriptionDeleted(subscription stripe.Subscription) {
 			log.Errorf("handleCustomerSubscriptionDeleted: failed to get customer %s from Stripe: %v", subscription.Customer.ID, err)
 			return
 		}
-		chatIDString = customer.Metadata["telegram_chat_id"]
+		chatIDString = customer.Metadata[TelegramChatID]
 	}
 
 	chatIDInt64, err := strconv.ParseInt(chatIDString, 10, 64)
