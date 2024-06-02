@@ -110,3 +110,12 @@ update-datadog: ## upgrade datadog
   	-n default \
 		--set MONGO_HOST=$(MONGO_HOST),MONGO_PASSWORD=$(DATADOG_MONGO_PASS) \
 		--values ./infra/observability/datadog.yaml
+
+
+.PHONY: mongo
+mongo: ## remind to curl ifconfig.me and open mongo
+	@echo '$(HEADER) mongo'
+	echo $$(curl ifconfig.me)
+	@echo 'remember to add the ip to the mongo whitelist at https://cloud.digitalocean.com/databases/'
+	connection_string=$$(kubectl get secret --namespace default admin -o jsonpath="{.data.mongo}" | base64 --decode) && \
+	mongo $${connection_string}

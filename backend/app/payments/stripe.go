@@ -55,12 +55,7 @@ func StripeWebhook(ctx *fasthttp.RequestCtx) {
 
 	// Unmarshal the event data into an appropriate struct depending on its Type
 	switch event.Type {
-	case "checkout.session.expired":
-		// TODO: handle this event
-		log.Debugf("Checkout session expired: %v", event.Data.Raw)
-		return
-	case "invoice.payment_succeeded":
-		log.Debugf("Invoice payment succeeded: %v", event.Data.Raw)
+	case "checkout.session.expired", "invoice.payment_succeeded", "payment_intent.succeeded":
 		return
 	case "customer.subscription.created":
 		// we handle this event in handleCheckoutSessionCompleted

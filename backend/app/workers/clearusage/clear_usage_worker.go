@@ -17,6 +17,7 @@ func Run() {
 	clearByWildcard(lib.UserTotalCostKey("*"))
 	clearByWildcard(lib.UserTotalAudioMinutesKey("*"))
 	clearByWildcard(lib.UserTotalTokensKey("*"))
+	clearByWildcard(lib.UserTotalImagesKey("*"))
 	log.Info("finished usage clearing")
 }
 

@@ -11,7 +11,7 @@ import (
 	"talk2robots/m/v2/app/config"
 )
 
-const DAY_FOR_MONTHLY_RUNS = 1
+const DAY_FOR_MONTHLY_RUNS = 2
 
 type Worker struct {
 	Interval             time.Duration
