@@ -31,10 +31,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetUser(t *testing.T) {
-	user := `{"_id":"292902807","subscription":"{
-    \"name\": \"basic\",
-    \"maximum_usage\": 9.99
-}","subscription_date":"2024-07-07","last_used_at":"2024-07-07T12:46:05","usage":0.2007462}`
 	uri := MockMongoServer.URIWithRandomDB()
 
 	// parse db name from uri
@@ -45,13 +41,15 @@ func TestGetUser(t *testing.T) {
 
 	MockMongoDBClient := NewClient(uri)
 
-	userBson := bson.M{}
-	err := bson.UnmarshalExtJSON([]byte(user), true, &userBson)
-	if err != nil {
-		t.Fatalf("error unmarshalling user: %v", err)
+	userBson := bson.M{
+		"_id":             "292902807",
+		"subscription":    bson.M{"name": "free+", "maximum_usage": 9.99},
+		"subscription_at": "2024-04-30T07:50:07.210Z",
+		"updated_at":      "2024-04-31T20:41:41.400Z",
+		"usage":           0.2004772,
 	}
 
-	_, err = MockMongoDBClient.Database(dbName).Collection(MongoUserCollection).InsertOne(context.Background(), userBson)
+	_, err := MockMongoDBClient.Database(dbName).Collection(MongoUserCollection).InsertOne(context.Background(), userBson)
 
 	if err != nil {
 		t.Fatalf("error inserting user: %v", err)
