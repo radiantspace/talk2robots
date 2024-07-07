@@ -75,8 +75,8 @@ func ProcessThreadedStreamingMessage(
 	chatIDString := util.GetChatIDString(message)
 	topicID := util.GetTopicID(message)
 
-	if ai.IsFireworksAI(engineModel) {
-		ProcessChatCompleteStreamingMessage(ctx, bot, message, []models.Message{}, "", mode, engineModel, cancelContext)
+	if ai.IsFireworksAI(engineModel) || ai.IsClaudeAI(engineModel) {
+		ProcessStreamingMessageWithLocalThreads(ctx, bot, message, []models.Message{}, "", mode, engineModel, cancelContext)
 		return
 	}
 
@@ -320,12 +320,12 @@ func prepareMessages(
 		return messages, engineModel, nil
 	}
 
-	photoBase64, err := getPhotoBase64(message, ctx, bot)
+	photoMultiModelContent, err := getPhotoBase64(message, ctx, bot)
 	if err != nil {
 		if strings.Contains(err.Error(), "free plan") {
 			bot.SendMessage(&telego.SendMessageParams{
 				ChatID:          chatID,
-				Text:            "Image vision is not currently available on free plans, since it's kinda expensive. Check /upgrade options to use this feature.",
+				Text:            "Image vision is not currently available on free plans. Check /upgrade options to use this feature.",
 				MessageThreadID: message.MessageThreadID,
 			})
 		} else {
@@ -339,56 +339,68 @@ func prepareMessages(
 	}
 
 	messages = append(messages, models.MultimodalMessage{
-		Role: "user",
-		Content: []models.MultimodalContent{
-			{
-				Type: "text",
-				Text: userMessagePrimer + message.Text + "\n" + message.Caption,
-			},
-			{
-				Type: "image_url",
-				ImageURL: struct {
-					URL string `json:"url"`
-				}{
-					URL: fmt.Sprintf("data:image/jpeg;base64,%s", photoBase64),
-				},
-			},
-		},
+		Role:    "user",
+		Content: photoMultiModelContent,
 	})
 
 	return messages, models.ChatGpt4o, nil
 }
 
-func getPhotoBase64(message *telego.Message, ctx context.Context, bot *telego.Bot) (photoBase64 string, err error) {
+func getPhotoBase64(message *telego.Message, ctx context.Context, bot *telego.Bot) (photoMultiModelContent []models.MultimodalContent, err error) {
 	chatIDString := util.GetChatIDString(message)
-	// photo message detected, check user's subscription status
-	if lib.IsUserFree(ctx) || lib.IsUserFreePlus(ctx) {
-		return "", fmt.Errorf("user %s tried to use image vision on free plan", chatIDString)
+	photoMultiModelContent = make([]models.MultimodalContent, 0)
+	for i, photoSize := range message.Photo {
+		// skip all photos but last for now
+		if i != len(message.Photo)-1 {
+			continue
+		}
+
+		photoWidth := photoSize.Width
+		log.Infof("Got photo from chat %s, width: %d, height: %d, kbytes: %.1fk", chatIDString, photoWidth, photoSize.Height, float64(photoSize.FileSize/1024))
+		var photoFile *telego.File
+		photoFile, err = bot.GetFile(&telego.GetFileParams{FileID: photoSize.FileID})
+		if err != nil {
+			err = fmt.Errorf("failed to get image file params in chat %s: %s", chatIDString, err)
+			continue
+		}
+		fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token(), photoFile.FilePath)
+
+		var photoResponse *http.Response
+		photoResponse, err = http.Get(fileURL)
+		if err != nil {
+			err = fmt.Errorf("error downloading image file in chat %s: %v", chatIDString, err)
+			continue
+		}
+		defer photoResponse.Body.Close()
+
+		photoBytes := make([]byte, photoResponse.ContentLength)
+		_, err = io.ReadFull(photoResponse.Body, photoBytes)
+		if err != nil {
+			err = fmt.Errorf("error reading image file in chat %s: %v", chatIDString, err)
+			continue
+		}
+		// resizedPhotoBytes, err := util.ResizeImage(photoBytes, math.Min(float64(photoWidth), 1024))
+		// if err != nil {
+		// 	return "", fmt.Errorf("error resizing image file in chat %s: %v", chatIDString, err)
+		// }
+
+		// if len(resizedPhotoBytes) < len(photoBytes) {
+		// 	return base64.StdEncoding.EncodeToString(resizedPhotoBytes), nil
+		// }
+		// log.Infof("Resized photo is larger than original (%.1fk), sending original photo in chat %s", float64(len(resizedPhotoBytes)/1024), chatIDString)
+
+		photoBase64 := base64.StdEncoding.EncodeToString(photoBytes)
+		photoMultiModelContent = append(photoMultiModelContent, models.MultimodalContent{
+			Type: "image_url",
+			ImageURL: &struct {
+				URL string `json:"url,omitempty"`
+			}{
+				URL: fmt.Sprintf("data:image/jpeg;base64,%s", photoBase64),
+			},
+		})
 	}
 
-	// get the last image for now
-	photo := message.Photo
-	photoSize := photo[len(photo)-1]
-	var photoFile *telego.File
-	photoFile, err = bot.GetFile(&telego.GetFileParams{FileID: photoSize.FileID})
-	if err != nil {
-		return "", fmt.Errorf("failed to get image file params in chat %s: %s", chatIDString, err)
-	}
-	fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token(), photoFile.FilePath)
-
-	var photoResponse *http.Response
-	photoResponse, err = http.Get(fileURL)
-	if err != nil {
-		return "", fmt.Errorf("error downloading image file in chat %s: %v", chatIDString, err)
-	}
-	defer photoResponse.Body.Close()
-
-	photoBytes := make([]byte, photoResponse.ContentLength)
-	_, err = io.ReadFull(photoResponse.Body, photoBytes)
-	if err != nil {
-		return "", fmt.Errorf("error reading image file in chat %s: %v", chatIDString, err)
-	}
-	return base64.StdEncoding.EncodeToString(photoBytes), nil
+	return photoMultiModelContent, nil
 }
 
 func createThreadMessageWithRetries(
@@ -501,9 +513,14 @@ func ChunkEditSendMessage(
 				MessageID:   messageID,
 				Text:        chunk,
 				ReplyMarkup: markup,
-				ParseMode:   "HTML",
+				ParseMode:   "MarkdownV2",
 			}
 			_, err = bot.EditMessageText(params)
+
+			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
+				params.ParseMode = "HTML"
+				_, err = bot.EditMessageText(params)
+			}
 
 			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
 				params.ParseMode = ""
@@ -513,7 +530,11 @@ func ChunkEditSendMessage(
 			time.Sleep(1 * time.Second) // sleep to prevent rate limiting
 		} else {
 			log.Debugf("[ChunkEditSendMessage] chunk %d (size %d) - sending new message in chat %s", i, len(chunk), chatID)
-			lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithParseMode("HTML").WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
+			lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithParseMode("MarkdownV2").WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
+
+			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
+				lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithParseMode("HTML").WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
+			}
 
 			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
 				lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))

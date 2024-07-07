@@ -89,3 +89,10 @@ vars:
     apiVersion: v1
     kind: ConfigMap
     name: environment-variables
+- fieldref:
+    fieldPath: data.CLAUDE_API_KEY
+  name: CLAUDE_API_KEY
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables

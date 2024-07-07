@@ -16,6 +16,7 @@ type SystemStatus struct {
 	Redis       *Status     `json:"redis"`
 	OpenAI      *Status     `json:"openai"`
 	FireworksAI *Status     `json:"fireworksai"`
+	ClaudeAI    *Status     `json:"claudeai"`
 	Time        time.Time   `json:"time"`
 	Usage       SystemUsage `json:"usage"`
 }
@@ -87,6 +88,9 @@ func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
 		},
 		FireworksAI: &Status{
 			Available: h.AI != nil && h.AI.IsAvailable(aiContext, models.LlamaV3_8b),
+		},
+		ClaudeAI: &Status{
+			Available: h.AI != nil && h.AI.IsAvailable(aiContext, models.Haiku3),
 		},
 		Usage: SystemUsage{},
 		Time:  time.Now(),

@@ -29,3 +29,11 @@ type MongoInvoice struct {
 }
 
 type MongoSubscriptionName string
+
+type MongoUserThread struct {
+	ID         string `bson:"_id"`
+	CreatedAt  string `bson:"created_at"`
+	ThreadJson string `bson:"thread_json"`
+	UpdateAt   string `bson:"updated_at"`
+	UserId     string `bson:"user_id"`
+}

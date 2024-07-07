@@ -41,10 +41,10 @@ in Slack:
 - [x] Video/Audio transcription
 - [x] Video/Audio summary
 - [x] Voice response (OpenAI TTS)
-- [x] Threads, i.e. context awareness and memory (OpenAI Assistant Threads)
-- [ ] Image recognition
-- [x] Image generation
-
+- [x] Threads, i.e. context awareness and memory (OpenAI Assistant Threads, Mongo DB persistent threads)
+- [x] Image recognition
+- [x] Image generation (OpenAI DALL-E)
+- [ ] Document/PDF reading and reasoning
 
 ## Telegram Features
 
@@ -76,7 +76,7 @@ https://github.com/radiantspace/talk2robots/assets/8243681/3cfd47c4-55ed-4eb3-9f
 ## Slack Features
 
 - [x] Chat in DM, private and public channels and/or threads
-- [x] Chat with GPT-3.5 `/chatgpt`. The bot remembers the context of the conversation until you say `/clear`.
+- [x] Chat `/chatgpt`. The bot remembers the context of the conversation until you say `/clear`.
 - [x] Use `/grammar` mode just to correct grammar, you can also add :eyeglasses: emoji to a message to get grammar correction reply
 - [x] Summarize message thread by adding :memo: emoji to a message
 - [ ] Use `/teacher` mode to correct and explain grammar
@@ -102,6 +102,8 @@ https://github.com/radiantspace/talk2robots/assets/8243681/c5805c11-716b-47ab-9f
 - [x] Get user info `/user`
 - [x] Get users count `/userscount`
 - [x] Get users count for a subscription `/usersforsubscription`
+- [x] `/sendmessagetoauser` to send a message to a user
+- [x] `/sendmessagetousers` to send a message to users (e.g. to notify about maintenance or marketing)
 
 
 ## 🏗️ Architecture overview
@@ -135,6 +137,7 @@ graph LR
 
     A[Backend] <--> D[OpenAI API]
     A[Backend] <--> E[FireworksAI API]
+    A[Backend] <--> I[ClaudeAI API]
     A[Backend] -.-> P[DataDog] 
     A[Backend] <-.-> N[Stripe]
 

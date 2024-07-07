@@ -139,9 +139,10 @@ type MultimodalMessage struct {
 type MultimodalContent struct {
 	Type     string `json:"type"`
 	Text     string `json:"text,omitempty"`
-	ImageURL struct {
-		URL string `json:"url"`
+	ImageURL *struct {
+		URL string `json:"url,omitempty"`
 	} `json:"image_url,omitempty"`
+	Source *ClaudeImageSource `json:"source,omitempty"`
 }
 
 // ChatResponse is a type for OpenAI API chat response

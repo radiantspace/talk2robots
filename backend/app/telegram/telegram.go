@@ -194,27 +194,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	voiceTranscriptionText := ""
 	// if the message is voice/audio/video message, process it to upload to WhisperAI API and get the transcription
-	if message.Voice != nil || message.Audio != nil || message.Video != nil || message.VideoNote != nil || message.Document != nil {
-		voice_type := "voice"
-		switch {
-		case message.Audio != nil:
-			voice_type = "audio"
-		case message.Video != nil:
-			voice_type = "video"
-		case message.VideoNote != nil:
-			voice_type = "note"
-		case message.Document != nil:
-			voice_type = "document"
-
-			if !strings.HasPrefix(message.Document.MimeType, "audio/") && !strings.HasPrefix(message.Document.MimeType, "video/") {
-				log.Warnf("Ignoring non-audio document message in chat %s, mimetype: %s", chatIDString, message.Document.MimeType)
-
-				if isPrivate {
-					bot.SendMessage(tu.Message(chatID, "I don't support non-audio documents yet, stay tuned for updates.").WithMessageThreadID(message.MessageThreadID))
-				}
-				return
-			}
-		}
+	if ok, voice_type := util.IsAudioMessage(&message); ok {
 		config.CONFIG.DataDogClient.Incr("telegram.voice_message_received", []string{"type:" + voice_type, "channel_type:" + message.Chat.Type}, 1)
 
 		// send typing action to show that bot is working
@@ -237,6 +217,8 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 				return
 			}
 		}
+	} else if message.Text != "" {
+		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
 	}
 
 	if mode == lib.Transcribe {
@@ -249,13 +231,6 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 
 	if mode != lib.VoiceGPT && !(mode == lib.Grammar && !isPrivate) && voiceTranscriptionText != "" {
 		ChunkSendMessage(bot, &message, "🗣:\n"+voiceTranscriptionText)
-	}
-
-	if message.Text != "" {
-		config.CONFIG.DataDogClient.Incr("telegram.text_message_received", []string{"channel_type:" + message.Chat.Type}, 1)
-	} else {
-		log.Infof("Ignoring empty message in chat: %s", chatIDString)
-		return
 	}
 
 	if IsCreateImageCommand(message.Text) {
@@ -346,6 +321,14 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	switch callbackQuery.Data {
 	case "like":
 		log.Infof("User %d liked a message in chat %d.", userId, chatId)
+		_, err := bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+			ChatID:      chat.ChatID(),
+			MessageID:   messageId,
+			ReplyMarkup: nil,
+		})
+		if err != nil {
+			log.Errorf("[like] Failed to edit message reply markup in chat %d: %v", chatId, err)
+		}
 		config.CONFIG.DataDogClient.Incr("telegram.like", []string{"channel_type:" + chatType}, 1)
 		bot.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
@@ -353,6 +336,14 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 		})
 	case "dislike":
 		log.Infof("User %d disliked a message in chat %d.", userId, chatId)
+		_, err := bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+			ChatID:      chat.ChatID(),
+			MessageID:   messageId,
+			ReplyMarkup: nil,
+		})
+		if err != nil {
+			log.Errorf("[like] Failed to edit message reply markup in chat %d: %v", chatId, err)
+		}
 		config.CONFIG.DataDogClient.Incr("telegram.dislike", []string{"channel_type:" + chatType}, 1)
 		bot.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
@@ -378,7 +369,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			MessageID:   messageId,
 			ReplyMarkup: GetStatusKeyboard(ctx),
 		})
-	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.ChatGpt4Turbo), string(models.ChatGpt4TurboVision), string(models.LlamaV3_8b), string(models.LlamaV3_70b):
+	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.ChatGpt4Turbo), string(models.ChatGpt4TurboVision), string(models.LlamaV3_8b), string(models.LlamaV3_70b), string(models.Sonet35), string(models.Haiku3), string(models.Opus3):
 		handleEngineSwitchCallbackQuery(callbackQuery, topicString)
 	case string(models.DallE3), string(models.Midjourney6), string(models.StableDiffusion3), string(models.Playground25):
 		handleImageModelSwitchCallbackQuery(callbackQuery, topicString)
@@ -467,7 +458,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 	}
 	if callbackQuery.Data == string(models.LlamaV3_8b) {
 		go redis.SaveModel(chatIDString, models.LlamaV3_8b)
-		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to small Llama3 model, fast and cheap! Note that /chatgpt and /voicegpt modes don't have context awareness (memory) when using Llama models at the moment.").WithMessageThreadID(topicID))
+		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to small Llama3 model, fast and cheap!").WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send Llama3 small message: %v", err)
 		}
@@ -525,9 +516,39 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		}
 		return
 	}
+	if callbackQuery.Data == string(models.Sonet35) || callbackQuery.Data == string(models.Haiku3) || callbackQuery.Data == string(models.Opus3) {
+		// fetch user subscription
+		user, err := mongo.MongoDBClient.GetUser(ctx)
+		if err != nil {
+			log.Errorf("Failed to get user: %v", err)
+			BOT.SendMessage(tu.Message(tu.ID(chatID), fmt.Sprintf("Failed to switch to %s model, please try again later", callbackQuery.Data)).WithMessageThreadID(topicID))
+			return
+		}
+		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
+			notification := fmt.Sprintf("To use %s models check available /upgrade options! Meanwhile, you can still use GPT-3.5 Turbo, it's fast, cheap and quite smart.", "Claude AI")
+			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+			BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+			return
+		}
+		go redis.SaveModel(chatIDString, models.Engine(callbackQuery.Data))
+		notification := fmt.Sprintf("Switched to %s model! Don't forget to check /status regularly to avoid hitting the usage cap.", callbackQuery.Data)
+		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+		if err != nil {
+			log.Errorf("handleEngineSwitchCallbackQuery failed to send Claude AI message: %v", err)
+		}
+		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+			CallbackQueryID: callbackQuery.ID,
+			Text:            "Switched to " + callbackQuery.Data + " engine!",
+		})
+		if err != nil {
+			log.Errorf("handleEngineSwitchCallbackQuery failed to answer callback query: %v", err)
+		}
+		return
+	}
 	if callbackQuery.Data == string(models.LlamaV3_70b) {
 		go redis.SaveModel(chatIDString, models.LlamaV3_70b)
-		notification := "Switched to big Llama3 model, intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap. Note that /chatgpt and /voicegpt modes don't have context awareness (memory) when using Llama models at the moment."
+		notification := "Switched to big Llama3 model, intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap."
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 		if err != nil {
@@ -605,7 +626,7 @@ func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
 		Messages: []models.Message{
 			{
 				Role:    "system",
-				Content: openai.AssistantInstructions,
+				Content: config.AI_INSTRUCTIONS,
 			},
 			{
 				Role:    "user",

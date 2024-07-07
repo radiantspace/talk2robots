@@ -41,12 +41,12 @@ func main() {
 	}
 
 	config.CONFIG = &config.Config{
-		BotUrl: "https://t.me/gienjibot",
-		// ClaudeAPIKey:    util.Env("CLAUDE_API_KEY"),
+		BotUrl:          "https://t.me/gienjibot",
 		DataDogClient:   dataDogClient,
 		Environment:     env,
 		OpenAIAPIKey:    util.Env("OPENAI_API_KEY"),
 		FireworksAPIKey: util.Env("FIREWORKS_API_KEY"),
+		ClaudeAPIKey:    util.Env("CLAUDE_API_KEY"),
 		Redis: config.Redis{
 			Host:     util.Env("REDIS_HOST"),
 			Port:     "6379",
@@ -79,6 +79,7 @@ func main() {
 			FullTimestamp: true,
 			DisableColors: false,
 		})
+		log.SetLevel(log.TraceLevel)
 	}
 
 	redis.RedisClient = redis.NewClient(config.CONFIG.Redis)

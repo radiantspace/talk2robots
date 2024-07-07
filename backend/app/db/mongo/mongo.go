@@ -2,7 +2,9 @@ package mongo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/models"
 	"time"
@@ -19,6 +21,14 @@ type Client struct {
 	*mongo.Client
 }
 
+const (
+	// MongoUserCollection is the name of the collection that stores user data
+	MongoUserCollection = "users"
+
+	// MongoUserThreadCollection is the name of the collection that stores user thread data
+	MongoUserThreadCollection = "user_threads"
+)
+
 type MongoClient interface {
 	Disconnect(ctx context.Context) error
 	GetUser(ctx context.Context) (*models.MongoUser, error)
@@ -34,6 +44,12 @@ type MongoClient interface {
 	UpdateUserUsage(ctx context.Context, userTotalCost float64) error
 	UpdateUserStripeCustomerId(ctx context.Context, stripeCustomerId string) error
 	UpdateUsersNotified(ctx context.Context, userIds []string) error
+
+	// threads
+	AddToUserThread(ctx context.Context, thread *models.MongoUserThread, message *models.MultimodalMessage, userInfo string) error
+	DeleteUserThread(ctx context.Context) error
+	GetUserThread(ctx context.Context) (*models.MongoUserThread, error)
+	UpdateUserThread(ctx context.Context, thread *models.MongoUserThread) error
 }
 
 var MongoDBClient MongoClient
@@ -63,7 +79,7 @@ func mustConnect(connection string) *mongo.Client {
 
 func (c *Client) GetUser(ctx context.Context) (*models.MongoUser, error) {
 	userId := ctx.Value(models.UserContext{}).(string)
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 	filter := bson.M{"_id": userId}
 	var user models.MongoUser
 	err := collection.FindOne(ctx, filter).Decode(&user)
@@ -74,7 +90,7 @@ func (c *Client) GetUser(ctx context.Context) (*models.MongoUser, error) {
 }
 
 func (c *Client) GetUsersCount(ctx context.Context) (int64, error) {
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 	count, err := collection.CountDocuments(ctx, bson.M{})
 	if err != nil {
 		return 0, fmt.Errorf("GetUsersCount: failed to get users count: %w", err)
@@ -83,7 +99,7 @@ func (c *Client) GetUsersCount(ctx context.Context) (int64, error) {
 }
 
 func (c *Client) GetUsersCountForSubscription(ctx context.Context, subscription string) (int64, error) {
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 	count, err := collection.CountDocuments(ctx, bson.M{"subscription.name": subscription})
 	if err != nil {
 		return 0, fmt.Errorf("GetUsersCountForSubscription: failed to get users count: %w", err)
@@ -93,7 +109,7 @@ func (c *Client) GetUsersCountForSubscription(ctx context.Context, subscription 
 
 func (c *Client) UpdateUserSubscription(ctx context.Context, subscription models.MongoSubscription) error {
 	userId := ctx.Value(models.UserContext{}).(string)
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 
 	filter := bson.M{"_id": userId}
 	var update bson.M
@@ -116,7 +132,7 @@ func (c *Client) UpdateUserSubscription(ctx context.Context, subscription models
 
 func (c *Client) UpdateUserUsage(ctx context.Context, newUsage float64) error {
 	userId := ctx.Value(models.UserContext{}).(string)
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 
 	filter := bson.M{"_id": userId}
 	var update bson.M
@@ -142,7 +158,7 @@ func (c *Client) UpdateUsersNotified(ctx context.Context, userIds []string) erro
 		return nil
 	}
 
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 
 	filter := bson.M{"_id": bson.M{"$in": userIds}}
 	update := bson.M{
@@ -158,7 +174,7 @@ func (c *Client) UpdateUsersNotified(ctx context.Context, userIds []string) erro
 
 func (c *Client) UpdateUserContacts(ctx context.Context, name, phone, email string) error {
 	userId := ctx.Value(models.UserContext{}).(string)
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 
 	filter := bson.M{"_id": userId}
 	update := bson.M{
@@ -175,7 +191,7 @@ func (c *Client) UpdateUserContacts(ctx context.Context, name, phone, email stri
 }
 
 func (c *Client) MigrateUsersToSubscription(ctx context.Context, from, to string) error {
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 	filter := bson.M{"subscription.name": from}
 
 	var update bson.M
@@ -200,7 +216,7 @@ func (c *Client) MigrateUsersToSubscription(ctx context.Context, from, to string
 
 func (c *Client) UpdateUserStripeCustomerId(ctx context.Context, stripeCustomerId string) error {
 	userId := ctx.Value(models.UserContext{}).(string)
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 
 	filter := bson.M{"_id": userId}
 	update := bson.M{
@@ -215,7 +231,7 @@ func (c *Client) UpdateUserStripeCustomerId(ctx context.Context, stripeCustomerI
 }
 
 func (c *Client) GetUserIds(ctx context.Context, page int, pageSize int) ([]string, error) {
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 	findOptions := options.Find()
 	findOptions.SetSkip(int64(page * pageSize))
 	findOptions.SetLimit(int64(pageSize))
@@ -238,7 +254,7 @@ func (c *Client) GetUserIds(ctx context.Context, page int, pageSize int) ([]stri
 }
 
 func (c *Client) GetUserIdsUsedSince(ctx context.Context, since time.Time, page int, pageSize int) ([]string, error) {
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 	findOptions := options.Find()
 	findOptions.SetSkip(int64(page * pageSize))
 	findOptions.SetLimit(int64(pageSize))
@@ -265,7 +281,7 @@ func (c *Client) GetUserIdsUsedSince(ctx context.Context, since time.Time, page 
 }
 
 func (c *Client) GetUserIdsNotifiedBefore(ctx context.Context, before time.Time, page int, pageSize int) ([]string, error) {
-	collection := c.Database(config.CONFIG.MongoDBName).Collection("users")
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
 	findOptions := options.Find()
 	findOptions.SetSkip(int64(page * pageSize))
 	findOptions.SetLimit(int64(pageSize))
@@ -290,4 +306,118 @@ func (c *Client) GetUserIdsNotifiedBefore(ctx context.Context, before time.Time,
 		userIds = append(userIds, user.ID)
 	}
 	return userIds, nil
+}
+
+func (c *Client) GetUserThread(ctx context.Context) (*models.MongoUserThread, error) {
+	userId := ctx.Value(models.UserContext{}).(string)
+	if userId == "" {
+		return nil, fmt.Errorf("GetUserThread: user ID is required")
+	}
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserThreadCollection)
+	filter := bson.M{"user_id": userId}
+	var userThread models.MongoUserThread
+	err := collection.FindOne(ctx, filter).Decode(&userThread)
+	if err != nil {
+		return nil, fmt.Errorf("GetUserThread: failed to find user thread: %w", err)
+	}
+	return &userThread, nil
+}
+
+func (c *Client) UpdateUserThread(ctx context.Context, thread *models.MongoUserThread) error {
+	userId := ctx.Value(models.UserContext{}).(string)
+	if thread.UserId == "" {
+		thread.UserId = userId
+	}
+
+	if thread == nil || thread.ThreadJson == "" {
+		return nil
+	}
+
+	if thread.UserId == "" {
+		return fmt.Errorf("UpdateUserThread: user ID is required")
+	}
+
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserThreadCollection)
+	filter := bson.M{"user_id": thread.UserId}
+	update := bson.M{
+		"$set": bson.M{
+			"updated_at":  time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+			"thread_json": thread.ThreadJson,
+		},
+	}
+
+	// only update created_at if it doesn't exist
+	if thread.CreatedAt != "" {
+		update["$set"].(bson.M)["created_at"] = thread.CreatedAt
+	}
+
+	options := options.Update().SetUpsert(true)
+	_, err := collection.UpdateMany(ctx, filter, update, options)
+	return err
+}
+
+func (c *Client) DeleteUserThread(ctx context.Context) error {
+	userId := ctx.Value(models.UserContext{}).(string)
+	if userId == "" {
+		return fmt.Errorf("DeleteUserThread: user ID is required")
+	}
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserThreadCollection)
+	filter := bson.M{"user_id": userId}
+	_, err := collection.DeleteMany(ctx, filter)
+	return err
+}
+
+func (c *Client) AddToUserThread(ctx context.Context, thread *models.MongoUserThread, message *models.MultimodalMessage, userInfo string) error {
+	userId := ctx.Value(models.UserContext{}).(string)
+	if message == nil {
+		return fmt.Errorf("AddToUserThread: message is required")
+	}
+
+	var messages []models.MultimodalMessage
+	if thread == nil {
+		// fetch the thread
+		dbThread, err := c.GetUserThread(ctx)
+		if err == nil {
+			thread = dbThread
+		} else {
+			// follow up even if there is no thread
+			if strings.Contains(err.Error(), "no documents in result") {
+				messages = []models.MultimodalMessage{
+					{
+						Role:    "system",
+						Content: []models.MultimodalContent{{Type: "text", Text: config.AI_INSTRUCTIONS}},
+					},
+				}
+				if userInfo != "" {
+					messages[0].Content = append(messages[0].Content, models.MultimodalContent{Type: "text", Text: userInfo})
+				}
+				threadBytes, err := json.Marshal(messages)
+				if err != nil {
+					return fmt.Errorf("AddToUserThread: failed to marshal messages: %w", err)
+				}
+				thread = &models.MongoUserThread{
+					UserId:     userId,
+					ThreadJson: string(threadBytes),
+					CreatedAt:  time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+				}
+			} else {
+				return fmt.Errorf("AddToUserThread: failed to get user thread: %w", err)
+			}
+		}
+	}
+
+	err := json.Unmarshal([]byte(thread.ThreadJson), &messages)
+	if err != nil {
+		return fmt.Errorf("AddToUserThread: failed to unmarshal thread: %w", err)
+	}
+
+	messages = append(messages, *message)
+
+	threadBytes, err := json.Marshal(messages)
+	if err != nil {
+		return fmt.Errorf("AddToUserThread: failed to marshal messages: %w", err)
+	}
+	thread.ThreadJson = string(threadBytes)
+
+	return c.UpdateUserThread(ctx, thread)
 }

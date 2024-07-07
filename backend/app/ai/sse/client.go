@@ -127,8 +127,10 @@ func (c *Client) SubscribeWithContext(ctx context.Context, stream string, handle
 				return err
 			}
 		} else if resp.StatusCode != 200 {
+			decodedBody := new(bytes.Buffer)
+			size, _ := decodedBody.ReadFrom(resp.Body)
 			resp.Body.Close()
-			err = fmt.Errorf("could not connect to stream for %s: %s", userId, http.StatusText(resp.StatusCode))
+			err = fmt.Errorf("could not connect to %s stream for %s: %s, body: %s, size: %d", resp.Request.URL.String(), userId, http.StatusText(resp.StatusCode), decodedBody.String(), size)
 			log.Error(err)
 			return err
 		}

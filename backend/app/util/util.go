@@ -112,3 +112,27 @@ func ChunkString(s string, chunkSize int) []string {
 	}
 	return chunks
 }
+
+func IsAudioMessage(message *telego.Message) (bool, string) {
+	if message.Voice != nil || message.Audio != nil || message.Video != nil || message.VideoNote != nil || message.Document != nil {
+		voice_type := "voice"
+		switch {
+		case message.Audio != nil:
+			voice_type = "audio"
+		case message.Video != nil:
+			voice_type = "video"
+		case message.VideoNote != nil:
+			voice_type = "note"
+		case message.Document != nil:
+			voice_type = "document"
+
+			if !strings.HasPrefix(message.Document.MimeType, "audio/") && !strings.HasPrefix(message.Document.MimeType, "video/") {
+				chatIDString := GetChatIDString(message)
+				log.Warnf("Ignoring non-audio document message in chat %s, mimetype: %s", chatIDString, message.Document.MimeType)
+				return false, ""
+			}
+		}
+		return true, voice_type
+	}
+	return false, ""
+}

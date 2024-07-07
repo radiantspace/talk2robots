@@ -376,25 +376,35 @@ func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Me
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
 	topicIDString := util.GetTopicID(message)
-	threadId, _ := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString, topicIDString)).Result()
-	if threadId == "" {
-		_, err := bot.SendMessage(tu.Message(chatID, "There is no thread to clear.").WithMessageThreadID(message.MessageThreadID))
-		if err != nil {
-			log.Errorf("Failed to send ClearThreadCommand message: %v", err)
-		}
-		return
-	}
 
-	redis.RedisClient.Del(ctx, lib.UserCurrentThreadKey(chatIDString, topicIDString))
-	redis.RedisClient.Del(ctx, lib.UserCurrentThreadPromptKey(chatIDString, topicIDString))
-	_, err := openai.DeleteThread(ctx, threadId)
-	if err != nil {
-		log.Errorf("Failed to clear thread: %v", err)
-	}
-	_, err = bot.SendMessage(tu.Message(chatID, "Thread cleared.").WithMessageThreadID(message.MessageThreadID))
+	_, err := bot.SendMessage(tu.Message(chatID, "All memory cleared!").WithMessageThreadID(message.MessageThreadID))
 	if err != nil {
 		log.Errorf("Failed to send ClearThreadCommand message: %v", err)
 	}
+
+	// clear local thread
+	go func() {
+		err := mongo.MongoDBClient.DeleteUserThread(context.WithValue(context.Background(), models.UserContext{}, chatIDString))
+		if err != nil {
+			log.Errorf("Failed to clear local thread in chat %s: %v", chatIDString, err)
+			return
+		}
+	}()
+
+	// clear OpenAI thread
+	go func() {
+		threadId, _ := redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(chatIDString, topicIDString)).Result()
+		if threadId == "" {
+			return
+		}
+
+		redis.RedisClient.Del(ctx, lib.UserCurrentThreadKey(chatIDString, topicIDString))
+		redis.RedisClient.Del(ctx, lib.UserCurrentThreadPromptKey(chatIDString, topicIDString))
+		_, err = openai.DeleteThread(ctx, threadId)
+		if err != nil {
+			log.Errorf("Failed to clear OpenAI thread: %v", err)
+		}
+	}()
 }
 
 func validateParams(mode lib.ModeName, params string) string {

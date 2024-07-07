@@ -59,3 +59,11 @@ func IsFireworksAI(model models.Engine) bool {
 
 	return false
 }
+
+func IsClaudeAI(model models.Engine) bool {
+	if model == models.Sonet35 || model == models.Haiku3 || model == models.Opus3 {
+		return true
+	}
+
+	return false
+}

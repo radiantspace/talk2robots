@@ -30,6 +30,7 @@ func Run() {
 func FetchStatus() (string, error) {
 	w := WORKER
 	systemStatus := status.New(mongo.MongoDBClient, redis.RedisClient, w.AI).GetSystemStatus()
+	config.CONFIG.DataDogClient.Gauge("status_worker.claude_ai_available", boolToFloat64(systemStatus.ClaudeAI.Available), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.fireworks_ai_available", boolToFloat64(systemStatus.FireworksAI.Available), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.mongo_db_available", boolToFloat64(systemStatus.MongoDB.Available), nil, 1)
 	config.CONFIG.DataDogClient.Gauge("status_worker.open_ai_available", boolToFloat64(systemStatus.OpenAI.Available), nil, 1)
@@ -55,6 +56,9 @@ func FetchStatus() (string, error) {
 	}
 	if !systemStatus.FireworksAI.Available {
 		reportUnavailableStatus(w.TelegramSystemBot, w.SystemTelegramChatID, w.MainBotName, "FireworksAI")
+	}
+	if !systemStatus.ClaudeAI.Available {
+		reportUnavailableStatus(w.TelegramSystemBot, w.SystemTelegramChatID, w.MainBotName, "ClaudeAI")
 	}
 	statusBytes, _ := json.Marshal(systemStatus)
 	return string(statusBytes), nil
