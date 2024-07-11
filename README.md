@@ -31,6 +31,7 @@ in Slack:
 - [x] Telegram bot
 - [x] Slack integration
 - [ ] Discord bot
+- [x] Multiple models to choose from (GPT-4o, GPT-3.5 Turbo, Claude Sonnet 3.5, Claude Haiku 3, Llama3 70b, Llama3 16b)
 - [x] Voice/Audio/Video prompt (OpenAI Wisper)
 - [x] Cache persistent layer (Redis)
 - [x] System health check and analytics (DataDog)
@@ -48,7 +49,7 @@ in Slack:
 
 ## Telegram Features
 
-- [x] Chat with state of art ChatGPT models `/chatgpt`. The bot remembers the context of the conversation until you say `/clear`.
+- [x] Chat with state of art LLM models `/chatgpt`. The bot remembers the context of the conversation until you say `/clear`.
 - [x] Voice support, just send a voice message in any popular language
 - [x] `/voicegpt` for full voice experience, i.e. voice prompt and voice reply (with OpenAI TTS)
 - [x] `/grammar` mode just to correct grammar
