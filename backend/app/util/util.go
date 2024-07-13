@@ -136,3 +136,15 @@ func IsAudioMessage(message *telego.Message) (bool, string) {
 	}
 	return false, ""
 }
+
+func SafeOsDelete(filename string) {
+	// test file does not exist
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return
+	}
+
+	err := os.Remove(filename)
+	if err != nil {
+		log.Errorf("Error deleting file %s: %v", filename, err)
+	}
+}

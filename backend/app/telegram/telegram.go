@@ -792,7 +792,7 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 		log.Infof("Created file %s for conversion in chat %s, size: %d", sourceFile, chatIDString, fileData.FileSize)
 	}
 	defer f.Close()
-	defer safeOsDelete(sourceFile)
+	defer util.SafeOsDelete(sourceFile)
 	_, err = io.Copy(f, response.Body)
 	if err != nil {
 		log.Errorf("Error saving voice message in chat %s: %v", chatIDString, err)
@@ -801,7 +801,7 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 
 	// convert .oga audio format into one of ['m4a', 'mp3', 'webm', 'mp4', 'mpga', 'wav', 'mpeg', 'ogg']
 	duration, err := converters.ConvertWithFFMPEG(sourceFile, whisperFile)
-	defer safeOsDelete(whisperFile)
+	defer util.SafeOsDelete(whisperFile)
 	if err != nil {
 		log.Errorf("Error converting voice message in chat %s: %v", chatIDString, err)
 		return ""
@@ -857,17 +857,5 @@ func sendAudioAction(bot *telego.Bot, message *telego.Message) {
 	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionRecordVoice, MessageThreadID: message.MessageThreadID})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %v", err)
-	}
-}
-
-func safeOsDelete(filename string) {
-	// test file does not exist
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		return
-	}
-
-	err := os.Remove(filename)
-	if err != nil {
-		log.Errorf("Error deleting file %s: %v", filename, err)
 	}
 }

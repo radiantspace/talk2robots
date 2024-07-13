@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"talk2robots/m/v2/app/util"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -11,6 +12,17 @@ import (
 
 func ConvertWithFFMPEG(inputFile string, outputFile string) (duration time.Duration, err error) {
 	var cmd *exec.Cmd
+	// if input file is .ogg, rename it first to avoid overwriting the original file
+	if strings.HasSuffix(inputFile, ".ogg") {
+		renamedInputFile := inputFile + ".tmp"
+		err := exec.Command("mv", inputFile, renamedInputFile).Run()
+		if err != nil {
+			return 0, fmt.Errorf("failed to rename %s to %s: %v", inputFile, renamedInputFile, err)
+		}
+		defer util.SafeOsDelete(renamedInputFile)
+		inputFile = renamedInputFile
+	}
+
 	if strings.HasSuffix(inputFile, ".oga") {
 		// don't change the bitrate for .oga files, i.e. voice messages from Telegram
 		cmd = exec.Command("ffmpeg", "-i", inputFile, "-af", "silencedetect=n=-50dB:d=1", "-map", "a", "-q:a", "0", "-ac", "1", "-c:a", "libopus", outputFile)
