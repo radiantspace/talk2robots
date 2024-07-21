@@ -107,37 +107,37 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 		InlineKeyboard: [][]telego.InlineKeyboardButton{
 			{
 				{
-					Text:         "GPT 4o (best) 💰💰💰🚀🚀🧠🧠🧠🧠",
+					Text:         "GPT 4o (best) 💰💰💰🏃🏃🧠🧠🧠🧠",
 					CallbackData: string(models.ChatGpt4o) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "GPT 3.5 💰💰🚀🚀🚀🧠🧠",
-					CallbackData: string(models.ChatGpt35Turbo) + ":" + topicString,
+					Text:         "GPT 4o mini 💰🏃🏃🏃🏃🧠🧠",
+					CallbackData: string(models.ChatGpt4oMini) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Claude Sonet 3.5 💰💰💰🚀🚀🧠🧠🧠🧠",
+					Text:         "Claude Sonet 3.5 💰💰💰🏃🏃🧠🧠🧠🧠",
 					CallbackData: string(models.Sonet35) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Claude Haiku 3 💰💰🚀🚀🚀🚀🧠🧠",
+					Text:         "Claude Haiku 3 💰💰🏃🏃🏃🏃🧠🧠",
 					CallbackData: string(models.Haiku3) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Big Llama3 💰💰💰🚀🚀🧠🧠🧠",
+					Text:         "Big Llama3 💰💰💰🏃🏃🧠🧠🧠",
 					CallbackData: string(models.LlamaV3_70b) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Small Llama3 💰🚀🚀🚀🚀🧠",
+					Text:         "Small Llama3 💰🏃🏃🏃🏃🧠",
 					CallbackData: string(models.LlamaV3_8b) + ":" + topicString,
 				},
 			},

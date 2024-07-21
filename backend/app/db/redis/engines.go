@@ -16,14 +16,20 @@ func GetModel(chatID string) models.Engine {
 	engine, err := RedisClient.Get(context.Background(), chatID+":engine").Result()
 	if err != nil {
 		log.Info("No engine set for chat ", chatID, ", setting to default")
-		go SaveModel(chatID, models.ChatGpt35Turbo)
-		return models.ChatGpt35Turbo
+		go SaveModel(chatID, models.ChatGpt4oMini)
+		return models.ChatGpt4oMini
 	}
 
-	// use proper gpt3.5 turbo model instead of gpt3.5 1106
+	// use proper gpt4o-mini model instead of gpt3.5
+	if models.Engine(engine) == models.ChatGpt35Turbo {
+		go SaveModel(chatID, models.ChatGpt4oMini)
+		return models.ChatGpt4oMini
+	}
+
+	// use proper gpt4o-mini model instead of gpt3.5 1106
 	if models.Engine(engine) == models.ChatGpt35Turbo1106 {
-		go SaveModel(chatID, models.ChatGpt35Turbo)
-		return models.ChatGpt35Turbo
+		go SaveModel(chatID, models.ChatGpt4oMini)
+		return models.ChatGpt4oMini
 	}
 
 	// use new gpt-4o instead of gpt-4-turbo, gpt-4-turbo-vision or gpt-4

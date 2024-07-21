@@ -369,7 +369,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			MessageID:   messageId,
 			ReplyMarkup: GetStatusKeyboard(ctx),
 		})
-	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.ChatGpt4Turbo), string(models.ChatGpt4TurboVision), string(models.LlamaV3_8b), string(models.LlamaV3_70b), string(models.Sonet35), string(models.Haiku3), string(models.Opus3):
+	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.ChatGpt4oMini), string(models.ChatGpt4Turbo), string(models.ChatGpt4TurboVision), string(models.LlamaV3_8b), string(models.LlamaV3_70b), string(models.Sonet35), string(models.Haiku3), string(models.Opus3):
 		handleEngineSwitchCallbackQuery(callbackQuery, topicString)
 	case string(models.DallE3), string(models.Midjourney6), string(models.StableDiffusion3), string(models.Playground25):
 		handleImageModelSwitchCallbackQuery(callbackQuery, topicString)
@@ -476,6 +476,21 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-3.5 Turbo model, fast and cheap!").WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-3.5 message: %v", err)
+		}
+		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+			CallbackQueryID: callbackQuery.ID,
+			Text:            "Switched to " + callbackQuery.Data + " engine!",
+		})
+		if err != nil {
+			log.Errorf("handleEngineSwitchCallbackQuery failed to answer callback query: %v", err)
+		}
+		return
+	}
+	if callbackQuery.Data == string(models.ChatGpt4oMini) {
+		go redis.SaveModel(chatIDString, models.ChatGpt4oMini)
+		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-4o Mini model, fast and cheap!").WithMessageThreadID(topicID))
+		if err != nil {
+			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-4o Mini message: %v", err)
 		}
 		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,

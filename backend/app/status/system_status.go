@@ -84,7 +84,7 @@ func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
 			Available: h.Redis != nil && h.Redis.Ping(context.Background()).Err() == nil,
 		},
 		OpenAI: &Status{
-			Available: h.AI != nil && h.AI.IsAvailable(aiContext, models.ChatGpt35Turbo),
+			Available: h.AI != nil && h.AI.IsAvailable(aiContext, models.ChatGpt4oMini),
 		},
 		FireworksAI: &Status{
 			Available: h.AI != nil && h.AI.IsAvailable(aiContext, models.LlamaV3_8b),

@@ -29,6 +29,10 @@ const (
 	CHAT_INPUT_PRICE  = 0.5 / 1000000
 	CHAT_OUTPUT_PRICE = 1.5 / 1000000
 
+	// gpt-4o-mini
+	CHAT_GPT4O_MINI_INPUT_PRICE  = 0.15 / 1000000
+	CHAT_GPT4O_MINI_OUTPUT_PRICE = 0.6 / 1000000
+
 	// gpt-4
 	CHAT_GPT4_INPUT_PRICE  = 30.0 / 1000000
 	CHAT_GPT4_OUTPUT_PRICE = 60.0 / 1000000
@@ -64,7 +68,7 @@ const (
 func (a *API) ChatComplete(ctx context.Context, completion models.ChatCompletion) (string, error) {
 	timeNow := time.Now()
 	if completion.Model == "" {
-		completion.Model = string(models.ChatGpt35Turbo)
+		completion.Model = string(models.ChatGpt4oMini)
 	}
 
 	if IsClaudeAI(models.Engine(completion.Model)) {
@@ -297,7 +301,7 @@ func PricePerOutputToken(model models.Engine) float64 {
 func LimitPromptTokensForModel(model models.Engine, promptTokensCount float64) int {
 	// limit context to max - 1024 tokens
 	switch model {
-	case models.ChatGpt4Turbo, models.ChatGpt4TurboVision, models.ChatGpt4o:
+	case models.ChatGpt4Turbo, models.ChatGpt4TurboVision, models.ChatGpt4o, models.ChatGpt4oMini:
 		return int(math.Min(127*1024, promptTokensCount))
 	case models.ChatGpt4:
 		return int(math.Min(7*1024, promptTokensCount))

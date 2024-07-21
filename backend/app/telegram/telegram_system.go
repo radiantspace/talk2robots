@@ -213,8 +213,8 @@ func handleStripeReset(ctx context.Context, bot *Bot, message *telego.Message) {
 			bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to update user: %s", err)))
 			return
 		}
-		//  downgrade engine to GPT-3.5 Turbo
-		redis.SaveModel(userId, models.ChatGpt35Turbo)
+		//  downgrade engine to GPT-4o Mini
+		redis.SaveModel(userId, models.ChatGpt4oMini)
 	}
 
 	bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Stripe Reset for: %+v", user)))
