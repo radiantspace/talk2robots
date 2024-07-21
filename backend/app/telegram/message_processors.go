@@ -338,6 +338,11 @@ func prepareMessages(
 		return nil, engineModel, err
 	}
 
+	photoMultiModelContent = append(photoMultiModelContent, models.MultimodalContent{
+		Type: "text",
+		Text: message.Text + "\n" + message.Caption,
+	})
+
 	messages = append(messages, models.MultimodalMessage{
 		Role:    "user",
 		Content: photoMultiModelContent,
