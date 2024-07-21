@@ -268,6 +268,8 @@ func PricePerInputToken(model models.Engine) float64 {
 		return FIREWORKS_16B_80B_PRICE
 	case models.ChatGpt4o:
 		return CHAT_GPT4O_INPUT_PRICE
+	case models.ChatGpt4oMini:
+		return CHAT_GPT4O_MINI_INPUT_PRICE
 	case models.Sonet35:
 		return SONET_INPUT_PRICE
 	case models.Haiku3:
@@ -289,6 +291,8 @@ func PricePerOutputToken(model models.Engine) float64 {
 		return FIREWORKS_16B_80B_PRICE
 	case models.ChatGpt4o:
 		return CHAT_GPT4O_OUTPUT_PRICE
+	case models.ChatGpt4oMini:
+		return CHAT_GPT4O_MINI_OUTPUT_PRICE
 	case models.Sonet35:
 		return SONET_OUTPUT_PRICE
 	case models.Haiku3:
