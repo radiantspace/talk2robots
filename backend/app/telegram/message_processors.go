@@ -343,7 +343,7 @@ func prepareMessages(
 		Content: photoMultiModelContent,
 	})
 
-	return messages, models.ChatGpt4o, nil
+	return messages, engineModel, nil
 }
 
 func getPhotoBase64(message *telego.Message, ctx context.Context, bot *telego.Bot) (photoMultiModelContent []models.MultimodalContent, err error) {
