@@ -120,7 +120,7 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 			{
 				{
 					Text:         "Claude Sonet 3.5 💰💰💰🏃🏃🧠🧠🧠🧠",
-					CallbackData: string(models.Sonet35) + ":" + topicString,
+					CallbackData: string(models.Sonet35_241022) + ":" + topicString,
 				},
 			},
 			{

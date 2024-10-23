@@ -270,7 +270,7 @@ func PricePerInputToken(model models.Engine) float64 {
 		return CHAT_GPT4O_INPUT_PRICE
 	case models.ChatGpt4oMini:
 		return CHAT_GPT4O_MINI_INPUT_PRICE
-	case models.Sonet35:
+	case models.Sonet35, models.Sonet35_241022:
 		return SONET_INPUT_PRICE
 	case models.Haiku3:
 		return HAIKU_INPUT_PRICE
@@ -293,7 +293,7 @@ func PricePerOutputToken(model models.Engine) float64 {
 		return CHAT_GPT4O_OUTPUT_PRICE
 	case models.ChatGpt4oMini:
 		return CHAT_GPT4O_MINI_OUTPUT_PRICE
-	case models.Sonet35:
+	case models.Sonet35, models.Sonet35_241022:
 		return SONET_OUTPUT_PRICE
 	case models.Haiku3:
 		return HAIKU_OUTPUT_PRICE
@@ -313,7 +313,7 @@ func LimitPromptTokensForModel(model models.Engine, promptTokensCount float64) i
 		return int(math.Min(15*1024, promptTokensCount))
 	case models.LlamaV3_70b, models.LlamaV3_8b:
 		return int(math.Min(7*1024, promptTokensCount))
-	case models.Sonet35, models.Haiku3, models.Opus3:
+	case models.Sonet35, models.Sonet35_241022, models.Haiku3, models.Opus3:
 		return int(math.Min(199*1024, promptTokensCount))
 	default:
 		return int(math.Min(3*1024, promptTokensCount))
