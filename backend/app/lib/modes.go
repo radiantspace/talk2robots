@@ -180,7 +180,7 @@ var summarizeSeed = []models.Message{
 var translateSeed = []models.Message{
 	{
 		Role:    "system",
-		Content: "You will translate a text to {{target}} only. You will keep the meaning and style of the original text. If the original text is not in a {{target}}, you will translate it to {{target}}. If the original text is in {{target}}, you will respond - [correct].",
+		Content: "Translate the text to English. If the original text is in English, you will respond: [no translation required].",
 	},
 }
 
@@ -206,7 +206,7 @@ func GetSeedDataAndPrimer(mode ModeName) ([]models.Message, string) {
 		userMessagePrimer = ""
 	case Translate:
 		seedData = translateSeed
-		userMessagePrimer = "Text to translate to {{target}}:\n"
+		userMessagePrimer = ""
 	default:
 		seedData = chatGPTSeed
 		userMessagePrimer = ""

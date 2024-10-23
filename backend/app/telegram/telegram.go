@@ -286,7 +286,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	}
 	if mode == lib.ChatGPT || mode == lib.VoiceGPT {
 		go ProcessThreadedStreamingMessage(ctx, bot, &message, mode, engineModel, cancelContext)
-	} else if mode == lib.Summarize || (mode == lib.Grammar && isPrivate) {
+	} else if mode == lib.Summarize || mode == lib.Translate || (mode == lib.Grammar && isPrivate) {
 		go ProcessChatCompleteStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel, cancelContext)
 	} else {
 		go ProcessChatCompleteNonStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel)
@@ -349,7 +349,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Thanks for your feedback!",
 		})
-	case string(lib.ChatGPT), string(lib.VoiceGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe):
+	case string(lib.ChatGPT), string(lib.VoiceGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe), string(lib.Translate):
 		handleCommandsInCallbackQuery(callbackQuery, topicString)
 	case "models":
 		bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{

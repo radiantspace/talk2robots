@@ -31,11 +31,12 @@ Here are some of the things I can do:
 - 🎙️ /voicegpt - full conversation experience, respond using voice messages
 - remember context in /chatgpt and /voicegpt modes (use /clear to clear current thread)
 - 🖼️ draw, just ask to picture anything (Example: 'create an image of a fish riding a bicycle')
+- /translate [language code or name] - translate messages to English or other language (Example: /translate es)
 - /grammar - correct grammar mode, will only correct last sent message
 - /teacher - correct and explain grammar and mistakes
 - /transcribe voice/audio/video messages only
 - /summarize text/voice/audio/video messages
-- /status to check usage limits, consumed tokens and audio transcription minutes. Usage limits for the assistant are reset every 1st of the month.
+- /status - check usage limits, consumed tokens and audio transcription minutes. Usage limits for the assistant are reset every 1st of the month.
 
 Enjoy and let me know if any /support is needed!`
 
@@ -121,6 +122,7 @@ func setupCommandHandlers() {
 		newCommandHandler(TranscribeCommand, getModeHandlerFunction(lib.Transcribe, "Will transcribe your voice/audio/video messages only.")),
 		newCommandHandler(SummarizeCommand, getModeHandlerFunction(lib.Summarize, "Will summarize your text/voice/audio/video messages.")),
 		newCommandHandler(VoiceGPTCommand, getModeHandlerFunction(lib.VoiceGPT, "🚀 now I'm like ChatGPT with memory and all, but will respond with voice messages. What do you want to talk about? Use /clear command anytime to wipe my memory and start a new thread.\n\nNote, that this mode is more expensive than regular /chatgpt mode.")),
+		newCommandHandler(TranslateCommand, getModeHandlerFunction(lib.Translate, "Will translate your messages to English.")),
 		newCommandHandler(StatusCommand, statusCommandHandler),
 		newCommandHandler(UpgradeCommand, upgradeCommandHandler),
 		newCommandHandler(CancelSubscriptionCommand, cancelSubscriptionCommandHandler),
@@ -226,6 +228,9 @@ func getModeHandlerFunction(mode lib.ModeName, response string) func(context.Con
 		params := ""
 		if len(messageArray) > 1 {
 			params = validateParams(mode, messageArray[1])
+			if mode == lib.Translate && params != "" {
+				response = strings.ReplaceAll(response, "English", getLanguageName(params))
+			}
 		}
 		response = lib.AddBotSuffixToGroupCommands(ctx, response)
 		bot.SendMessage(tu.Message(util.GetChatID(message), response).WithMessageThreadID(message.MessageThreadID))
@@ -412,7 +417,7 @@ func validateParams(mode lib.ModeName, params string) string {
 		return ""
 	}
 
-	if mode == lib.VoiceGPT || mode == lib.Transcribe || mode == lib.Grammar || mode == lib.ChatGPT || mode == lib.Summarize {
+	if mode == lib.VoiceGPT || mode == lib.Transcribe || mode == lib.Grammar || mode == lib.ChatGPT || mode == lib.Summarize || mode == lib.Translate {
 		// params expected to be language code for now
 		params = strings.ToLower(params)
 
@@ -628,6 +633,205 @@ func languageToCode(language string) string {
 	default:
 		log.Warnf("Invalid language %s", language)
 		return ""
+	}
+}
+
+func getLanguageName(languageCode string) string {
+	switch languageCode {
+	case "af":
+		return "Afrikaans"
+	case "am":
+		return "Amharic"
+	case "ar":
+		return "Arabic"
+	case "as":
+		return "Assamese"
+	case "az":
+		return "Azerbaijani"
+	case "ba":
+		return "Bashkir"
+	case "be":
+		return "Belarusian"
+	case "bn":
+		return "Bengali"
+	case "bo":
+		return "Tibetan"
+	case "br":
+		return "Breton"
+	case "bs":
+		return "Bosnian"
+	case "ca":
+		return "Catalan"
+	case "cs":
+		return "Czech"
+	case "cy":
+		return "Welsh"
+	case "da":
+		return "Danish"
+	case "de":
+		return "German"
+	case "el":
+		return "Greek"
+	case "en":
+		return "English"
+	case "es":
+		return "Spanish"
+	case "et":
+		return "Estonian"
+	case "eu":
+		return "Basque"
+	case "fa":
+		return "Persian"
+	case "fi":
+		return "Finnish"
+	case "fo":
+		return "Faroese"
+	case "fr":
+		return "French"
+	case "gl":
+		return "Galician"
+	case "gu":
+		return "Gujarati"
+	case "ha":
+		return "Hausa"
+	case "he":
+		return "Hebrew"
+	case "hi":
+		return "Hindi"
+	case "hr":
+		return "Croatian"
+	case "ht":
+		return "Haitian"
+	case "hu":
+		return "Hungarian"
+	case "hy":
+		return "Armenian"
+	case "id":
+		return "Indonesian"
+	case "is":
+		return "Icelandic"
+	case "it":
+		return "Italian"
+	case "ja":
+		return "Japanese"
+	case "jw":
+		return "Javanese"
+	case "ka":
+		return "Georgian"
+	case "kk":
+		return "Kazakh"
+	case "km":
+		return "Khmer"
+	case "kn":
+		return "Kannada"
+	case "ko":
+		return "Korean"
+	case "la":
+		return "Latin"
+	case "lb":
+		return "Luxembourgish"
+	case "ln":
+		return "Lingala"
+	case "lo":
+		return "Lao"
+	case "lt":
+		return "Lithuanian"
+	case "lv":
+		return "Latvian"
+	case "mg":
+		return "Malagasy"
+	case "mi":
+		return "Maori"
+	case "mk":
+		return "Macedonian"
+	case "ml":
+		return "Malayalam"
+	case "mn":
+		return "Mongolian"
+	case "mr":
+		return "Marathi"
+	case "ms":
+		return "Malay"
+	case "mt":
+		return "Maltese"
+	case "my":
+		return "Burmese"
+	case "ne":
+		return "Nepali"
+	case "nl":
+		return "Dutch"
+	case "nn":
+		return "Norwegian"
+	case "oc":
+		return "Occitan"
+	case "pa":
+		return "Punjabi"
+	case "pl":
+		return "Polish"
+	case "ps":
+		return "Pashto"
+	case "pt":
+		return "Portuguese"
+	case "ro":
+		return "Romanian"
+	case "ru":
+		return "Russian"
+	case "sa":
+		return "Sanskrit"
+	case "sd":
+		return "Sindhi"
+	case "si":
+		return "Sinhala"
+	case "sk":
+		return "Slovak"
+	case "sl":
+		return "Slovenian"
+	case "sn":
+		return "Shona"
+	case "so":
+		return "Somali"
+	case "sq":
+		return "Albanian"
+	case "sr":
+		return "Serbian"
+	case "su":
+		return "Sundanese"
+	case "sv":
+		return "Swedish"
+	case "sw":
+		return "Swahili"
+	case "ta":
+		return "Tamil"
+	case "te":
+		return "Telugu"
+	case "tg":
+		return "Tajik"
+	case "th":
+		return "Thai"
+	case "tk":
+		return "Turkmen"
+	case "tl":
+		return "Filipino"
+	case "tr":
+		return "Turkish"
+	case "tt":
+		return "Tatar"
+	case "uk":
+		return "Ukrainian"
+	case "ur":
+		return "Urdu"
+	case "uz":
+		return "Uzbek"
+	case "vi":
+		return "Vietnamese"
+	case "yi":
+		return "Yiddish"
+	case "yo":
+		return "Yoruba"
+	case "zh":
+		return "Chinese"
+	default:
+		return "English"
 	}
 }
 

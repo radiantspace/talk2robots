@@ -36,6 +36,10 @@ func ProcessChatCompleteStreamingMessage(
 ) {
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
+	langParams := ctx.Value(models.ParamsContext{}).(string)
+	if mode == lib.Translate && langParams != "" {
+		seedData[0].Content = strings.ReplaceAll(seedData[0].Content, "English", getLanguageName(langParams))
+	}
 	messages, engineModel, err := prepareMessages(ctx, bot, message, seedData, userMessagePrimer, mode, engineModel)
 	if err != nil {
 		log.Errorf("Failed to prepare messages: %s", err)

@@ -52,6 +52,7 @@ in Slack:
 - [x] Chat with state of art LLM models `/chatgpt`. The bot remembers the context of the conversation until you say `/clear`.
 - [x] Voice support, just send a voice message in any popular language
 - [x] `/voicegpt` for full voice experience, i.e. voice prompt and voice reply (with OpenAI TTS)
+- [x] `/translate [language code]` mode to translate messages to English or a language of your choice
 - [x] `/grammar` mode just to correct grammar
 - [x] `/teacher` mode to correct and explain grammar
 - [x] `/transcribe` voice/audio/video messages
