@@ -69,6 +69,7 @@ clear - 🧹 clear current conversation memory
 grammar - 👀 grammar checking mode only, no explanations
 teacher - 🧑‍🏫 grammar correction and explanations
 transcribe - 🎙 transcribe voice/audio/video
+translate - 🌍 translate text to English or the specified language (Example: /translate es)
 summarize - 📝 summarize text/voice/audio/video
 status - 📊 status and settings
 billing - 💳 manage or cancel your subscription
