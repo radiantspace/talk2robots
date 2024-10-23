@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -120,21 +121,16 @@ func AddBotSuffixToGroupCommands(ctx context.Context, message string) string {
 	chatString := ctx.Value(models.UserContext{}).(string)
 	client := ctx.Value(models.ClientContext{}).(string)
 	if client == string(TelegramClientName) && strings.HasPrefix(chatString, "-") {
-		message = strings.ReplaceAll(message, "/chatgpt", "/chatgpt@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/voicegpt", "/voicegpt@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/clear", "/clear@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/downgrade", "/downgrade@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/grammar", "/grammar@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/start", "/start@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/status", "/status@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/summarize", "/summarize@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/support", "/support@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/teacher", "/teacher@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/terms", "/terms@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/transcribe", "/transcribe@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/upgrade", "/upgrade@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/translate", "/translate@"+config.CONFIG.BotName)
-		message = strings.ReplaceAll(message, "/billing", "/billing@"+config.CONFIG.BotName)
+		commands := []string{
+			"/chatgpt", "/voicegpt", "/clear", "/downgrade", "/grammar",
+			"/start", "/status", "/summarize", "/support", "/teacher",
+			"/terms", "/transcribe", "/upgrade", "/translate", "/billing",
+		}
+
+		for _, command := range commands {
+			re := regexp.MustCompile(command + `(\s|$)`)
+			message = re.ReplaceAllString(message, command+"@"+config.CONFIG.BotName+"$1")
+		}
 	}
 	return message
 }
