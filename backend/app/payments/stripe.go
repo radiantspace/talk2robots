@@ -61,6 +61,10 @@ func StripeWebhook(ctx *fasthttp.RequestCtx) {
 		// we handle this event in handleCheckoutSessionCompleted
 		log.Debugf("Customer subscription created: %v", event.Data.Raw)
 		return
+	case "customer.subscription.updated":
+		// we handle this event in handleCustomerSubscriptionUpdated
+		log.Infof("Customer subscription updated: %v", event.Data.Raw)
+		return
 	case "checkout.session.completed":
 		var session stripe.CheckoutSession
 		err := json.Unmarshal(event.Data.Raw, &session)
