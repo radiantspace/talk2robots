@@ -180,7 +180,7 @@ var summarizeSeed = []models.Message{
 var translateSeed = []models.Message{
 	{
 		Role:    "system",
-		Content: "Translate the text to English. Keep the structure, style and voice of the original text. Your response will only include the translated text. If the original text is in English, you will respond: [no translation required].",
+		Content: "Translate the text to English. Keep the structure, style and voice of the original text. Your response will only include the translated text. If the original text is in English, you will respond: [no translation required]. Text:\n",
 	},
 }
 
