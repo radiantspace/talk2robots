@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/models"
@@ -50,6 +51,8 @@ type MongoClient interface {
 	DeleteUserThread(ctx context.Context) error
 	GetUserThread(ctx context.Context) (*models.MongoUserThread, error)
 	UpdateUserThread(ctx context.Context, thread *models.MongoUserThread) error
+
+	UpdateUserSourceModeLanguage(ctx context.Context, source string, mode string, language string) error
 }
 
 var MongoDBClient MongoClient
@@ -420,4 +423,27 @@ func (c *Client) AddToUserThread(ctx context.Context, thread *models.MongoUserTh
 	thread.ThreadJson = string(threadBytes)
 
 	return c.UpdateUserThread(ctx, thread)
+}
+
+func (c *Client) UpdateUserSourceModeLanguage(ctx context.Context, source string, mode string, language string) error {
+	userId := ctx.Value(models.UserContext{}).(string)
+	collection := c.Database(config.CONFIG.MongoDBName).Collection(MongoUserCollection)
+
+	filter := bson.M{"_id": userId}
+	update := bson.M{
+		"$set": bson.M{
+			"source":   sanitize(source),
+			"mode":     sanitize(mode),
+			"language": sanitize(language),
+		},
+	}
+
+	options := options.Update().SetUpsert(true)
+	_, err := collection.UpdateOne(ctx, filter, update, options)
+	return err
+}
+
+func sanitize(s string) string {
+	// use regex to keep only english letters and digits
+	return regexp.MustCompile("[^a-zA-Z0-9]+").ReplaceAllString(s, "")
 }

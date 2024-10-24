@@ -94,27 +94,7 @@ type CommandHandlers []*CommandHandler
 func setupCommandHandlers() {
 	AllCommandHandlers = []*CommandHandler{
 		newCommandHandler(EmptyCommand, emptyCommandHandler),
-		newCommandHandler(StartCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			notification := lib.AddBotSuffixToGroupCommands(ctx, ONBOARDING_TEXT)
-			_, err := bot.SendMessage(tu.Message(util.GetChatID(message), notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
-			if err != nil {
-				log.Errorf("Failed to send StartCommand message: %v", err)
-			}
-			// try getting onboarding video from redis and sending it to the user
-			videoFileId := redis.RedisClient.Get(ctx, "onboarding-video").Val()
-			if videoFileId == "" || videoFileId == "get onboarding-video: redis: nil" {
-				log.Errorf("Failed to get onboarding video from redis: %v", err)
-				return
-			}
-			log.Infof("Sending onboarding video %s to userID: %s", videoFileId, util.GetChatIDString(message))
-			_, err = bot.SendVideo(&telego.SendVideoParams{
-				ChatID: util.GetChatID(message),
-				Video:  telego.InputFile{FileID: videoFileId},
-			})
-			if err != nil {
-				log.Errorf("Failed to send onboarding video: %v", err)
-			}
-		}),
+		newCommandHandler(StartCommand, startCommandHandler),
 		newCommandHandler(EmiliCommand, getModeHandlerFunction(lib.Emili, "היי, אעזור עם הטקסטים והודעות בעברית."+"\n\n"+fmt.Sprintf("אגב, אני בת %.f שעות, כלומר %.f ימים, %.f שבועות, %.1f חודשים או %.1f שנים", time.Since(EMILY_BIRTHDAY).Hours(), time.Since(EMILY_BIRTHDAY).Hours()/24, time.Since(EMILY_BIRTHDAY).Hours()/24/7, 12*(time.Since(EMILY_BIRTHDAY).Hours()/24/365), time.Since(EMILY_BIRTHDAY).Hours()/24/365))),
 		newCommandHandler(VasilisaCommand, getModeHandlerFunction(lib.Vasilisa, "Привет, я помогу тебе с текстами и сообщениями на русском языке 😊\n\n"+fmt.Sprintf("Кстати, мне %.f часов, то есть %.f дней или %.1f лет", time.Since(VASILISA_BIRTHDAY).Hours(), time.Since(VASILISA_BIRTHDAY).Hours()/24, time.Since(VASILISA_BIRTHDAY).Hours()/24/365))),
 		newCommandHandler(ChatGPTCommand, getModeHandlerFunction(lib.ChatGPT, "🚀 ChatGPT is now fully unleashed! Just tell me or ask me anything you want. I can now remember the context of our conversation. You can use /clear command anytime to wipe my memory and start a new thread.")),
@@ -881,4 +861,79 @@ func contains(arr []string, word string) bool {
 		}
 	}
 	return false
+}
+
+func startCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
+	params := ""
+	startCommandParams := strings.Split(message.Text, " ")
+	if len(startCommandParams) > 1 {
+		params = startCommandParams[1]
+		if len(startCommandParams) > 64 {
+			params = ""
+			// ignore params longer than 64 characters
+			// https://core.telegram.org/api/links#bot-links
+		} else {
+			// base64 decode params
+			decoded := util.Base64Decode(params)
+			if decoded != "" {
+				params = decoded
+			}
+		}
+	}
+	ddParams := params
+	if ddParams == "" {
+		ddParams = "empty"
+	}
+	log.Infof("Start command params: %s", params)
+	if params != "" {
+		// parse format: s=web&m=transcribe&l=es
+		// s - source, m - mode, l - language
+		source := ""
+		mode := ""
+		language := ""
+		paramsArray := strings.Split(params, "&")
+		for _, param := range paramsArray {
+			paramArray := strings.Split(param, "=")
+			if len(paramArray) == 2 {
+				switch strings.ToLower(paramArray[0]) {
+				case "s":
+					// source
+					source = paramArray[1]
+				case "m":
+					// mode
+					mode = paramArray[1]
+				case "l":
+					// language
+					language = paramArray[1]
+				default:
+					log.Warnf("Unknown start command param: %s", param)
+				}
+			}
+		}
+
+		config.CONFIG.DataDogClient.Incr("start_command", []string{"source:" + source, "mode:" + mode, "language:" + language}, 1)
+		go mongo.MongoDBClient.UpdateUserSourceModeLanguage(ctx, source, mode, language)
+	} else {
+		config.CONFIG.DataDogClient.Incr("start_command", []string{"source:empty", "mode:empty", "language:empty"}, 1)
+	}
+
+	notification := lib.AddBotSuffixToGroupCommands(ctx, ONBOARDING_TEXT)
+	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
+	if err != nil {
+		log.Errorf("Failed to send StartCommand message: %v", err)
+	}
+	// try getting onboarding video from redis and sending it to the user
+	videoFileId := redis.RedisClient.Get(ctx, "onboarding-video").Val()
+	if videoFileId == "" || videoFileId == "get onboarding-video: redis: nil" {
+		log.Errorf("Failed to get onboarding video from redis: %v", err)
+		return
+	}
+	log.Infof("Sending onboarding video %s to userID: %s", videoFileId, util.GetChatIDString(message))
+	_, err = bot.SendVideo(&telego.SendVideoParams{
+		ChatID: util.GetChatID(message),
+		Video:  telego.InputFile{FileID: videoFileId},
+	})
+	if err != nil {
+		log.Errorf("Failed to send onboarding video: %v", err)
+	}
 }

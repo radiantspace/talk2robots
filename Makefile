@@ -18,7 +18,13 @@ help: ## show this help
 .PHONY: start
 start: ## start all services
 	@echo '$(HEADER) start'
-	docker-compose up
+	docker-compose -f docker-compose.cs.yml up
+
+.PHONY: sl
+sl: ## start start in local mode
+	@echo '$(HEADER) start'
+	docker-compose -f docker-compose.local.yml up
+
 
 .PHONY: startd
 startd: ## start all services as a daemon

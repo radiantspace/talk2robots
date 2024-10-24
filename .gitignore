@@ -3,3 +3,4 @@
 terraform.tfstate*
 infra/kustomize/environment-properties.env
 data/
+.env

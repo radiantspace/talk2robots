@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
@@ -147,4 +148,13 @@ func SafeOsDelete(filename string) {
 	if err != nil {
 		log.Errorf("Error deleting file %s: %v", filename, err)
 	}
+}
+
+func Base64Decode(s string) string {
+	decoded, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		log.Errorf("Error decoding base64 string: %v", err)
+		return ""
+	}
+	return string(decoded)
 }

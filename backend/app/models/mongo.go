@@ -11,6 +11,11 @@ type MongoUser struct {
 	Usage            float64           `bson:"usage"`
 	LastUsedAt       string            `bson:"last_used_at"`
 	LastNotifiedAt   string            `bson:"last_notified_at"`
+
+	// Start params
+	Source   string `bson:"source"`
+	Mode     string `bson:"mode"`
+	Language string `bson:"language"`
 }
 
 type MongoSubscription struct {
