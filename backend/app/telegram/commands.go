@@ -229,9 +229,9 @@ func getModeHandlerFunction(mode lib.ModeName, response string) func(context.Con
 		params := ""
 		if len(messageArray) > 1 {
 			params = validateParams(mode, messageArray[1])
-			if mode == lib.Translate && params != "" {
-				response = strings.ReplaceAll(response, "English", getLanguageName(params))
-			}
+		}
+		if mode == lib.Translate {
+			response = strings.ReplaceAll(response, "English", getLanguageName(params))
 		}
 		response = lib.AddBotSuffixToGroupCommands(ctx, response)
 		bot.SendMessage(tu.Message(util.GetChatID(message), response).WithMessageThreadID(message.MessageThreadID))

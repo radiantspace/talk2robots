@@ -18,7 +18,12 @@ import (
 func GetUserStatus(ctx context.Context) string {
 	userIdString := ctx.Value(models.UserContext{}).(string)
 	topicIdString := ctx.Value(models.TopicContext{}).(string)
-	mode, _ := lib.GetMode(userIdString, topicIdString)
+	mode, params := lib.GetMode(userIdString, topicIdString)
+	paramsString := ""
+	if params != "" {
+		paramsString = fmt.Sprintf(" (%s)", params)
+	}
+	model := redis.GetModel(userIdString)
 	subscriptionName := ctx.Value(models.SubscriptionContext{}).(models.MongoSubscriptionName)
 	subscription := models.Subscriptions[subscriptionName]
 	usage := GetUserUsage(userIdString)
@@ -38,7 +43,9 @@ func GetUserStatus(ctx context.Context) string {
 	}
 
 	return fmt.Sprintf(`⚙️ %s status:
-		Mode: %s
+		Mode: %s%s
+		AI model: %s
+
 		Subscription: %s
 		AI credits: $%.2f/mo
 
@@ -46,7 +53,7 @@ func GetUserStatus(ctx context.Context) string {
 		consumption: %.3f$ (%.1f%%)
 		tokens processed: %d
 		audio transcribed, minutes: %.2f
-		images created: %d`, entity, mode, subscriptionToDisplay, subscription.MaximumUsage, usage, usagePercent, tokens, audioMinutes, imagesCount)
+		images created: %d`, entity, mode, paramsString, model, subscriptionToDisplay, subscription.MaximumUsage, usage, usagePercent, tokens, audioMinutes, imagesCount)
 }
 
 func GetStatusKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
