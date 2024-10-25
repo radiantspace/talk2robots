@@ -41,7 +41,7 @@ func main() {
 	}
 
 	config.CONFIG = &config.Config{
-		BotUrl:          "https://t.me/gienjibot",
+		BotUrl:          "https://t.me/gienjibot?start=s=home",
 		DataDogClient:   dataDogClient,
 		Environment:     env,
 		OpenAIAPIKey:    util.Env("OPENAI_API_KEY"),

@@ -662,7 +662,7 @@ func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
 		Type:         "article",
 		ID:           "0",
 		Title:        "FastGPT",
-		URL:          "https://t.me/gienjibot",
+		URL:          "https://t.me/gienjibot?start=s=home",
 		ThumbnailURL: "https://gienji.me/assets/images/image01.jpg",
 		Description:  response,
 		InputMessageContent: &telego.InputTextMessageContent{
