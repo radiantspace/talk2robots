@@ -7,7 +7,9 @@ talk2robots is an extensible human to AI interface. It is a framework that allow
 
 ### Try it 
 
-in Telegram: https://t.me/gienjibot?start=cz1naXRodWI=
+in Telegram:
+
+<a href="https://t.me/gienjibot?start=cz1naXRodWI="><img src="https://img.shields.io/badge/Try%20Now-Telegram-blue?style=for-the-badge&logo=telegram" /></a>
 
 in Slack:
 
