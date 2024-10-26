@@ -885,12 +885,12 @@ func startCommandHandler(ctx context.Context, bot *Bot, message *telego.Message)
 		ddParams = "empty"
 	}
 	log.Infof("Start command params: %s", params)
+	// parse format: s=web&m=transcribe&l=es
+	// s - source, m - mode, l - language
+	source := ""
+	mode := ""
+	language := ""
 	if params != "" {
-		// parse format: s=web&m=transcribe&l=es
-		// s - source, m - mode, l - language
-		source := ""
-		mode := ""
-		language := ""
 		paramsArray := strings.Split(params, "&")
 		for _, param := range paramsArray {
 			paramArray := strings.Split(param, "=")
@@ -918,18 +918,34 @@ func startCommandHandler(ctx context.Context, bot *Bot, message *telego.Message)
 	}
 
 	notification := lib.AddBotSuffixToGroupCommands(ctx, ONBOARDING_TEXT)
-	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
+	chatId := util.GetChatID(message)
+	_, err := bot.SendMessage(tu.Message(chatId, notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
 	if err != nil {
 		log.Errorf("Failed to send StartCommand message: %v", err)
 	}
+
+	if mode == "transcribe" {
+		// switch to transcribe mode
+		message := telego.Message{
+			Chat:            message.Chat,
+			Text:            "/transcribe " + language,
+			MessageThreadID: message.MessageThreadID,
+		}
+		AllCommandHandlers.handleCommand(ctx, BOT, &message)
+	} else {
+		sendGeneralOnboardingVideo(ctx, bot, message)
+	}
+}
+
+func sendGeneralOnboardingVideo(ctx context.Context, bot *Bot, message *telego.Message) {
 	// try getting onboarding video from redis and sending it to the user
 	videoFileId := redis.RedisClient.Get(ctx, "onboarding-video").Val()
 	if videoFileId == "" || videoFileId == "get onboarding-video: redis: nil" {
-		log.Errorf("Failed to get onboarding video from redis: %v", err)
+		log.Errorf("Failed to get onboarding video from redis: %v", videoFileId)
 		return
 	}
 	log.Infof("Sending onboarding video %s to userID: %s", videoFileId, util.GetChatIDString(message))
-	_, err = bot.SendVideo(&telego.SendVideoParams{
+	_, err := bot.SendVideo(&telego.SendVideoParams{
 		ChatID: util.GetChatID(message),
 		Video:  telego.InputFile{FileID: videoFileId},
 	})
