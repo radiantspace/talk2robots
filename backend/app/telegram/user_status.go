@@ -57,39 +57,70 @@ func GetUserStatus(ctx context.Context) string {
 }
 
 func GetStatusKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
-	// userIdString := ctx.Value(models.UserContext{}).(string)
-	// mode := GetMode(userIdString)
+	userIdString := ctx.Value(models.UserContext{}).(string)
+	topicIdString := ctx.Value(models.TopicContext{}).(string)
+	mode, _ := lib.GetMode(userIdString, topicIdString)
+	chatGptActive := ""
+	voiceGptActive := ""
+	grammarActive := ""
+	teacherActive := ""
+	transcribeActive := ""
+	summarizeActive := ""
+	translateActive := ""
+	switch mode {
+	case lib.ChatGPT:
+		chatGptActive = " ✅"
+	case lib.VoiceGPT:
+		voiceGptActive = " ✅"
+	case lib.Grammar:
+		grammarActive = " ✅"
+	case lib.Teacher:
+		teacherActive = " ✅"
+	case lib.Transcribe:
+		transcribeActive = " ✅"
+	case lib.Summarize:
+		summarizeActive = " ✅"
+	case lib.Translate:
+		translateActive = " ✅"
+	}
+
 	topicString := ctx.Value(models.TopicContext{}).(string)
 	return &telego.InlineKeyboardMarkup{
 		InlineKeyboard: [][]telego.InlineKeyboardButton{
 			{
 				{
-					Text:         "ChatGPT",
+					Text:         "ChatGPT" + chatGptActive,
 					CallbackData: string(lib.ChatGPT) + ":" + topicString,
 				},
 				{
-					Text:         "VoiceGPT",
+					Text:         "VoiceGPT" + voiceGptActive,
 					CallbackData: string(lib.VoiceGPT) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Grammar",
+					Text:         "Grammar" + grammarActive,
 					CallbackData: string(lib.Grammar) + ":" + topicString,
 				},
 				{
-					Text:         "Teacher",
+					Text:         "Teacher" + teacherActive,
 					CallbackData: string(lib.Teacher) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Transcribe",
+					Text:         "Transcribe" + transcribeActive,
 					CallbackData: string(lib.Transcribe) + ":" + topicString,
 				},
 				{
-					Text:         "Summarize",
+					Text:         "Summarize" + summarizeActive,
 					CallbackData: string(lib.Summarize) + ":" + topicString,
+				},
+			},
+			{
+				{
+					Text:         "Translate" + translateActive,
+					CallbackData: string(lib.Translate) + ":" + topicString,
 				},
 			},
 			{
@@ -109,42 +140,65 @@ func GetStatusKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 }
 
 func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
+	userIdString := ctx.Value(models.UserContext{}).(string)
 	topicString := ctx.Value(models.TopicContext{}).(string)
+	model := redis.GetModel(userIdString)
+	gpt4oActive := ""
+	gpt4oMiniActive := ""
+	sonet35Active := ""
+	haiku3Active := ""
+	bigLlama3Active := ""
+	smallLlama3Active := ""
+	switch model {
+	case models.ChatGpt4o:
+		gpt4oActive = "✅ "
+	case models.ChatGpt4oMini:
+		gpt4oMiniActive = "✅ "
+	case models.Sonet35_241022:
+		sonet35Active = "✅ "
+	case models.Haiku3:
+		haiku3Active = "✅ "
+	case models.LlamaV3_70b:
+		bigLlama3Active = "✅ "
+	case models.LlamaV3_8b:
+		smallLlama3Active = "✅ "
+	}
+
 	return &telego.InlineKeyboardMarkup{
 		InlineKeyboard: [][]telego.InlineKeyboardButton{
 			{
 				{
-					Text:         "GPT 4o (best) 💰💰💰🏃🏃🧠🧠🧠🧠",
+					Text:         gpt4oActive + "GPT 4o (best) 💰💰💰🏃🏃🧠🧠🧠🧠",
 					CallbackData: string(models.ChatGpt4o) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "GPT 4o mini 💰🏃🏃🏃🏃🧠🧠",
+					Text:         gpt4oMiniActive + "GPT 4o mini 💰🏃🏃🏃🏃🧠🧠",
 					CallbackData: string(models.ChatGpt4oMini) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Claude Sonet 3.5 💰💰💰🏃🏃🧠🧠🧠🧠",
+					Text:         sonet35Active + "Claude Sonet 3.5 💰💰💰🏃🏃🧠🧠🧠🧠",
 					CallbackData: string(models.Sonet35_241022) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Claude Haiku 3 💰💰🏃🏃🏃🏃🧠🧠",
+					Text:         haiku3Active + "Claude Haiku 3 💰💰🏃🏃🏃🏃🧠🧠",
 					CallbackData: string(models.Haiku3) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Big Llama3 💰💰💰🏃🏃🧠🧠🧠",
+					Text:         bigLlama3Active + "Big Llama3 💰💰💰🏃🏃🧠🧠🧠",
 					CallbackData: string(models.LlamaV3_70b) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         "Small Llama3 💰🏃🏃🏃🏃🧠",
+					Text:         smallLlama3Active + "Small Llama3 💰🏃🏃🏃🏃🧠",
 					CallbackData: string(models.LlamaV3_8b) + ":" + topicString,
 				},
 			},

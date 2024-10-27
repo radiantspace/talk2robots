@@ -917,13 +917,6 @@ func startCommandHandler(ctx context.Context, bot *Bot, message *telego.Message)
 		config.CONFIG.DataDogClient.Incr("start_command", []string{"source:empty", "mode:empty", "language:empty"}, 1)
 	}
 
-	notification := lib.AddBotSuffixToGroupCommands(ctx, ONBOARDING_TEXT)
-	chatId := util.GetChatID(message)
-	_, err := bot.SendMessage(tu.Message(chatId, notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
-	if err != nil {
-		log.Errorf("Failed to send StartCommand message: %v", err)
-	}
-
 	if mode == "transcribe" {
 		// switch to transcribe mode
 		message := telego.Message{
@@ -934,6 +927,13 @@ func startCommandHandler(ctx context.Context, bot *Bot, message *telego.Message)
 		AllCommandHandlers.handleCommand(ctx, BOT, &message)
 	} else {
 		sendGeneralOnboardingVideo(ctx, bot, message)
+	}
+
+	notification := lib.AddBotSuffixToGroupCommands(ctx, ONBOARDING_TEXT)
+	chatId := util.GetChatID(message)
+	_, err := bot.SendMessage(tu.Message(chatId, notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
+	if err != nil {
+		log.Errorf("Failed to send StartCommand message: %v", err)
 	}
 }
 

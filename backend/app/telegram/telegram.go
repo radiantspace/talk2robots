@@ -433,6 +433,12 @@ func handleCommandsInCallbackQuery(callbackQuery telego.CallbackQuery, topicStri
 		MessageThreadID: topicID,
 	}
 	AllCommandHandlers.handleCommand(ctx, BOT, &message)
+
+	BOT.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+		ChatID:      chat.ChatID(),
+		MessageID:   callbackQuery.Message.GetMessageID(),
+		ReplyMarkup: GetStatusKeyboard(ctx),
+	})
 }
 
 func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicString string) {
@@ -456,6 +462,15 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		}
 		return
 	}
+
+	defer func() {
+		// update message reply markup
+		BOT.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+			ChatID:      chat.ChatID(),
+			MessageID:   callbackQuery.Message.GetMessageID(),
+			ReplyMarkup: GetModelsKeyboard(ctx),
+		})
+	}()
 	if callbackQuery.Data == string(models.LlamaV3_8b) {
 		go redis.SaveModel(chatIDString, models.LlamaV3_8b)
 		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to small Llama3 model, fast and cheap!").WithMessageThreadID(topicID))
