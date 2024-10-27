@@ -884,7 +884,7 @@ func startCommandHandler(ctx context.Context, bot *Bot, message *telego.Message)
 	if ddParams == "" {
 		ddParams = "empty"
 	}
-	log.Infof("Start command params: %s", params)
+	log.Infof("User %s start command params: %s", util.GetChatIDString(message), ddParams)
 	// parse format: s=web&m=transcribe&l=es
 	// s - source, m - mode, l - language
 	source := ""
