@@ -313,6 +313,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, models.TopicContext{}, topicString)
+	ctx = context.WithValue(ctx, models.UserContext{}, chatString)
 
 	callbackQuery.Data = callbackParams[0]
 
