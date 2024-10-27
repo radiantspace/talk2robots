@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	r "github.com/go-redis/redis/v8"
 )
@@ -60,4 +61,9 @@ func (m *MockRedisClient) Get(ctx context.Context, key string) *r.StringCmd {
 		cmd.SetErr(errors.New("key not found"))
 	}
 	return cmd
+}
+
+func (m *MockRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *r.StatusCmd {
+	m.data[key] = value
+	return r.NewStatusCmd(ctx)
 }

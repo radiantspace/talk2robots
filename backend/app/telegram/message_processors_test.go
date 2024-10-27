@@ -52,7 +52,7 @@ func TestProcessThreadedStreamingMessage(t *testing.T) {
 	ctx = context.WithValue(ctx, models.ChannelContext{}, "123")
 
 	// OpenAI API patch
-	openAIPatch, _ := mpatch.PatchMethod(
+	openAIPatch, err := mpatch.PatchMethod(
 		openai.CreateThreadAndRunStreaming,
 		func(ctx context.Context, assistantId string, model models.Engine, thread *models.Thread, cancelContext context.CancelFunc) (chan string, error) {
 			messages := make(chan string)
@@ -69,6 +69,9 @@ func TestProcessThreadedStreamingMessage(t *testing.T) {
 			return messages, nil
 		},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer openAIPatch.Unpatch()
 
 	// SendMessage patch
@@ -87,5 +90,5 @@ func TestProcessThreadedStreamingMessage(t *testing.T) {
 	)
 	defer editMessagePatch.Unpatch()
 
-	ProcessThreadedStreamingMessage(ctx, BOT.Bot, &message, lib.ChatGPT, models.ChatGpt35Turbo, cancelContext)
+	ProcessThreadedStreamingMessage(ctx, BOT.Bot, &message, lib.ChatGPT, models.ChatGpt4oMini, cancelContext)
 }

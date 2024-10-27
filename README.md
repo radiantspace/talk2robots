@@ -48,6 +48,8 @@ in Slack:
 - [x] Image recognition
 - [x] Image generation (OpenAI DALL-E)
 - [ ] Document/PDF reading and reasoning
+- [ ] Shared links processing and reasoning (youtube, docs, etc)
+- [ ] Web search and reasoning (Perplexity)
 
 ## Telegram Features
 
