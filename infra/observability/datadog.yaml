@@ -16,9 +16,9 @@ datadog:
   collectEvents: false
   env:
     - name: DD_ENABLE_PAYLOADS_EVENTS
-      value: "false"
+      value: "true"
     - name: DD_ENABLE_PAYLOADS_SERIES
-      value: "false"
+      value: "true"
     - name: DD_ENABLE_PAYLOADS_SERVICE_CHECKS
       value: "false"
     - name: DD_ENABLE_PAYLOADS_SKETCHES
