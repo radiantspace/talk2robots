@@ -10,16 +10,20 @@ datadog:
   # to establish communication with the kubelet
   kubelet:
     tlsVerify: "false"
+
+  # datadog.collectEvents -- Enables this to start event collection from the kubernetes API
+  ## ref: https://docs.datadoghq.com/agent/kubernetes/#event-collection
+  collectEvents: false
   logs:
     enabled: true
     containerCollectAll: true
     containerCollectUsingFiles: true
   apm:
-    portEnabled: true
+    portEnabled: false
     socketPath: /var/run/datadog/apm.socket
     hostSocketPath: /var/run/datadog/
   processAgent:
-    enabled: true
+    enabled: false
     processCollection: false
   systemProbe:
     enableTCPQueueLength: false

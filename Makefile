@@ -5,6 +5,9 @@ YELLOW=$(shell echo -e "\033[0;33m")
 NOCOLOR=$(shell echo -e "\033[0m")
 HEADER=$(GREEN)Recipe:$(NOCOLOR)
 
+include .env
+export
+
 .PHONY: help
 default: help
 
@@ -60,7 +63,9 @@ cleanup: ## cleanup
 .PHONY: dologin
 dologin: ## login to digital ocean
 	@echo '$(HEADER) dologin'
-	doctl auth init -t $DO_PAT
+	doctl auth init -t $(DO_PAT)
+	doctl kubernetes cluster list
+	doctl kubernetes cluster kubeconfig save k8s-do-sfo3-talk2robots-prod
 
 .PHONY: klogin
 klogin: ## login to k8s
@@ -83,6 +88,9 @@ configure-helm: ## configure helm
 	helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 	helm repo update ingress-nginx
 	helm search repo ingress-nginx
+	helm repo add datadog https://helm.datadoghq.com
+	helm repo update datadog
+	helm search repo datadog
 
 .PHONY: apply-ingress-resources
 apply-ingress-resources: ## apply ingress resources
