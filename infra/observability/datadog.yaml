@@ -14,6 +14,15 @@ datadog:
   # datadog.collectEvents -- Enables this to start event collection from the kubernetes API
   ## ref: https://docs.datadoghq.com/agent/kubernetes/#event-collection
   collectEvents: false
+  env:
+    - name: DD_ENABLE_PAYLOADS_EVENTS
+      value: "false"
+    - name: DD_ENABLE_PAYLOADS_SERIES
+      value: "false"
+    - name: DD_ENABLE_PAYLOADS_SERVICE_CHECKS
+      value: "false"
+    - name: DD_ENABLE_PAYLOADS_SKETCHES
+      value: "false"
   logs:
     enabled: true
     containerCollectAll: true
@@ -69,6 +78,6 @@ datadog:
             - collection
             - jumbo_chunks
 clusterAgent:
-  enabled: true
-  replicas: 2
-  createPodDisruptionBudget: true
+  enabled: false
+  # replicas: 2
+  # createPodDisruptionBudget: true
