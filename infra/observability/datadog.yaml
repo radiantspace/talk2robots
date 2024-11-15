@@ -78,6 +78,6 @@ datadog:
             - collection
             - jumbo_chunks
 clusterAgent:
-  enabled: false
-  # replicas: 2
+  enabled: true
+  replicas: 1
   # createPodDisruptionBudget: true
