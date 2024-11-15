@@ -15,6 +15,8 @@ datadog:
   ## ref: https://docs.datadoghq.com/agent/kubernetes/#event-collection
   collectEvents: false
   env:
+    - name: DD_DOGSTATSD_NON_LOCAL_TRAFFIC
+      value: "true"
     - name: DD_ENABLE_PAYLOADS_EVENTS
       value: "true"
     - name: DD_ENABLE_PAYLOADS_SERIES
