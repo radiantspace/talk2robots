@@ -19,12 +19,19 @@ datadog:
     containerCollectAll: true
     containerCollectUsingFiles: true
   apm:
+    enabled: false
     portEnabled: false
     socketPath: /var/run/datadog/apm.socket
     hostSocketPath: /var/run/datadog/
   processAgent:
     enabled: false
     processCollection: false
+    containerCollection: false
+    processDiscovery: false
+  orchestratorExplorer:
+    enabled: false
+    container_scrubbing:
+      enabled: false
   systemProbe:
     enableTCPQueueLength: false
     enableOOMKill: true
