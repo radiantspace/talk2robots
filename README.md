@@ -33,7 +33,7 @@ in Slack:
 - [x] Telegram bot
 - [x] Slack integration
 - [ ] Discord bot
-- [x] Multiple models to choose from (GPT-4o, GPT-3.5 Turbo, Claude Sonnet 3.5, Claude Haiku 3, Llama3 70b, Llama3 16b)
+- [x] Multiple models to choose from (Grok, GPT-4o, GPT-4o-mini, Claude Sonnet 3.5, Claude Haiku 3, Llama3 70b, Llama3 16b)
 - [x] Voice/Audio/Video prompt (OpenAI Wisper)
 - [x] Cache persistent layer (Redis)
 - [x] System health check and analytics (DataDog)
