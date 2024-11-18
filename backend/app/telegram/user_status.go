@@ -149,6 +149,7 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 	haiku3Active := ""
 	bigLlama3Active := ""
 	smallLlama3Active := ""
+	grokActive := ""
 	switch model {
 	case models.ChatGpt4o:
 		gpt4oActive = "✅ "
@@ -162,13 +163,21 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 		bigLlama3Active = "✅ "
 	case models.LlamaV3_8b:
 		smallLlama3Active = "✅ "
+	case models.Grok:
+		grokActive = "✅ "
 	}
 
 	return &telego.InlineKeyboardMarkup{
 		InlineKeyboard: [][]telego.InlineKeyboardButton{
 			{
 				{
-					Text:         gpt4oActive + "GPT 4o (best) 💰💰💰🏃🏃🧠🧠🧠🧠",
+					Text:         grokActive + "Grok + Web 🌍 💰💰🏃🏃🧠🧠🧠",
+					CallbackData: string(models.Grok) + ":" + topicString,
+				},
+			},
+			{
+				{
+					Text:         gpt4oActive + "GPT 4o 💰💰💰🏃🏃🧠🧠🧠🧠",
 					CallbackData: string(models.ChatGpt4o) + ":" + topicString,
 				},
 			},

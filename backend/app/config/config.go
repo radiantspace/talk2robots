@@ -48,6 +48,7 @@ type Config struct {
 	DataDogClient          *statsd.Client
 	Environment            string
 	FireworksAPIKey        string
+	GrokAPIKey             string
 	MongoDBName            string
 	MongoDBConnection      string
 	OpenAIAPIKey           string

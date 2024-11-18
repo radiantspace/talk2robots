@@ -370,7 +370,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			MessageID:   messageId,
 			ReplyMarkup: GetStatusKeyboard(ctx),
 		})
-	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.ChatGpt4oMini), string(models.ChatGpt4Turbo), string(models.ChatGpt4TurboVision), string(models.LlamaV3_8b), string(models.LlamaV3_70b), string(models.Sonet35), string(models.Haiku3), string(models.Opus3), string(models.Sonet35_241022):
+	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.ChatGpt4oMini), string(models.ChatGpt4Turbo), string(models.ChatGpt4TurboVision), string(models.LlamaV3_8b), string(models.LlamaV3_70b), string(models.Sonet35), string(models.Haiku3), string(models.Opus3), string(models.Sonet35_241022), string(models.Grok):
 		handleEngineSwitchCallbackQuery(callbackQuery, topicString)
 	case string(models.DallE3), string(models.Midjourney6), string(models.StableDiffusion3), string(models.Playground25):
 		handleImageModelSwitchCallbackQuery(callbackQuery, topicString)
@@ -588,6 +588,23 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Switched to big Llama3 engine!",
+		})
+		if err != nil {
+			log.Errorf("handleEngineSwitchCallbackQuery failed to answer callback query: %v", err)
+		}
+		return
+	}
+	if callbackQuery.Data == string(models.Grok) {
+		go redis.SaveModel(chatIDString, models.Grok)
+		notification := "Switched to Grok model, intelligent and fun with Web Search enabled!"
+		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
+		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+		if err != nil {
+			log.Errorf("handleEngineSwitchCallbackQuery failed to send Grok message: %v", err)
+		}
+		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+			CallbackQueryID: callbackQuery.ID,
+			Text:            "Switched to Grok engine!",
 		})
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to answer callback query: %v", err)

@@ -67,3 +67,7 @@ func IsClaudeAI(model models.Engine) bool {
 
 	return false
 }
+
+func IsGrok(model models.Engine) bool {
+	return model == models.Grok
+}

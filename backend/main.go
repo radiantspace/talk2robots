@@ -47,6 +47,7 @@ func main() {
 		OpenAIAPIKey:    util.Env("OPENAI_API_KEY"),
 		FireworksAPIKey: util.Env("FIREWORKS_API_KEY"),
 		ClaudeAPIKey:    util.Env("CLAUDE_API_KEY"),
+		GrokAPIKey:      util.Env("GROK_API_KEY"),
 		Redis: config.Redis{
 			Host:     util.Env("REDIS_HOST"),
 			Port:     "6379",

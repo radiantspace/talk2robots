@@ -96,3 +96,10 @@ vars:
     apiVersion: v1
     kind: ConfigMap
     name: environment-variables
+- fieldref:
+    fieldPath: data.GROK_API_KEY
+  name: GROK_API_KEY
+  objref:
+    apiVersion: v1
+    kind: ConfigMap
+    name: environment-variables

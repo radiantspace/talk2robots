@@ -71,6 +71,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
           STRIPE_ENDPOINT_SECRET: ${{ secrets.STRIPE_ENDPOINT_SECRET }}
@@ -85,6 +86,7 @@ jobs:
           echo OPENAI_API_KEY=$OPENAI_API_KEY >> environment-properties.env
           echo FIREWORKS_API_KEY=$FIREWORKS_API_KEY >> environment-properties.env
           echo CLAUDE_API_KEY=$CLAUDE_API_KEY >> environment-properties.env
+          echo GROK_API_KEY=$GROK_API_KEY >> environment-properties.env
           echo SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN >> environment-properties.env
           echo SLACK_SIGNING_SECRET=$SLACK_SIGNING_SECRET >> environment-properties.env
           echo STRIPE_ENDPOINT_SECRET=$STRIPE_ENDPOINT_SECRET >> environment-properties.env

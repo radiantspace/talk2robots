@@ -61,6 +61,10 @@ const (
 	OPUS_INPUT_PRICE  = 15.0 / 1000000
 	OPUS_OUTPUT_PRICE = 75.0 / 1000000
 
+	// grok-beta
+	GROK_INPUT_PRICE  = 0.5 / 1000000
+	GROK_OUTPUT_PRICE = 1.5 / 1000000
+
 	CHARS_PER_TOKEN = 2.0 // average number of characters per token, must be tuned or moved to tiktoken
 )
 
@@ -236,6 +240,9 @@ func urlFromModel(model models.Engine) string {
 	if IsClaudeAI(model) {
 		return "https://api.anthropic.com/v1/messages"
 	}
+	if IsGrok(model) {
+		return "https://api.x.ai/v1/chat/completions"
+	}
 	return "https://api.openai.com/v1/chat/completions"
 }
 
@@ -245,6 +252,9 @@ func authTokenFromModel(model models.Engine) string {
 	}
 	if IsClaudeAI(model) {
 		return config.CONFIG.ClaudeAPIKey
+	}
+	if IsGrok(model) {
+		return config.CONFIG.GrokAPIKey
 	}
 
 	return config.CONFIG.OpenAIAPIKey
@@ -274,6 +284,8 @@ func PricePerInputToken(model models.Engine) float64 {
 		return SONET_INPUT_PRICE
 	case models.Haiku3:
 		return HAIKU_INPUT_PRICE
+	case models.Grok:
+		return GROK_INPUT_PRICE
 	default:
 		return CHAT_INPUT_PRICE
 	}
@@ -297,6 +309,8 @@ func PricePerOutputToken(model models.Engine) float64 {
 		return SONET_OUTPUT_PRICE
 	case models.Haiku3:
 		return HAIKU_OUTPUT_PRICE
+	case models.Grok:
+		return GROK_OUTPUT_PRICE
 	default:
 		return CHAT_OUTPUT_PRICE
 	}

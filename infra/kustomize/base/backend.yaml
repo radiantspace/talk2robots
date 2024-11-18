@@ -85,6 +85,8 @@ spec:
               value: $(FIREWORKS_API_KEY)
             - name: CLAUDE_API_KEY
               value: $(CLAUDE_API_KEY)
+            - name: GROK_API_KEY
+              value: $(GROK_API_KEY)
             - name: BACKEND_BASE_URL
               value: $(BACKEND_BASE_URL)
             - name: PROMETHEUS_LISTEN_ADDRESS

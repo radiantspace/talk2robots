@@ -79,7 +79,7 @@ func ProcessThreadedStreamingMessage(
 	chatIDString := util.GetChatIDString(message)
 	topicID := util.GetTopicID(message)
 
-	if ai.IsFireworksAI(engineModel) || ai.IsClaudeAI(engineModel) {
+	if ai.IsFireworksAI(engineModel) || ai.IsClaudeAI(engineModel) || ai.IsGrok(engineModel) {
 		ProcessStreamingMessageWithLocalThreads(ctx, bot, message, []models.Message{}, "", mode, engineModel, cancelContext)
 		return
 	}
@@ -140,7 +140,7 @@ func ProcessThreadedNonStreamingMessage(
 	chatIDString := util.GetChatIDString(message)
 	topicID := util.GetTopicID(message)
 
-	if ai.IsFireworksAI(engineModel) {
+	if ai.IsFireworksAI(engineModel) || ai.IsClaudeAI(engineModel) || ai.IsGrok(engineModel) {
 		ProcessChatCompleteNonStreamingMessage(ctx, bot, message, []models.Message{}, "", mode, engineModel)
 		return
 	}
