@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
-	miniapp "talk2robots/m/v2/app"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/db/mongo"
 	"talk2robots/m/v2/app/db/redis"
@@ -98,8 +97,7 @@ func main() {
 	})
 
 	rtr.GET("/miniapp", func(ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Set("Content-Type", "text/html")
-		_, _ = ctx.WriteString(miniapp.HomePage)
+		ctx.Redirect("https://t.me/gienjibot?start=s=miniapp", fasthttp.StatusFound)
 	})
 
 	// stripe webhook
