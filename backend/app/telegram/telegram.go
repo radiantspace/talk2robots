@@ -596,7 +596,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 	}
 	if callbackQuery.Data == string(models.Grok) {
 		go redis.SaveModel(chatIDString, models.Grok)
-		notification := "Switched to Grok model, intelligent and fun with Web Search enabled!"
+		notification := "Switched to Grok model, intelligent and fun!"
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
 		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 		if err != nil {

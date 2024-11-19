@@ -171,7 +171,7 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 		InlineKeyboard: [][]telego.InlineKeyboardButton{
 			{
 				{
-					Text:         grokActive + "Grok + Web 🌍 💰💰🏃🏃🧠🧠🧠",
+					Text:         grokActive + "Grok 💰💰🏃🏃🧠🧠🧠",
 					CallbackData: string(models.Grok) + ":" + topicString,
 				},
 			},
