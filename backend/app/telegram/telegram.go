@@ -69,7 +69,7 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 		return nil, fmt.Errorf("failed to setup bot handler: %w", err)
 	}
 	bh.HandleMessage(handleMessage)
-	bh.HandleCallbackQuery(handleCallbackQuery, th.AnyCallbackQueryWithMessage())
+	bh.HandleCallbackQuery(handleCallbackQuery)
 	bh.HandleInlineQuery(handleInlineQuery)
 	bh.HandleChosenInlineResult(handleChosenInlineResult)
 	bh.Handle(handleGeneralUpdate, th.Any())
@@ -99,13 +99,13 @@ func signBotForUpdates(bot *telego.Bot) (<-chan telego.Update, *http.ServeMux, e
 		URL:         util.Env("BACKEND_BASE_URL") + "/bot",
 		SecretToken: bot.SecretToken(),
 		AllowedUpdates: []string{
-				telego.MessageUpdates,
-				telego.CallbackQueryUpdates,
-				telego.InlineQueryUpdates,
-				telego.ChosenInlineResultUpdates,
-				telego.MessageReactionUpdates,
-				telego.MessageReactionCountUpdates,
-			},
+			telego.MessageUpdates,
+			telego.CallbackQueryUpdates,
+			telego.InlineQueryUpdates,
+			telego.ChosenInlineResultUpdates,
+			telego.MessageReactionUpdates,
+			telego.MessageReactionCountUpdates,
+		},
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to set webhook: %w", err)
@@ -231,7 +231,7 @@ func handleMessage(bhctx *th.Context, message telego.Message) error {
 	if mode == lib.Transcribe {
 		ChunkSendMessage(bot, &message, voiceTranscriptionText)
 		if isPrivate && message.Text != "" {
-			bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
+			bot.SendMessage(ctx, tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
 		}
 		return nil
 	}
@@ -392,7 +392,7 @@ func handleCallbackQuery(bhctx *th.Context, callbackQuery telego.CallbackQuery) 
 		err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreeSubscriptionName])
 		if err != nil {
 			log.Errorf("Failed to downgrade user %s subscription: to free %v", chatString, err)
-			bot.SendMessage(tu.Message(tu.ID(chatId), "Failed to downgrade your account to free plan. Please try again later.").WithMessageThreadID(topicId))
+			bot.SendMessage(ctx, tu.Message(tu.ID(chatId), "Failed to downgrade your account to free plan. Please try again later.").WithMessageThreadID(topicId))
 			return err
 		}
 		bot.SendMessage(ctx, tu.Message(tu.ID(chatId), "You are now a free user!").WithMessageThreadID(topicId))
@@ -501,7 +501,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 	}
 	if callbackQuery.Data == string(models.ChatGpt35Turbo) {
 		go redis.SaveModel(chatIDString, models.ChatGpt35Turbo)
-		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-3.5 Turbo model, fast and cheap!").WithMessageThreadID(topicID))
+		_, err := BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), "Switched to GPT-3.5 Turbo model, fast and cheap!").WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-3.5 message: %v", err)
 		}
@@ -516,7 +516,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 	}
 	if callbackQuery.Data == string(models.ChatGpt4oMini) {
 		go redis.SaveModel(chatIDString, models.ChatGpt4oMini)
-		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to GPT-4o Mini model, fast and cheap!").WithMessageThreadID(topicID))
+		_, err := BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), "Switched to GPT-4o Mini model, fast and cheap!").WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-4o Mini message: %v", err)
 		}
@@ -546,7 +546,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		go redis.SaveModel(chatIDString, models.Engine(callbackQuery.Data))
 		notification := fmt.Sprintf("Switched to %s model, very intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap.", callbackQuery.Data)
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+		_, err = BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-4 message: %v", err)
 		}
@@ -593,11 +593,11 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		go redis.SaveModel(chatIDString, models.LlamaV3_70b)
 		notification := "Switched to big Llama3 model, intelligent, but slower and expensive! Don't forget to check /status regularly to avoid hitting the usage cap."
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+		_, err := BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send big Llama3 message: %v", err)
 		}
-		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		err = BOT.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Switched to big Llama3 engine!",
 		})
@@ -610,11 +610,11 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		go redis.SaveModel(chatIDString, models.Grok)
 		notification := "Switched to Grok model, intelligent and fun!"
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+		_, err := BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send Grok message: %v", err)
 		}
-		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		err = BOT.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Switched to Grok engine!",
 		})
@@ -639,7 +639,7 @@ func handleImageModelSwitchCallbackQuery(callbackQuery telego.CallbackQuery, top
 	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, topicString)
 	currentModel := redis.GetImageModel(chatIDString)
 	if callbackQuery.Data == string(currentModel) {
-		err := BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		err := BOT.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "You are already using " + callbackQuery.Data + " model!",
 		})
@@ -651,11 +651,11 @@ func handleImageModelSwitchCallbackQuery(callbackQuery telego.CallbackQuery, top
 	go redis.SaveImageModel(chatIDString, models.Engine(callbackQuery.Data))
 	notification := fmt.Sprintf("Switched to %s image model, enjoy!", callbackQuery.Data)
 	notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-	_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+	_, err := BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 	if err != nil {
 		log.Errorf("handleImageModelSwitchCallbackQuery failed to send image model message: %v", err)
 	}
-	err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+	err = BOT.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 		CallbackQueryID: callbackQuery.ID,
 		Text:            "Switched to " + callbackQuery.Data + " image model!",
 	})
@@ -698,7 +698,7 @@ func handleInlineQuery(bhctx *th.Context, inlineQuery telego.InlineQuery) error 
 	})
 	if err != nil {
 		log.Errorf("Failed to get completion for inline query: %v", err)
-		return
+		return err
 	}
 	params := &telego.AnswerInlineQueryParams{
 		InlineQueryID: inlineQuery.ID,
@@ -721,20 +721,23 @@ func handleInlineQuery(bhctx *th.Context, inlineQuery telego.InlineQuery) error 
 	// retry w/o parse mode if failed
 	if err != nil && strings.Contains(err.Error(), "can't parse entities") {
 		params.Results[0].(*telego.InlineQueryResultArticle).InputMessageContent.(*telego.InputTextMessageContent).ParseMode = ""
-		err = bot.AnswerInlineQuery(params)
+		err = bot.AnswerInlineQuery(ctx, params)
 	}
 
 	if err != nil {
 		log.Errorf("Failed to answer %d inline query: %v", chatID, err)
 	}
+
+	return err
 }
 
-func handleChosenInlineResult(bot *telego.Bot, chosenInlineResult telego.ChosenInlineResult) {
+func handleChosenInlineResult(bhctx *th.Context, chosenInlineResult telego.ChosenInlineResult) error {
 	userID := chosenInlineResult.From.ID
 	log.Infof("Chosen inline result from ID: %d, result ID: %s", userID, chosenInlineResult.ResultID)
+	return nil
 }
 
-func handleGeneralUpdate(bot *telego.Bot, update telego.Update) {
+func handleGeneralUpdate(bhctx *th.Context, update telego.Update) error {
 	log.Debugf("handleGeneralUpdate: %v", update)
 
 	if update.MessageReaction != nil && update.MessageReaction.NewReaction != nil {
@@ -788,6 +791,8 @@ func handleGeneralUpdate(bot *telego.Bot, update telego.Update) {
 			config.CONFIG.DataDogClient.Count("telegram.message_reaction_count", int64(reactionCount), []string{"channel_type:" + update.MessageReactionCount.Chat.Type, "reaction:" + reactionString, "mood:" + mood}, 1)
 		}
 	}
+
+	return nil
 }
 
 func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Message) string {
@@ -811,14 +816,14 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 		log.Errorf("No voice/audio/video message in chat %s", chatIDString)
 		return ""
 	}
-	fileData, err := bot.GetFile(&telego.GetFileParams{FileID: fileId})
+	fileData, err := bot.GetFile(ctx, &telego.GetFileParams{FileID: fileId})
 	if err != nil {
 		log.Errorf("Failed to get voice/audio/video file data in chat %s: %v", chatIDString, err)
 		if strings.Contains(err.Error(), "file is too big") {
-			_, _ = bot.SendMessage(tu.Message(chatID, "Telegram API doesn't support downloading files bigger than 20Mb, try sending a shorter voice/audio/video message.").WithMessageThreadID(message.MessageThreadID))
+			_, _ = bot.SendMessage(ctx, tu.Message(chatID, "Telegram API doesn't support downloading files bigger than 20Mb, try sending a shorter voice/audio/video message.").WithMessageThreadID(message.MessageThreadID))
 			return ""
 		}
-		_, err = bot.SendMessage(tu.Message(chatID, "Something went wrong while getting voice/audio/video file, please try again.").WithMessageThreadID(message.MessageThreadID))
+		_, err = bot.SendMessage(ctx, tu.Message(chatID, "Something went wrong while getting voice/audio/video file, please try again.").WithMessageThreadID(message.MessageThreadID))
 		if err != nil {
 			log.Errorf("Failed to send message in chat %s: %v", chatIDString, err)
 		}
@@ -890,7 +895,7 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 
 	if whisper.Transcript().Text == "" {
 		log.Warnf("Failed to transcribe voice message in chat %s from %s, size %d", chatIDString, fileData.FilePath, fileData.FileSize)
-		bot.SendMessage(tu.Message(chatID, "Couldn't transcribe the voice/audio/video message, maybe next time?").WithMessageThreadID(message.MessageThreadID))
+		bot.SendMessage(ctx, tu.Message(chatID, "Couldn't transcribe the voice/audio/video message, maybe next time?").WithMessageThreadID(message.MessageThreadID))
 		return ""
 	}
 
@@ -898,24 +903,27 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 }
 
 func sendTypingAction(bot *telego.Bot, message *telego.Message) {
+	ctx := context.Background()
 	chatID := message.Chat.ChatID()
-	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionTyping, MessageThreadID: message.MessageThreadID})
+	err := bot.SendChatAction(ctx, &telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionTyping, MessageThreadID: message.MessageThreadID})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %v", err)
 	}
 }
 
 func sendImageAction(bot *telego.Bot, message *telego.Message) {
+	ctx := context.Background()
 	chatID := message.Chat.ChatID()
-	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionUploadPhoto, MessageThreadID: message.MessageThreadID})
+	err := bot.SendChatAction(ctx, &telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionUploadPhoto, MessageThreadID: message.MessageThreadID})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %v", err)
 	}
 }
 
 func sendAudioAction(bot *telego.Bot, message *telego.Message) {
+	ctx := context.Background()
 	chatID := message.Chat.ChatID()
-	err := bot.SendChatAction(&telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionRecordVoice, MessageThreadID: message.MessageThreadID})
+	err := bot.SendChatAction(ctx, &telego.SendChatActionParams{ChatID: chatID, Action: telego.ChatActionRecordVoice, MessageThreadID: message.MessageThreadID})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %v", err)
 	}
