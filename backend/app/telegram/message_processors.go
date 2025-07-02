@@ -315,7 +315,7 @@ func prepareMessages(
 	messages = util.MessagesToMultimodalMessages(seedData)
 
 	// check if message had an image attachments and pass it on in base64 format to the model
-	if message.Photo == nil || len(message.Photo) == 0 {
+	if len(message.Photo) == 0 {
 		messages = append(messages, models.MultimodalMessage{
 			Role:    "user",
 			Content: []models.MultimodalContent{{Type: "text", Text: userMessagePrimer + message.Text}},

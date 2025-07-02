@@ -1,8 +1,8 @@
-version: '3.7'
+version: "3.7"
 
 services:
   backend:
-    build: 
+    build:
       context: backend
       dockerfile: Dockerfile
     depends_on:
@@ -45,11 +45,13 @@ services:
     network_mode: "host"
 
   mongo:
-    image: mongo:6.0.4
+    image: mongo:6.0.13
     restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
+    ports:
+      - "27017:27017"
     network_mode: "host"
 
   redis:

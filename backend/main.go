@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -166,40 +167,47 @@ func main() {
 	go TearDown(sigs, done, slackBot, telegramBot, systemBot, status.WORKER, clearusage.WORKER)
 
 	go func() {
-		err = telegramBot.StartWebhook(util.Env("BACKEND_LISTEN_ADDRESS"))
-		util.Assert(err == nil, "StartWebhook:", err)
+		err = http.ListenAndServe(util.Env("BACKEND_LISTEN_ADDRESS"), telegramBot.ServeMux)
+		util.Assert(err == nil, "ListenAndServe:", err)
 	}()
 
 	chatId, _ := strconv.ParseInt(config.CONFIG.TelegramSystemTo, 10, 64)
 	successfulStartMessage := fmt.Sprintf("🤖 %s started successfully 🚀 inside %s", config.CONFIG.BotName, util.Env("POD_NAME", "unknown"))
-	_, err = systemBot.Bot.SendMessage(tu.Message(tu.ID(chatId), successfulStartMessage))
+	_, err = systemBot.Bot.SendMessage(context.Background(), tu.Message(tu.ID(chatId), successfulStartMessage))
 	if err != nil {
 		log.Errorf("Failed to send start message to systemBot: %s", err)
 	}
-	log.Infof(successfulStartMessage)
+	log.Info(successfulStartMessage)
 
 	<-done
-	log.Infof("Done")
+	log.Info("Done")
 }
 
 func TearDown(sigs chan os.Signal, done chan struct{}, slackBot *slack.Bot, telegramBot *telegram.Bot, systemBot *telegram.Bot, statusWorker *workers.Worker, clearUsageWorker *workers.Worker) {
 	<-sigs
 	exitMessage := fmt.Sprintf("🤖 %s bids farewell ❌ inside %s", config.CONFIG.BotName, util.Env("POD_NAME", "unknown"))
-	log.Infof(exitMessage)
+	log.Info(exitMessage)
 	chatId, _ := strconv.ParseInt(config.CONFIG.TelegramSystemTo, 10, 64)
-	systemBot.Bot.SendMessage(tu.Message(tu.ID(chatId), exitMessage))
+	systemBot.Bot.SendMessage(context.Background(), tu.Message(tu.ID(chatId), exitMessage))
 	statusWorker.StopWorker()
 	clearUsageWorker.StopWorker()
-	err := telegramBot.StopWebhook()
+	err := telegramBot.BotHandler.Stop()
 	if err != nil {
-		log.Errorf("TearDown: StopWebhook for bot: %v", err)
+		log.Errorf("TearDown: BotHandler.Stop for bot: %v", err)
 	}
-	telegramBot.BotHandler.Stop()
-	systemBot.Bot.StopWebhook()
+	err = telegramBot.Stop()
 	if err != nil {
-		log.Errorf("TearDown: StopWebhook for system bot: %v", err)
+		log.Errorf("TearDown: Stop for bot: %v", err)
 	}
-	systemBot.BotHandler.Stop()
+	err = systemBot.BotHandler.Stop()
+	if err != nil {
+		log.Errorf("TearDown: BotHandler.Stop for system bot: %v", err)
+	}
+	err = systemBot.Stop()
+	if err != nil {
+		log.Errorf("TearDown: Stop for system bot: %v", err)
+	}
+
 	err = mongo.MongoDBClient.Disconnect(context.Background())
 	if err != nil {
 		log.Errorf("TearDown: Disconnecting from MongoDB: %v", err)

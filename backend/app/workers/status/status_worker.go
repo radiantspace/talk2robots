@@ -72,7 +72,7 @@ func reportUnavailableStatus(bot *telego.Bot, chatID telego.ChatID, mainBotName 
 	}
 	message := "🔥 " + mainBotName + ": " + systemName + " is down 🔥"
 	log.Error(message)
-	_, err := bot.SendMessage(context.Background(),tu.Message(chatID, message))
+	_, err := bot.SendMessage(context.Background(), tu.Message(chatID, message))
 	if err != nil {
 		log.Errorf("Failed to send message to telegram: %s", err)
 	}

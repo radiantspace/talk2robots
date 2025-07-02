@@ -2,11 +2,13 @@ package mongo
 
 import (
 	"context"
+	"log"
 	"runtime"
 	"strings"
 	"talk2robots/m/v2/app/config"
 	"talk2robots/m/v2/app/models"
 	"testing"
+	"time"
 
 	"github.com/tryvium-travels/memongo"
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,9 +16,11 @@ import (
 
 var MockMongoServer *memongo.Server
 
-func TestMain(m *testing.M) {
+func init() {
 	opts := &memongo.Options{
-		MongoVersion: "6.0.13",
+		MongoVersion: "6.0.13", // Use a version compatible with OpenSSL 3
+		// LogLevel:    memongolog.LogLevelDebug,
+		StartupTimeout: time.Second * 10, // Increased timeout for startup
 	}
 	if runtime.GOARCH == "arm64" {
 		if runtime.GOOS == "darwin" {
@@ -25,7 +29,18 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	MockMongoServer, _ = memongo.Start("6.0.13")
+	mockMongoServer, err := memongo.StartWithOptions(opts)
+	if err != nil {
+		log.Fatalf("error starting mock mongo server: %v", err)
+	}
+
+	MockMongoServer = mockMongoServer
+}
+
+func TestMain(m *testing.M) {
+	if MockMongoServer == nil {
+		log.Fatal("MockMongoServer is nil, ensure init() has run successfully")
+	}
 	defer MockMongoServer.Stop()
 	m.Run()
 }

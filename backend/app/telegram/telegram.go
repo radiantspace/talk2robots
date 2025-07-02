@@ -156,7 +156,7 @@ func handleMessage(bhctx *th.Context, message telego.Message) error {
 				return err
 			}
 			chatMemberStatus := chatMember.MemberStatus()
-			if err == nil && (chatMemberStatus != telego.MemberStatusCreator && chatMemberStatus != telego.MemberStatusAdministrator && chatMemberStatus != telego.MemberStatusLeft) {
+			if chatMemberStatus != telego.MemberStatusCreator && chatMemberStatus != telego.MemberStatusAdministrator && chatMemberStatus != telego.MemberStatusLeft {
 				log.Infof("Ignoring public command from user %d with status %s in channel: %s", message.From.ID, chatMember.MemberStatus(), chatIDString)
 				return nil
 			}

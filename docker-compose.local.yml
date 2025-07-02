@@ -1,8 +1,8 @@
-version: '3.7'
+version: "3.7"
 
 services:
   backend:
-    build: 
+    build:
       context: backend
       dockerfile: Dockerfile
     ports:
@@ -49,7 +49,7 @@ services:
       - my_network
 
   mongo:
-    image: mongo:6.0.4
+    image: mongo:6.0.13
     restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
@@ -64,7 +64,6 @@ services:
       REDIS_PASSWORD: example
     networks:
       - my_network
-
 
 networks:
   my_network:

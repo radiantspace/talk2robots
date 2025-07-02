@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"context"
 	"reflect"
 	"regexp"
 	"talk2robots/m/v2/app/config"
@@ -11,113 +12,22 @@ import (
 
 	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/mymmrac/telego"
+	"github.com/mymmrac/telego/telegohandler"
 	log "github.com/sirupsen/logrus"
 	"github.com/undefinedlabs/go-mpatch"
 )
 
-func init() {
-	setupTestDatadog()
+var TestHandlerContext *telegohandler.Context
+var TestHandlerContextPatch *mpatch.Patch
 
-	redis.RedisClient = redis.NewMockRedisClient()
-
-	mongo.MongoDBClient = mongo.NewMockMongoDBClient(
-		models.MongoUser{
-			ID:    "123",
-			Usage: 0.1,
-		},
-	)
-
-	setupTestBot()
-	setupCommandHandlers()
-
-	log.SetFormatter(&log.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(log.DebugLevel)
-}
-
-func getTestBot() *telego.Bot {
-	return &telego.Bot{}
-}
-
-func setupTestBot() {
-	BOT = &Bot{
-		Name: "testbot",
-		Bot:  getTestBot(),
-	}
-}
-
-func setupTestDatadog() {
-	testClient, err := statsd.New("127.0.0.1:8125", statsd.WithNamespace("tests."))
-	if err != nil {
-		log.Fatalf("error creating test DataDog client: %v", err)
-	}
-	config.CONFIG = &config.Config{
-		DataDogClient: testClient,
-	}
-}
-
-func getChatMemberFuncAssertion(t *testing.T, expectedChatID int64, expectedUserID int64) func(bot *telego.Bot, params *telego.GetChatMemberParams) (telego.ChatMember, error) {
-	return func(bot *telego.Bot, params *telego.GetChatMemberParams) (telego.ChatMember, error) {
-		if params.ChatID.ID != expectedChatID {
-			t.Errorf("Expected chat ID %d, got %d", expectedChatID, params.ChatID.ID)
-		}
-		if params.UserID != expectedUserID {
-			t.Errorf("Expected user ID %d, got %d", expectedUserID, params.UserID)
-		}
-
-		return &telego.ChatMemberAdministrator{}, nil
-	}
-}
-
-func getSendMessageFuncAssertion(t *testing.T, expectedRegex string, expectedChatID int64) func(bot *telego.Bot, params *telego.SendMessageParams) (*telego.Message, error) {
-	return func(bot *telego.Bot, params *telego.SendMessageParams) (*telego.Message, error) {
-		if params.ChatID.ID != expectedChatID {
-			t.Errorf("Expected chat ID %d, got %d", expectedChatID, params.ChatID.ID)
-		}
-
-		matched, err := regexp.MatchString(expectedRegex, params.Text)
-		if err != nil {
-			t.Errorf("Error matching regex: %v", err)
-		}
-		if !matched {
-			t.Errorf("Expected message to match regex %s, got %s", expectedRegex, params.Text)
-		}
-
-		return &telego.Message{
-			MessageID: 12345,
-			Text:      params.Text,
-			Chat: telego.Chat{
-				ID: params.ChatID.ID,
-			},
-		}, nil
-	}
-}
-
-func getEditMessageFuncAssertion(t *testing.T, expectedRegex string, expectedChatID int64) func(bot *telego.Bot, params *telego.EditMessageTextParams) (*telego.Message, error) {
-	return func(bot *telego.Bot, params *telego.EditMessageTextParams) (*telego.Message, error) {
-		if params.ChatID.ID != expectedChatID {
-			t.Errorf("Expected chat ID %d, got %d", expectedChatID, params.ChatID.ID)
-		}
-
-		matched, err := regexp.MatchString(expectedRegex, params.Text)
-		if err != nil {
-			t.Errorf("Error matching regex: %v", err)
-		}
-		if !matched {
-			t.Errorf("Expected message to match regex %s, got %s", expectedRegex, params.Text)
-		}
-
-		return &telego.Message{
-			MessageID: params.MessageID,
-			Text:      params.Text,
-			Chat: telego.Chat{
-				ID: params.ChatID.ID,
-			},
-		}, nil
-	}
-}
+// func TestMain(m *testing.M) {
+// 	setupTestHandlerContext()
+// 	if TestHandlerContext == nil {
+// 		log.Fatal("TestHandlerContext is nil, ensure setupTestHandlerContext() has run successfully")
+// 	}
+// 	defer tearDownTestHandlerContext()
+// 	m.Run()
+// }
 
 func TestHandleEmptyPublicMessage(t *testing.T) {
 	message := telego.Message{
@@ -127,7 +37,7 @@ func TestHandleEmptyPublicMessage(t *testing.T) {
 	}
 
 	// act
-	handleMessage(BOT.Bot, message)
+	handleMessage(TestHandlerContext, message)
 }
 
 func TestHandleEmptyPrivateMessage(t *testing.T) {
@@ -149,7 +59,7 @@ func TestHandleEmptyPrivateMessage(t *testing.T) {
 	defer sendMessagePatch.Unpatch()
 
 	// act
-	handleMessage(BOT.Bot, message)
+	handleMessage(TestHandlerContext, message)
 }
 
 func TestHandlePrivateStartCommandMessage(t *testing.T) {
@@ -173,7 +83,7 @@ func TestHandlePrivateStartCommandMessage(t *testing.T) {
 	defer sendMessagePatch.Unpatch()
 
 	// act
-	handleMessage(BOT.Bot, message)
+	handleMessage(TestHandlerContext, message)
 }
 
 func TestHandlePublicStartCommandMessage(t *testing.T) {
@@ -210,7 +120,7 @@ func TestHandlePublicStartCommandMessage(t *testing.T) {
 	defer getChatMemberPatch.Unpatch()
 
 	// act
-	handleMessage(BOT.Bot, message)
+	handleMessage(TestHandlerContext, message)
 }
 
 func TestHandlePublicStartCommandNoMentionMessage(t *testing.T) {
@@ -224,7 +134,7 @@ func TestHandlePublicStartCommandNoMentionMessage(t *testing.T) {
 	}
 
 	// act
-	handleMessage(BOT.Bot, message)
+	handleMessage(TestHandlerContext, message)
 }
 
 func TestHandlePublicUnknownCommandMessage(t *testing.T) {
@@ -261,5 +171,141 @@ func TestHandlePublicUnknownCommandMessage(t *testing.T) {
 	defer getChatMemberPatch.Unpatch()
 
 	// act
-	handleMessage(BOT.Bot, message)
+	handleMessage(TestHandlerContext, message)
+}
+
+func init() {
+	setupTestDatadog()
+
+	redis.RedisClient = redis.NewMockRedisClient()
+
+	mongo.MongoDBClient = mongo.NewMockMongoDBClient(
+		models.MongoUser{
+			ID:    "123",
+			Usage: 0.1,
+		},
+	)
+
+	setupTestBot()
+	setupTestHandlerContext()
+	setupCommandHandlers()
+
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+		ForceColors:   true,
+	})
+	log.SetLevel(log.DebugLevel)
+}
+
+func getTestBot() *telego.Bot {
+	return &telego.Bot{}
+}
+
+func setupTestBot() {
+	BOT = &Bot{
+		Name: "testbot",
+		Bot:  getTestBot(),
+	}
+}
+
+func setupTestHandlerContext() {
+	if TestHandlerContext != nil {
+		return
+	}
+
+	TestHandlerContext = &telegohandler.Context{
+	}
+	testHandlerContextPatch, err := mpatch.PatchInstanceMethodByName(
+		reflect.TypeOf(TestHandlerContext),
+		"Bot",
+		func(bhctx *telegohandler.Context) *telego.Bot {
+			return BOT.Bot
+		},
+	)
+	if err != nil {
+		log.Fatalf("error patching TestHandlerContext.Bot: %v", err)
+	}
+
+	TestHandlerContextPatch = testHandlerContextPatch
+}
+
+func setupTestDatadog() {
+	testClient, err := statsd.New("127.0.0.1:8125", statsd.WithNamespace("tests."))
+	if err != nil {
+		log.Fatalf("error creating test DataDog client: %v", err)
+	}
+	config.CONFIG = &config.Config{
+		DataDogClient: testClient,
+	}
+}
+
+// func tearDownTestHandlerContext() {
+// 	if TestHandlerContextPatch != nil && TestHandlerContext != nil {
+// 		if err := TestHandlerContextPatch.Unpatch(); err != nil {
+// 			log.Errorf("error unpatching TestHandlerContext.Bot: %v", err)
+// 		}
+// 		TestHandlerContextPatch = nil
+// 		TestHandlerContext = nil
+// 	}
+// }
+
+func getChatMemberFuncAssertion(t *testing.T, expectedChatID int64, expectedUserID int64) func(bot *telego.Bot, params *telego.GetChatMemberParams) (telego.ChatMember, error) {
+	return func(bot *telego.Bot, params *telego.GetChatMemberParams) (telego.ChatMember, error) {
+		if params.ChatID.ID != expectedChatID {
+			t.Errorf("Expected chat ID %d, got %d", expectedChatID, params.ChatID.ID)
+		}
+		if params.UserID != expectedUserID {
+			t.Errorf("Expected user ID %d, got %d", expectedUserID, params.UserID)
+		}
+
+		return &telego.ChatMemberAdministrator{}, nil
+	}
+}
+
+func getSendMessageFuncAssertion(t *testing.T, expectedRegex string, expectedChatID int64) func(bot *telego.Bot, ctx context.Context, params *telego.SendMessageParams) (*telego.Message, error) {
+	return func(bot *telego.Bot, ctx context.Context, params *telego.SendMessageParams) (*telego.Message, error) {
+		if params.ChatID.ID != expectedChatID {
+			t.Errorf("Expected chat ID %d, got %d", expectedChatID, params.ChatID.ID)
+		}
+
+		matched, err := regexp.MatchString(expectedRegex, params.Text)
+		if err != nil {
+			t.Errorf("Error matching regex: %v", err)
+		}
+		if !matched {
+			t.Errorf("Expected message to match regex %s, got %s", expectedRegex, params.Text)
+		}
+
+		return &telego.Message{
+			MessageID: 12345,
+			Text:      params.Text,
+			Chat: telego.Chat{
+				ID: params.ChatID.ID,
+			},
+		}, nil
+	}
+}
+
+func getEditMessageFuncAssertion(t *testing.T, expectedRegex string, expectedChatID int64) func(bot *telego.Bot, ctx context.Context, params *telego.EditMessageTextParams) (*telego.Message, error) {
+	return func(bot *telego.Bot, ctx context.Context, params *telego.EditMessageTextParams) (*telego.Message, error) {
+		if params.ChatID.ID != expectedChatID {
+			t.Errorf("Expected chat ID %d, got %d", expectedChatID, params.ChatID.ID)
+		}
+
+		matched, err := regexp.MatchString(expectedRegex, params.Text)
+		if err != nil {
+			t.Errorf("Error matching regex: %v", err)
+		}
+		if !matched {
+			t.Errorf("Expected message to match regex %s, got %s", expectedRegex, params.Text)
+		}
+
+		return &telego.Message{
+			MessageID: params.MessageID,
+			Text:      params.Text,
+			Chat: telego.Chat{
+				ID: params.ChatID.ID,
+			},
+		}, nil
+	}
 }
