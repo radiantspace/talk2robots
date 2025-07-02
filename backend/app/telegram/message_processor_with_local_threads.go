@@ -46,7 +46,7 @@ func ProcessStreamingMessageWithLocalThreads(
 
 	if err != nil {
 		log.Errorf("[ProcessThreadedStreamingMessage] Failed get streaming response from AI in chat: %s, %v", chatIDString, err)
-		_, err = bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+		_, err = bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		if err != nil {
 			log.Errorf("[ProcessThreadedStreamingMessage] Failed to send error message in chat: %s, %v", chatIDString, err)
 		}
@@ -67,12 +67,12 @@ func processMessageChannelWithLocalThread(
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
 	responseText := "..."
-	responseMessage, err := bot.SendMessage(tu.Message(chatID, responseText).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
+	responseMessage, err := bot.SendMessage(ctx, tu.Message(chatID, responseText).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
 		GetPendingReplyMarkup(),
 	))
 	if err != nil {
 		log.Errorf("[processMessageChannel] Failed to send primer message in chat: %s, %v", chatIDString, err)
-		bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+		bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 	isVoice, _ := util.IsAudioMessage(message)

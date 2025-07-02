@@ -29,15 +29,15 @@ import (
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
 	log "github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
 )
 
 type Bot struct {
 	*ai.API
 	*telego.Bot
 	*th.BotHandler
-	Name  string
-	Dummy bool
+	ServeMux *http.ServeMux
+	Name     string
+	Dummy    bool
 	telego.ChatID
 	WhisperConfig openai.WhisperConfig
 }
@@ -46,12 +46,12 @@ var AllCommandHandlers CommandHandlers = CommandHandlers{}
 var BOT *Bot
 
 func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
-	bot, err := telego.NewBot(cfg.TelegramBotToken, telego.WithHealthCheck(), util.GetBotLoggerOption(cfg))
+	bot, err := telego.NewBot(cfg.TelegramBotToken, telego.WithHealthCheck(context.Background()), util.GetBotLoggerOption(cfg))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create bot: %w", err)
 	}
 
-	botInfo, err := bot.GetMe()
+	botInfo, err := bot.GetMe(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bot info: %w", err)
 	} else {
@@ -60,16 +60,16 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 	}
 
 	setupCommandHandlers()
-	updates, err := signBotForUpdates(bot, rtr)
+	updates, mux, err := signBotForUpdates(bot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign bot for updates: %w", err)
 	}
-	bh, err := th.NewBotHandler(bot, updates, th.WithStopTimeout(time.Second*10))
+	bh, err := th.NewBotHandler(bot, updates) // th.WithStopTimeout(time.Second*10))
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup bot handler: %w", err)
 	}
 	bh.HandleMessage(handleMessage)
-	bh.HandleCallbackQuery(handleCallbackQuery)
+	bh.HandleCallbackQuery(handleCallbackQuery, th.AnyCallbackQueryWithMessage())
 	bh.HandleInlineQuery(handleInlineQuery)
 	bh.HandleChosenInlineResult(handleChosenInlineResult)
 	bh.Handle(handleGeneralUpdate, th.Any())
@@ -87,35 +87,42 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 			StopTimeout:        5 * time.Second,
 			OnTranscribe:       nil,
 		},
+		ServeMux: mux,
 	}
 
 	return BOT, nil
 }
 
-func signBotForUpdates(bot *telego.Bot, rtr *router.Router) (<-chan telego.Update, error) {
-	updates, err := bot.UpdatesViaWebhook(
-		"/bot"+bot.Token(),
-		telego.WithWebhookSet(&telego.SetWebhookParams{
-			URL: util.Env("BACKEND_BASE_URL") + "/bot" + bot.Token(),
-			AllowedUpdates: []string{
+func signBotForUpdates(bot *telego.Bot) (<-chan telego.Update, *http.ServeMux, error) {
+	ctx := context.Background()
+	err := bot.SetWebhook(ctx, &telego.SetWebhookParams{
+		URL:         util.Env("BACKEND_BASE_URL") + "/bot",
+		SecretToken: bot.SecretToken(),
+		AllowedUpdates: []string{
 				telego.MessageUpdates,
 				telego.CallbackQueryUpdates,
 				telego.InlineQueryUpdates,
 				telego.ChosenInlineResultUpdates,
-				telego.MessageReaction,
-				telego.MessageReactionCount,
+				telego.MessageReactionUpdates,
+				telego.MessageReactionCountUpdates,
 			},
-		}),
-		telego.WithWebhookServer(telego.FastHTTPWebhookServer{
-			Logger: log.StandardLogger(),
-			Server: &fasthttp.Server{},
-			Router: rtr,
-		}),
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to set webhook: %w", err)
+	}
+
+	// Create http serve mux
+	mux := http.NewServeMux()
+
+	updates, err := bot.UpdatesViaWebhook(
+		context.Background(),
+		telego.WebhookHTTPServeMux(mux, "/bot", bot.SecretToken()),
 	)
-	return updates, err
+	return updates, mux, err
 }
 
-func handleMessage(bot *telego.Bot, message telego.Message) {
+func handleMessage(bhctx *th.Context, message telego.Message) error {
+	bot := bhctx.Bot()
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
 	topicID := util.GetTopicID(&message)
@@ -124,11 +131,11 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	if err != nil {
 		if err == lib.ErrUserBanned {
 			log.Infof("User %s is banned", chatIDString)
-			return
+			return err
 		}
 
 		log.Errorf("Error setting up user and context: %v", err)
-		return
+		return err
 	}
 
 	// process commands
@@ -136,27 +143,27 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		if !isPrivate {
 			if !strings.Contains(message.Text, "@"+BOT.Name) {
 				log.Infof("Ignoring public command w/o @mention in channel: %s", chatIDString)
-				return
+				return err
 			}
 
 			// only allow admins to use commands in channels
-			chatMember, err := bot.GetChatMember(&telego.GetChatMemberParams{
+			chatMember, err := bot.GetChatMember(ctx, &telego.GetChatMemberParams{
 				ChatID: chatID,
 				UserID: message.From.ID,
 			})
 			if err != nil {
 				log.Errorf("Error getting chat member: %v", err)
-				return
+				return err
 			}
 			chatMemberStatus := chatMember.MemberStatus()
 			if err == nil && (chatMemberStatus != telego.MemberStatusCreator && chatMemberStatus != telego.MemberStatusAdministrator && chatMemberStatus != telego.MemberStatusLeft) {
 				log.Infof("Ignoring public command from user %d with status %s in channel: %s", message.From.ID, chatMember.MemberStatus(), chatIDString)
-				return
+				return nil
 			}
 		}
 
 		AllCommandHandlers.handleCommand(ctx, BOT, &message)
-		return
+		return nil
 	}
 
 	mode, params := lib.GetMode(chatIDString, topicID)
@@ -168,14 +175,14 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	// 3. /grammar fixes
 	if !isPrivate && mode != lib.Transcribe && mode != lib.Grammar && !strings.Contains(message.Text, "@"+BOT.Name) {
 		log.Infof("Ignoring public message w/o @mention and not in transcribe or grammar mode in channel: %s", chatIDString)
-		return
+		return nil
 	}
 
 	if message.Video != nil && strings.HasPrefix(message.Caption, string(SYSTEMSetOnboardingVideoCommand)) {
 		log.Infof("System command received: %+v", message) // audit
 		message.Text = string(SYSTEMSetOnboardingVideoCommand)
 		AllCommandHandlers.handleCommand(ctx, BOT, &message)
-		return
+		return nil
 	}
 
 	// user usage exceeded monthly limit, send message and return
@@ -189,7 +196,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		message.Text = upgradeCommand
 		config.CONFIG.DataDogClient.Incr("telegram.usage_exceeded", []string{"client:telegram", "channel_type:" + message.Chat.Type, "subscription:" + string(subscription)}, 1)
 		AllCommandHandlers.handleCommand(ctx, BOT, &message)
-		return
+		return nil
 	}
 
 	voiceTranscriptionText := ""
@@ -214,7 +221,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 			// process commands again if it was a voice command
 			if message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/") {
 				AllCommandHandlers.handleCommand(ctx, BOT, &message)
-				return
+				return nil
 			}
 		}
 	} else if message.Text != "" {
@@ -226,7 +233,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 		if isPrivate && message.Text != "" {
 			bot.SendMessage(tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
 		}
-		return
+		return nil
 	}
 
 	if mode != lib.VoiceGPT && !(mode == lib.Grammar && !isPrivate) && voiceTranscriptionText != "" {
@@ -242,18 +249,18 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 			if strings.Contains(err.Error(), "content_policy_violation") {
 				log.Warnf("Content policy violation in chat %s", chatIDString)
 				config.CONFIG.DataDogClient.Incr("telegram.image.content_policy_violation", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
-				bot.SendMessage(tu.Message(chatID, "Sorry, I can't create an image with that content. Please try again with a different prompt.").WithMessageThreadID(message.MessageThreadID))
-				return
+				bot.SendMessage(ctx, tu.Message(chatID, "Sorry, I can't create an image with that content. Please try again with a different prompt.").WithMessageThreadID(message.MessageThreadID))
+				return err
 			}
 			log.Errorf("Error creating image in chat %s: %v", chatIDString, err)
-			return
+			return err
 		}
 		log.Infof("Sending image to chat %s", chatIDString)
 		if len(revisedPrompt) > 1000 {
 			revisedPrompt = revisedPrompt[:997] + "..."
 		}
 		if url != "" {
-			_, err := bot.SendPhoto(&telego.SendPhotoParams{
+			_, err := bot.SendPhoto(ctx, &telego.SendPhotoParams{
 				ChatID:          chatID,
 				Photo:           telego.InputFile{URL: url},
 				Caption:         revisedPrompt,
@@ -264,7 +271,7 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 				log.Errorf("Error sending image to chat %s: %v", chatIDString, err)
 			}
 		}
-		return
+		return nil
 	}
 
 	if message.Photo != nil {
@@ -291,9 +298,12 @@ func handleMessage(bot *telego.Bot, message telego.Message) {
 	} else {
 		go ProcessChatCompleteNonStreamingMessage(ctx, bot, &message, seedData, userMessagePrimer, mode, engineModel)
 	}
+
+	return nil
 }
 
-func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
+func handleCallbackQuery(bhctx *th.Context, callbackQuery telego.CallbackQuery) error {
+	bot := bhctx.Bot()
 	userId := callbackQuery.From.ID
 	chat := callbackQuery.Message.GetChat()
 	messageId := callbackQuery.Message.GetMessageID()
@@ -322,7 +332,7 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	switch callbackQuery.Data {
 	case "like":
 		log.Infof("User %d liked a message in chat %d.", userId, chatId)
-		_, err := bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+		_, err := bot.EditMessageReplyMarkup(ctx, &telego.EditMessageReplyMarkupParams{
 			ChatID:      chat.ChatID(),
 			MessageID:   messageId,
 			ReplyMarkup: nil,
@@ -331,13 +341,13 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			log.Errorf("[like] Failed to edit message reply markup in chat %d: %v", chatId, err)
 		}
 		config.CONFIG.DataDogClient.Incr("telegram.like", []string{"channel_type:" + chatType}, 1)
-		bot.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Thanks for your feedback! 👍",
 		})
 	case "dislike":
 		log.Infof("User %d disliked a message in chat %d.", userId, chatId)
-		_, err := bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+		_, err := bot.EditMessageReplyMarkup(ctx, &telego.EditMessageReplyMarkupParams{
 			ChatID:      chat.ChatID(),
 			MessageID:   messageId,
 			ReplyMarkup: nil,
@@ -346,26 +356,26 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			log.Errorf("[like] Failed to edit message reply markup in chat %d: %v", chatId, err)
 		}
 		config.CONFIG.DataDogClient.Incr("telegram.dislike", []string{"channel_type:" + chatType}, 1)
-		bot.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Thanks for your feedback!",
 		})
 	case string(lib.ChatGPT), string(lib.VoiceGPT), string(lib.Grammar), string(lib.Teacher), string(lib.Summarize), string(lib.Transcribe), string(lib.Translate):
 		handleCommandsInCallbackQuery(callbackQuery, topicString)
 	case "models":
-		bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+		bot.EditMessageReplyMarkup(ctx, &telego.EditMessageReplyMarkupParams{
 			ChatID:      chat.ChatID(),
 			MessageID:   messageId,
 			ReplyMarkup: GetModelsKeyboard(ctx),
 		})
 	case "images":
-		bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+		bot.EditMessageReplyMarkup(ctx, &telego.EditMessageReplyMarkupParams{
 			ChatID:      chat.ChatID(),
 			MessageID:   messageId,
 			ReplyMarkup: GetImageModelsKeyboard(ctx),
 		})
 	case "status":
-		bot.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+		bot.EditMessageReplyMarkup(ctx, &telego.EditMessageReplyMarkupParams{
 			ChatID:      chat.ChatID(),
 			MessageID:   messageId,
 			ReplyMarkup: GetStatusKeyboard(ctx),
@@ -377,24 +387,24 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	case "downgradefromfreeplus":
 		_, ctx, _, _ := lib.SetupUserAndContext(chatString, "telegram", chatString, topicString)
 		if !lib.IsUserFreePlus(ctx) {
-			return
+			return nil
 		}
 		err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreeSubscriptionName])
 		if err != nil {
 			log.Errorf("Failed to downgrade user %s subscription: to free %v", chatString, err)
 			bot.SendMessage(tu.Message(tu.ID(chatId), "Failed to downgrade your account to free plan. Please try again later.").WithMessageThreadID(topicId))
-			return
+			return err
 		}
-		bot.SendMessage(tu.Message(tu.ID(chatId), "You are now a free user!").WithMessageThreadID(topicId))
+		bot.SendMessage(ctx, tu.Message(tu.ID(chatId), "You are now a free user!").WithMessageThreadID(topicId))
 	case "downgradefrombasic":
 		user, ctx, _, err := lib.SetupUserAndContext(chatString, "telegram", chatString, topicString)
 		if err != nil {
 			log.Errorf("Failed to get user %s: %v", chatString, err)
-			return
+			return err
 		}
 		if !lib.IsUserBasic(ctx) {
 			log.Warnf("User %s is not a basic user", chatString)
-			return
+			return nil
 		}
 
 		stripeCustomerId := user.StripeCustomerId
@@ -402,17 +412,17 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 			err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 			if err != nil {
 				log.Errorf("Failed to downgrade user %s subscription: to free+ %v", chatString, err)
-				bot.SendMessage(tu.Message(tu.ID(chatId), "Failed to downgrade your account to free+ plan. Please try again later.").WithMessageThreadID(topicId))
+				bot.SendMessage(ctx, tu.Message(tu.ID(chatId), "Failed to downgrade your account to free+ plan. Please try again later.").WithMessageThreadID(topicId))
 			}
-			bot.SendMessage(tu.Message(tu.ID(chatId), "You are now a free+ user!").WithMessageThreadID(topicId))
-			return
+			bot.SendMessage(ctx, tu.Message(tu.ID(chatId), "You are now a free+ user!").WithMessageThreadID(topicId))
+			return err
 		}
 
 		// cancel subscriptions
 		payments.StripeCancelSubscription(ctx, stripeCustomerId)
 	case "cancel":
 		// delete the message
-		bot.DeleteMessage(&telego.DeleteMessageParams{
+		bot.DeleteMessage(ctx, &telego.DeleteMessageParams{
 			ChatID:    tu.ID(chatId),
 			MessageID: callbackQuery.Message.GetMessageID(),
 		})
@@ -421,6 +431,8 @@ func handleCallbackQuery(bot *telego.Bot, callbackQuery telego.CallbackQuery) {
 	default:
 		log.Errorf("Unknown callback query: %s, chat id: %s", callbackQuery.Data, chatString)
 	}
+
+	return nil
 }
 
 func handleCommandsInCallbackQuery(callbackQuery telego.CallbackQuery, topicString string) {
@@ -435,7 +447,7 @@ func handleCommandsInCallbackQuery(callbackQuery telego.CallbackQuery, topicStri
 	}
 	AllCommandHandlers.handleCommand(ctx, BOT, &message)
 
-	BOT.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+	BOT.EditMessageReplyMarkup(ctx, &telego.EditMessageReplyMarkupParams{
 		ChatID:      chat.ChatID(),
 		MessageID:   callbackQuery.Message.GetMessageID(),
 		ReplyMarkup: GetStatusKeyboard(ctx),
@@ -454,7 +466,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, topicString)
 	currentEngine := redis.GetModel(chatIDString)
 	if callbackQuery.Data == string(currentEngine) {
-		err := BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		err := BOT.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "You are already using " + callbackQuery.Data + " engine!",
 		})
@@ -466,7 +478,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 
 	defer func() {
 		// update message reply markup
-		BOT.EditMessageReplyMarkup(&telego.EditMessageReplyMarkupParams{
+		BOT.EditMessageReplyMarkup(ctx, &telego.EditMessageReplyMarkupParams{
 			ChatID:      chat.ChatID(),
 			MessageID:   callbackQuery.Message.GetMessageID(),
 			ReplyMarkup: GetModelsKeyboard(ctx),
@@ -474,11 +486,11 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 	}()
 	if callbackQuery.Data == string(models.LlamaV3_8b) {
 		go redis.SaveModel(chatIDString, models.LlamaV3_8b)
-		_, err := BOT.SendMessage(tu.Message(tu.ID(chatID), "Switched to small Llama3 model, fast and cheap!").WithMessageThreadID(topicID))
+		_, err := BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), "Switched to small Llama3 model, fast and cheap!").WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send Llama3 small message: %v", err)
 		}
-		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		err = BOT.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Switched to small Llama3 model!",
 		})
@@ -493,7 +505,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-3.5 message: %v", err)
 		}
-		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		err = BOT.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Switched to " + callbackQuery.Data + " engine!",
 		})
@@ -508,7 +520,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-4o Mini message: %v", err)
 		}
-		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		err = BOT.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Switched to " + callbackQuery.Data + " engine!",
 		})
@@ -522,13 +534,13 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {
 			log.Errorf("Failed to get user: %v", err)
-			BOT.SendMessage(tu.Message(tu.ID(chatID), fmt.Sprintf("Failed to switch to %s model, please try again later", callbackQuery.Data)).WithMessageThreadID(topicID))
+			BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), fmt.Sprintf("Failed to switch to %s model, please try again later", callbackQuery.Data)).WithMessageThreadID(topicID))
 			return
 		}
 		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
 			notification := fmt.Sprintf("To use %s model check available /upgrade options! Meanwhile, you can still use GPT-3.5 Turbo, it's fast, cheap and quite smart.", callbackQuery.Data)
 			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-			BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+			BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 			return
 		}
 		go redis.SaveModel(chatIDString, models.Engine(callbackQuery.Data))
@@ -538,7 +550,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send GPT-4 message: %v", err)
 		}
-		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		err = BOT.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Switched to " + callbackQuery.Data + " engine!",
 		})
@@ -552,23 +564,23 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {
 			log.Errorf("Failed to get user: %v", err)
-			BOT.SendMessage(tu.Message(tu.ID(chatID), fmt.Sprintf("Failed to switch to %s model, please try again later", callbackQuery.Data)).WithMessageThreadID(topicID))
+			BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), fmt.Sprintf("Failed to switch to %s model, please try again later", callbackQuery.Data)).WithMessageThreadID(topicID))
 			return
 		}
 		if user.SubscriptionType.Name == models.FreeSubscriptionName || user.SubscriptionType.Name == models.FreePlusSubscriptionName {
 			notification := fmt.Sprintf("To use %s models check available /upgrade options! Meanwhile, you can still use GPT-3.5 Turbo, it's fast, cheap and quite smart.", "Claude AI")
 			notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-			BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+			BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 			return
 		}
 		go redis.SaveModel(chatIDString, models.Engine(callbackQuery.Data))
 		notification := fmt.Sprintf("Switched to %s model! Don't forget to check /status regularly to avoid hitting the usage cap.", callbackQuery.Data)
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-		_, err = BOT.SendMessage(tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
+		_, err = BOT.SendMessage(ctx, tu.Message(tu.ID(chatID), notification).WithMessageThreadID(topicID))
 		if err != nil {
 			log.Errorf("handleEngineSwitchCallbackQuery failed to send Claude AI message: %v", err)
 		}
-		err = BOT.AnswerCallbackQuery(&telego.AnswerCallbackQueryParams{
+		err = BOT.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: callbackQuery.ID,
 			Text:            "Switched to " + callbackQuery.Data + " engine!",
 		})
@@ -652,7 +664,8 @@ func handleImageModelSwitchCallbackQuery(callbackQuery telego.CallbackQuery, top
 	}
 }
 
-func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
+func handleInlineQuery(bhctx *th.Context, inlineQuery telego.InlineQuery) error {
+	bot := bhctx.Bot()
 	chatID := inlineQuery.From.ID
 	chatIDString := fmt.Sprint(chatID)
 	_, ctx, _, _ := lib.SetupUserAndContext(chatIDString, "telegram", chatIDString, "")
@@ -703,7 +716,7 @@ func handleInlineQuery(bot *telego.Bot, inlineQuery telego.InlineQuery) {
 			ParseMode:   "HTML",
 		},
 	})
-	err = bot.AnswerInlineQuery(params)
+	err = bot.AnswerInlineQuery(ctx, params)
 
 	// retry w/o parse mode if failed
 	if err != nil && strings.Contains(err.Error(), "can't parse entities") {

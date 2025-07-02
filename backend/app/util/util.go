@@ -56,7 +56,7 @@ func GetTopicIDFromChat(c telego.Chat) string {
 	if c.Type != telego.ChatTypeSupergroup {
 		return ""
 	}
-	return fmt.Sprintf("%d", c.LinkedChatID)
+	return fmt.Sprintf("%d", c.ID)
 }
 
 func MessagesToMultimodalMessages(messages []models.Message) []models.MultimodalMessage {

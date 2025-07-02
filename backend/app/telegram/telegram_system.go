@@ -55,7 +55,7 @@ func NewSystemBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign system bot for updates: %w", err)
 	}
-	bh, err := th.NewBotHandler(newBot, updates, th.WithStopTimeout(time.Second*10))
+	bh, err := th.NewBotHandler(newBot, updates) //, th.WithStopTimeout(time.Second*10))
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup system bot handler: %w", err)
 	}

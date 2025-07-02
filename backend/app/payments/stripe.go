@@ -133,7 +133,7 @@ func StripeCreateCheckoutSession(ctx context.Context, bot *telego.Bot, message *
 	params.AddMetadata(AppID, config.CONFIG.BotName)
 	s, err := session.New(params)
 	if err != nil {
-		bot.SendMessage(tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
+		bot.SendMessage(ctx, tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
 		log.Errorf("StripeCreateCheckoutSession: %v", err)
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func StripeGetCustomer(ctx context.Context, bot *telego.Bot, message *telego.Mes
 	chatID := util.GetChatID(message)
 	c, err := customer.Get(customerId, nil)
 	if err != nil {
-		bot.SendMessage(tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
+		bot.SendMessage(ctx, tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
 		log.Errorf("StripeGetCustomer: %v", err)
 		return nil, err
 	}
@@ -202,18 +202,18 @@ func handleCheckoutSessionCompleted(session stripe.CheckoutSession) {
 	failedNotification = lib.AddBotSuffixToGroupCommands(ctx, failedNotification)
 	if session.PaymentStatus != "paid" {
 		log.Errorf("Checkout session %s payment status is not paid: %s, user_id: %s", session.ID, session.PaymentStatus, chatIDString)
-		PaymentsBot.SendMessage(tu.Message(chatID, failedNotification))
+		PaymentsBot.SendMessage(ctx, tu.Message(chatID, failedNotification))
 		return
 	}
 
 	err = mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.BasicSubscriptionName])
 	if err != nil {
 		log.Errorf("Failed to update MongoDB record and process successful payment: %v, user_id: %s", err, chatIDString)
-		PaymentsBot.SendMessage(tu.Message(chatID, failedNotification))
+		PaymentsBot.SendMessage(ctx, tu.Message(chatID, failedNotification))
 		return
 	}
 
-	PaymentsBot.SendMessage(tu.Message(chatID, "Your account has been upgraded to basic paid plan! Thanks for your support and enjoy using the bot!"))
+	PaymentsBot.SendMessage(ctx, tu.Message(chatID, "Your account has been upgraded to basic paid plan! Thanks for your support and enjoy using the bot!"))
 
 	go func() {
 		// update subscription metadata to include telegram chat id
@@ -274,13 +274,13 @@ func handleCustomerSubscriptionDeleted(subscription stripe.Subscription) {
 		log.Errorf("handleCustomerSubscriptionDeleted: failed to update MongoDB record, user id: %s: %v", chatIDString, err)
 		notification := "Failed to cancel your subscription. Please contact /support for help."
 		notification = lib.AddBotSuffixToGroupCommands(ctx, notification)
-		PaymentsBot.SendMessage(tu.Message(chatID, notification))
+		PaymentsBot.SendMessage(ctx, tu.Message(chatID, notification))
 		return
 	}
 
 	//  downgrade engine to GPT 4o Mini
 	go redis.SaveModel(chatIDString, models.ChatGpt4oMini)
 
-	PaymentsBot.SendMessage(tu.Message(chatID, "Your subscription has been canceled and the account downgraded to free+. No further charges will be made. If you were using GPT-4 it was downgraded to GPT-3.5 Turbo."))
+	PaymentsBot.SendMessage(ctx, tu.Message(chatID, "Your subscription has been canceled and the account downgraded to free+. No further charges will be made. If you were using GPT-4 it was downgraded to GPT-3.5 Turbo."))
 	log.Infof("Successfully deleted customer %s subscription %s, user id: %s", subscription.Customer.ID, subscription.ID, chatIDString)
 }

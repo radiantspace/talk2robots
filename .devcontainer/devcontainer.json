@@ -2,12 +2,7 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/go-postgres
 {
 	"name": "Go & Common Tools - talk2robots",
-
-	// Use either 'build' or 'image' as needed
-	// "build": { "dockerfile": "Dockerfile", "context": "." },
 	"image": "mcr.microsoft.com/devcontainers/go",
-
-	// Common features for Go development and general utilities
 	"features": {
 		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
 		"ghcr.io/devcontainers/features/sshd:1": { "version": "latest" },
@@ -17,23 +12,18 @@
 		"ghcr.io/devcontainers-extra/features/digitalocean-cli:1": {},
 		"ghcr.io/rio/features/kustomize:1": {}
 	},
-
-	// Reasonable defaults, can be overridden per project
 	"hostRequirements": {
 		"cpus": 8,
 		"memory": "16gb",
 		"storage": "64gb"
 	},
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	"forwardPorts": [80, 3306, 6379],
+	"forwardPorts": [80],
 	"portsAttributes": {
 		"80": {
 			"label": "nginx",
 			"protocol": "http"
 		}
 	},
-
-	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -54,8 +44,6 @@
 			}
 		}
 	},
-
-	// Set the default user (change as needed)
 	"remoteUser": "vscode",
 
 	"onCreateCommand": ".devcontainer/on-create-command.sh",
