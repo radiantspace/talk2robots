@@ -1,0 +1,36 @@
+name: "Copilot Setup Steps"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest-xl
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+
+      - name: Get Go cache path
+        id: get-cache-paths
+        run: echo "go-build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Go build cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.get-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+
+      - name: Download Go dependencies
+        run: cd backend && go mod download
+
+      - name: Install development tools
+        run: make tools
