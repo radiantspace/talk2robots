@@ -5,7 +5,7 @@
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
 		"ghcr.io/devcontainers/features/terraform:1": {},
-		"ghcr.io/devcontainers-contrib/features/digitalocean-cli:1": {},
+		"ghcr.io/devcontainers-extra/features/digitalocean-cli:1": {},
 		"ghcr.io/rio/features/kustomize:1": {}
 	},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
