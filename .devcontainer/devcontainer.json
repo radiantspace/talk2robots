@@ -25,14 +25,10 @@
 		"storage": "64gb"
 	},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	"forwardPorts": [8080, 3306, 6379, 80],
+	"forwardPorts": [80, 3306, 6379],
 	"portsAttributes": {
 		"80": {
 			"label": "nginx",
-			"protocol": "http"
-		},
-		"8080": {
-			"label": "backend",
 			"protocol": "http"
 		}
 	},

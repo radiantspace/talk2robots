@@ -32,6 +32,5 @@ jobs:
       - name: Download Go dependencies
         run: cd backend && go mod download
 
-      # Optionally install development tools
-      # - name: Install development tools
-      #   run: make tools
+      - name: Install development tools
+        run: make tools
