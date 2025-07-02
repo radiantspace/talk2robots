@@ -18,7 +18,6 @@ import (
 	"talk2robots/m/v2/app/util"
 	"time"
 
-	"github.com/fasthttp/router"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -42,7 +41,7 @@ const (
 var SystemCommandHandlers CommandHandlers = CommandHandlers{}
 var SystemBOT *Bot
 
-func NewSystemBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
+func NewSystemBot(cfg *config.Config) (*Bot, error) {
 	if cfg.TelegramSystemBotToken == "" {
 		return nil, fmt.Errorf("system bot token is empty")
 	}
@@ -51,7 +50,7 @@ func NewSystemBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 		return nil, fmt.Errorf("failed to create system bot: %w", err)
 	}
 	setupSystemCommandHandlers()
-	updates, mux, err := signBotForUpdates(newBot)
+	updates, server, err := signBotForUpdates(newBot, true) // true means that we want to use system bot for updates
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign system bot for updates: %w", err)
 	}
@@ -66,7 +65,7 @@ func NewSystemBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 		BotHandler: bh,
 		ChatID:     tu.ID(chatId),
 		Name:       "system",
-		ServeMux: mux,
+		HttpHandler: server.Handler,
 	}
 
 	bh.HandleMessage(handleSystemMessage)

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -87,8 +86,30 @@ func main() {
 	redis.RedisClient = redis.NewClient(config.CONFIG.Redis)
 	mongo.MongoDBClient = mongo.NewClient(config.CONFIG.MongoDBConnection)
 
-	rtr := router.New()
+	// create and setup main telegram bot
+	var telegramBot *telegram.Bot
+	if config.CONFIG.TelegramBotToken != "" {
+		telegramBot, err = telegram.NewBot(config.CONFIG)
+		if err != nil {
+			log.Fatalf("ERROR creating bot: %v", err)
+		}
 
+		// payments bot used for notifications
+		payments.PaymentsBot = telegramBot.Bot
+	}
+
+	// create system bot for alerts, etc
+	var systemBot *telegram.Bot
+	if env == "production" {
+		systemBot, err = telegram.NewSystemBot(config.CONFIG)
+		if err != nil {
+			log.Fatalf("ERROR creating system bot: %v", err)
+		}
+	} else {
+		systemBot = telegram.NewStubSystemBot(config.CONFIG)
+	}
+
+	rtr := router.New()
 	rtr.GET("/health", func(ctx *fasthttp.RequestCtx) {
 		ctx.SetStatusCode(fasthttp.StatusOK)
 		_, _ = ctx.WriteString("❤️ from robots")
@@ -97,7 +118,12 @@ func main() {
 	rtr.GET("/", func(ctx *fasthttp.RequestCtx) {
 		ctx.Redirect(config.CONFIG.BotUrl, fasthttp.StatusFound)
 	})
-
+	rtr.POST("/bot", func(ctx *fasthttp.RequestCtx) {
+		telegramBot.HttpHandler(ctx)
+	})
+	rtr.POST("/sbot", func(ctx *fasthttp.RequestCtx) {
+		systemBot.HttpHandler(ctx)
+	})
 	rtr.GET("/miniapp", func(ctx *fasthttp.RequestCtx) {
 		ctx.Redirect("https://t.me/gienjibot?start=s=miniapp", fasthttp.StatusFound)
 	})
@@ -130,29 +156,6 @@ func main() {
 		log.Warnf("Prometheus metrics are disabled")
 	}
 
-	// create and setup main telegram bot
-	var telegramBot *telegram.Bot
-	if config.CONFIG.TelegramBotToken != "" {
-		telegramBot, err = telegram.NewBot(rtr, config.CONFIG)
-		if err != nil {
-			log.Fatalf("ERROR creating bot: %v", err)
-		}
-
-		// payments bot used for notifications
-		payments.PaymentsBot = telegramBot.Bot
-	}
-
-	// create system bot for alerts, etc
-	var systemBot *telegram.Bot
-	if env == "production" {
-		systemBot, err = telegram.NewSystemBot(rtr, config.CONFIG)
-		if err != nil {
-			log.Fatalf("ERROR creating system bot: %v", err)
-		}
-	} else {
-		systemBot = telegram.NewStubSystemBot(config.CONFIG)
-	}
-
 	// run onstart worker once
 	onstart.Run(config.CONFIG)
 
@@ -167,7 +170,10 @@ func main() {
 	go TearDown(sigs, done, slackBot, telegramBot, systemBot, status.WORKER, clearusage.WORKER)
 
 	go func() {
-		err = http.ListenAndServe(util.Env("BACKEND_LISTEN_ADDRESS"), telegramBot.ServeMux)
+		err = fasthttp.ListenAndServe(util.Env("BACKEND_LISTEN_ADDRESS"), func(ctx *fasthttp.RequestCtx) {
+			log.Debugf("Request: %s %s", ctx.Method(), ctx.Path())
+			rtr.Handler(ctx)
+		})
 		util.Assert(err == nil, "ListenAndServe:", err)
 	}()
 

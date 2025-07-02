@@ -23,19 +23,19 @@ import (
 	"talk2robots/m/v2/app/util"
 	"time"
 
-	"github.com/fasthttp/router"
 	"github.com/google/uuid"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 type Bot struct {
 	*ai.API
 	*telego.Bot
 	*th.BotHandler
-	ServeMux *http.ServeMux
+	HttpHandler fasthttp.RequestHandler
 	Name     string
 	Dummy    bool
 	telego.ChatID
@@ -45,7 +45,7 @@ type Bot struct {
 var AllCommandHandlers CommandHandlers = CommandHandlers{}
 var BOT *Bot
 
-func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
+func NewBot(cfg *config.Config) (*Bot, error) {
 	bot, err := telego.NewBot(cfg.TelegramBotToken, telego.WithHealthCheck(context.Background()), util.GetBotLoggerOption(cfg))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create bot: %w", err)
@@ -60,7 +60,7 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 	}
 
 	setupCommandHandlers()
-	updates, mux, err := signBotForUpdates(bot)
+	updates, server, err := signBotForUpdates(bot, false) // false means this is a regular bot, not a system bot
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign bot for updates: %w", err)
 	}
@@ -87,16 +87,20 @@ func NewBot(rtr *router.Router, cfg *config.Config) (*Bot, error) {
 			StopTimeout:        5 * time.Second,
 			OnTranscribe:       nil,
 		},
-		ServeMux: mux,
+		HttpHandler: server.Handler,
 	}
 
 	return BOT, nil
 }
 
-func signBotForUpdates(bot *telego.Bot) (<-chan telego.Update, *http.ServeMux, error) {
+func signBotForUpdates(bot *telego.Bot, system bool) (<-chan telego.Update, *fasthttp.Server, error) {
+	path := "/bot"
+	if system {
+		path = "/sbot"
+	}
 	ctx := context.Background()
 	err := bot.SetWebhook(ctx, &telego.SetWebhookParams{
-		URL:         util.Env("BACKEND_BASE_URL") + "/bot",
+		URL:         util.Env("BACKEND_BASE_URL") + path,
 		SecretToken: bot.SecretToken(),
 		AllowedUpdates: []string{
 			telego.MessageUpdates,
@@ -111,14 +115,12 @@ func signBotForUpdates(bot *telego.Bot) (<-chan telego.Update, *http.ServeMux, e
 		return nil, nil, fmt.Errorf("failed to set webhook: %w", err)
 	}
 
-	// Create http serve mux
-	mux := http.NewServeMux()
-
+	server := &fasthttp.Server{}
 	updates, err := bot.UpdatesViaWebhook(
 		context.Background(),
-		telego.WebhookHTTPServeMux(mux, "/bot", bot.SecretToken()),
+		telego.WebhookFastHTTP(server, "/bot", bot.SecretToken()),
 	)
-	return updates, mux, err
+	return updates, server, err
 }
 
 func handleMessage(bhctx *th.Context, message telego.Message) error {
