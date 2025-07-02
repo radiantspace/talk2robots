@@ -7,6 +7,7 @@ HEADER=$(GREEN)Recipe:$(NOCOLOR)
 
 # Add local tooling to path
 export PATH:=$(PWD)/bin:$(PATH)
+export PATH:=$(shell go env GOPATH)/bin:$(PATH)
 
 include .env
 export
