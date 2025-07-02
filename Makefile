@@ -5,6 +5,9 @@ YELLOW=$(shell echo -e "\033[0;33m")
 NOCOLOR=$(shell echo -e "\033[0m")
 HEADER=$(GREEN)Recipe:$(NOCOLOR)
 
+# Add local tooling to path
+export PATH:=$(PWD)/bin:$(PATH)
+
 include .env
 export
 
@@ -58,6 +61,51 @@ test: ## test
 cleanup: ## cleanup
 	@echo '$(HEADER) cleanup'
 	docker system prune -a
+
+## Go Development Targets
+.PHONY: tools
+tools: ## Install development tools
+	@echo '$(HEADER) tools'
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+.PHONY: fmt
+fmt: ## Format Go code
+	@echo '$(HEADER) fmt'
+	@cd backend && gofmt -s -l -w .
+	@cd backend && goimports -w . || true
+	@cd backend && go fmt ./...
+
+.PHONY: lint
+lint: ## Run linters
+	@echo '$(HEADER) lint'
+	@cd backend && golangci-lint run || true
+
+.PHONY: vet
+vet: ## Run go vet
+	@echo '$(HEADER) vet'
+	@cd backend && go vet ./...
+
+.PHONY: ensure-goimports
+ensure-goimports:
+	@which goimports > /dev/null || go install golang.org/x/tools/cmd/goimports@latest
+
+.PHONY: tidy
+tidy: ensure-goimports ## Clean up Go modules and format code
+	@echo '$(HEADER) tidy'
+	@cd backend && goimports -w .
+	@cd backend && go fmt ./...
+	@cd backend && go mod tidy
+
+.PHONY: deps
+deps: tidy ## Download and update Go dependencies
+	@echo '$(HEADER) deps'
+	@cd backend && go get -u ./...
+
+.PHONY: clean
+clean: ## Clean up build artifacts
+	@echo '$(HEADER) clean'
+	@cd backend && rm -rf bin/ tmp/
+	@cd backend && go clean -cache -testcache -modcache
 
 ## Kubernetes
 .PHONY: dologin
