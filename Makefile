@@ -63,6 +63,12 @@ cleanup: ## cleanup
 	@echo '$(HEADER) cleanup'
 	docker system prune -a
 
+.PHONY: clean
+clean: ## Clean up build artifacts
+	@echo '$(HEADER) clean'
+	@cd backend && rm -rf bin/ tmp/
+	@cd backend && go clean -cache -testcache -modcache
+
 ## Go Development Targets
 .PHONY: tools
 tools: ## Install development tools
@@ -101,12 +107,6 @@ tidy: ensure-goimports ## Clean up Go modules and format code
 deps: tidy ## Download and update Go dependencies
 	@echo '$(HEADER) deps'
 	@cd backend && go get -u ./...
-
-.PHONY: clean
-clean: ## Clean up build artifacts
-	@echo '$(HEADER) clean'
-	@cd backend && rm -rf bin/ tmp/
-	@cd backend && go clean -cache -testcache -modcache
 
 ## Kubernetes
 .PHONY: dologin
