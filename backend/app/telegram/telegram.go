@@ -36,8 +36,8 @@ type Bot struct {
 	*telego.Bot
 	*th.BotHandler
 	HttpHandler fasthttp.RequestHandler
-	Name     string
-	Dummy    bool
+	Name        string
+	Dummy       bool
 	telego.ChatID
 	WhisperConfig openai.WhisperConfig
 }
@@ -125,6 +125,11 @@ func signBotForUpdates(bot *telego.Bot, system bool) (<-chan telego.Update, *fas
 
 func handleMessage(bhctx *th.Context, message telego.Message) error {
 	bot := bhctx.Bot()
+
+	return handleMessageWithBot(bot, message)
+}
+
+func handleMessageWithBot(bot *telego.Bot, message telego.Message) error {
 	chatID := util.GetChatID(&message)
 	chatIDString := util.GetChatIDString(&message)
 	topicID := util.GetTopicID(&message)

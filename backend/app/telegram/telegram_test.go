@@ -12,22 +12,9 @@ import (
 
 	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/mymmrac/telego"
-	"github.com/mymmrac/telego/telegohandler"
 	log "github.com/sirupsen/logrus"
 	"github.com/undefinedlabs/go-mpatch"
 )
-
-var TestHandlerContext *telegohandler.Context
-var TestHandlerContextPatch *mpatch.Patch
-
-// func TestMain(m *testing.M) {
-// 	setupTestHandlerContext()
-// 	if TestHandlerContext == nil {
-// 		log.Fatal("TestHandlerContext is nil, ensure setupTestHandlerContext() has run successfully")
-// 	}
-// 	defer tearDownTestHandlerContext()
-// 	m.Run()
-// }
 
 func TestHandleEmptyPublicMessage(t *testing.T) {
 	message := telego.Message{
@@ -37,7 +24,7 @@ func TestHandleEmptyPublicMessage(t *testing.T) {
 	}
 
 	// act
-	handleMessage(TestHandlerContext, message)
+	handleMessageWithBot(BOT.Bot, message)
 }
 
 func TestHandleEmptyPrivateMessage(t *testing.T) {
@@ -59,7 +46,7 @@ func TestHandleEmptyPrivateMessage(t *testing.T) {
 	defer sendMessagePatch.Unpatch()
 
 	// act
-	handleMessage(TestHandlerContext, message)
+	handleMessageWithBot(BOT.Bot, message)
 }
 
 func TestHandlePrivateStartCommandMessage(t *testing.T) {
@@ -83,7 +70,7 @@ func TestHandlePrivateStartCommandMessage(t *testing.T) {
 	defer sendMessagePatch.Unpatch()
 
 	// act
-	handleMessage(TestHandlerContext, message)
+	handleMessageWithBot(BOT.Bot, message)
 }
 
 func TestHandlePublicStartCommandMessage(t *testing.T) {
@@ -120,7 +107,7 @@ func TestHandlePublicStartCommandMessage(t *testing.T) {
 	defer getChatMemberPatch.Unpatch()
 
 	// act
-	handleMessage(TestHandlerContext, message)
+	handleMessageWithBot(BOT.Bot, message)
 }
 
 func TestHandlePublicStartCommandNoMentionMessage(t *testing.T) {
@@ -134,7 +121,7 @@ func TestHandlePublicStartCommandNoMentionMessage(t *testing.T) {
 	}
 
 	// act
-	handleMessage(TestHandlerContext, message)
+	handleMessageWithBot(BOT.Bot, message)
 }
 
 func TestHandlePublicUnknownCommandMessage(t *testing.T) {
@@ -171,7 +158,7 @@ func TestHandlePublicUnknownCommandMessage(t *testing.T) {
 	defer getChatMemberPatch.Unpatch()
 
 	// act
-	handleMessage(TestHandlerContext, message)
+	handleMessageWithBot(BOT.Bot, message)
 }
 
 func init() {
@@ -187,7 +174,6 @@ func init() {
 	)
 
 	setupTestBot()
-	setupTestHandlerContext()
 	setupCommandHandlers()
 
 	log.SetFormatter(&log.TextFormatter{
@@ -206,27 +192,6 @@ func setupTestBot() {
 		Name: "testbot",
 		Bot:  getTestBot(),
 	}
-}
-
-func setupTestHandlerContext() {
-	if TestHandlerContext != nil {
-		return
-	}
-
-	TestHandlerContext = &telegohandler.Context{
-	}
-	testHandlerContextPatch, err := mpatch.PatchInstanceMethodByName(
-		reflect.TypeOf(TestHandlerContext),
-		"Bot",
-		func(bhctx *telegohandler.Context) *telego.Bot {
-			return BOT.Bot
-		},
-	)
-	if err != nil {
-		log.Fatalf("error patching TestHandlerContext.Bot: %v", err)
-	}
-
-	TestHandlerContextPatch = testHandlerContextPatch
 }
 
 func setupTestDatadog() {
@@ -249,8 +214,8 @@ func setupTestDatadog() {
 // 	}
 // }
 
-func getChatMemberFuncAssertion(t *testing.T, expectedChatID int64, expectedUserID int64) func(bot *telego.Bot, params *telego.GetChatMemberParams) (telego.ChatMember, error) {
-	return func(bot *telego.Bot, params *telego.GetChatMemberParams) (telego.ChatMember, error) {
+func getChatMemberFuncAssertion(t *testing.T, expectedChatID int64, expectedUserID int64) func(bot *telego.Bot, ctx context.Context, params *telego.GetChatMemberParams) (telego.ChatMember, error) {
+	return func(bot *telego.Bot, ctx context.Context, params *telego.GetChatMemberParams) (telego.ChatMember, error) {
 		if params.ChatID.ID != expectedChatID {
 			t.Errorf("Expected chat ID %d, got %d", expectedChatID, params.ChatID.ID)
 		}
