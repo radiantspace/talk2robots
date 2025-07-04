@@ -2,9 +2,7 @@ version: "3.7"
 
 services:
   backend:
-    build:
-      context: backend
-      dockerfile: Dockerfile
+    image: talk2robots_backend:latest
     depends_on:
       - mongo
       - redis

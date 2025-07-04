@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/v5/statsd"
-	fasthttpprom "github.com/carousell/fasthttp-prometheus-middleware"
 	"github.com/fasthttp/router"
 	tu "github.com/mymmrac/telego/telegoutil"
 	log "github.com/sirupsen/logrus"
@@ -109,20 +108,14 @@ func main() {
 		systemBot = telegram.NewStubSystemBot(config.CONFIG)
 	}
 
+	log.Debugf("Config: %+v", config.CONFIG)
 	rtr := router.New()
-	rtr.GET("/health", func(ctx *fasthttp.RequestCtx) {
-		ctx.SetStatusCode(fasthttp.StatusOK)
-		_, _ = ctx.WriteString("❤️ from robots")
-	})
-
 	rtr.GET("/", func(ctx *fasthttp.RequestCtx) {
 		ctx.Redirect(config.CONFIG.BotUrl, fasthttp.StatusFound)
 	})
-	rtr.POST("/bot", func(ctx *fasthttp.RequestCtx) {
-		telegramBot.HttpHandler(ctx)
-	})
-	rtr.POST("/sbot", func(ctx *fasthttp.RequestCtx) {
-		systemBot.HttpHandler(ctx)
+	rtr.GET("/health", func(ctx *fasthttp.RequestCtx) {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		_, _ = ctx.WriteString("❤️ from robots")
 	})
 	rtr.GET("/miniapp", func(ctx *fasthttp.RequestCtx) {
 		ctx.Redirect("https://t.me/gienjibot?start=s=miniapp", fasthttp.StatusFound)
@@ -147,15 +140,6 @@ func main() {
 		payments.PaymentsSlackClient = slackBot.Client
 	}
 
-	if promAddress := util.Env("PROMETHEUS_LISTEN_ADDRESS", ""); promAddress != "" {
-		log.Debugf("Setting up prometheus metrics on %s", promAddress)
-		p := fasthttpprom.NewPrometheus("backend")
-		p.SetListenAddress(promAddress)
-		p.Use(rtr)
-	} else {
-		log.Warnf("Prometheus metrics are disabled")
-	}
-
 	// run onstart worker once
 	onstart.Run(config.CONFIG)
 
@@ -169,11 +153,18 @@ func main() {
 
 	go TearDown(sigs, done, slackBot, telegramBot, systemBot, status.WORKER, clearusage.WORKER)
 
-	go func() {
-		err = fasthttp.ListenAndServe(util.Env("BACKEND_LISTEN_ADDRESS"), func(ctx *fasthttp.RequestCtx) {
-			log.Debugf("Request: %s %s", ctx.Method(), ctx.Path())
+	telegramBot.Server.Handler = fasthttp.TimeoutHandler(func(ctx *fasthttp.RequestCtx) {
+		switch string(ctx.Path()) {
+		case "/bot":
+			telegramBot.Handler(ctx)
+		case "/sbot":
+			systemBot.Handler(ctx)
+		default:
 			rtr.Handler(ctx)
-		})
+		}
+	}, time.Second*30, "Request timeout")
+	go func() {
+		err = telegramBot.Server.ListenAndServe(util.Env("BACKEND_LISTEN_ADDRESS"))
 		util.Assert(err == nil, "ListenAndServe:", err)
 	}()
 

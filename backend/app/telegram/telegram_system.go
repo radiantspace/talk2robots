@@ -65,7 +65,8 @@ func NewSystemBot(cfg *config.Config) (*Bot, error) {
 		BotHandler: bh,
 		ChatID:     tu.ID(chatId),
 		Name:       "system",
-		HttpHandler: server.Handler,
+		Handler:    server.Handler,
+		Server:     server,
 	}
 
 	bh.HandleMessage(handleSystemMessage)

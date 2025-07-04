@@ -8,7 +8,8 @@ COPY go.sum .
 RUN go mod download
 COPY *.go ./
 COPY app app
-RUN go build -ldflags="-s -w" -o backend . && upx --best --lzma backend
+RUN go build -ldflags="-s -w" -o backend .
+RUN upx --best --lzma backend
 
 # final stage
 FROM alpine:latest

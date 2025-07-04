@@ -35,9 +35,10 @@ type Bot struct {
 	*ai.API
 	*telego.Bot
 	*th.BotHandler
-	HttpHandler fasthttp.RequestHandler
-	Name        string
-	Dummy       bool
+	Handler func(ctx *fasthttp.RequestCtx)
+	Server  *fasthttp.Server
+	Name    string
+	Dummy   bool
 	telego.ChatID
 	WhisperConfig openai.WhisperConfig
 }
@@ -87,7 +88,8 @@ func NewBot(cfg *config.Config) (*Bot, error) {
 			StopTimeout:        5 * time.Second,
 			OnTranscribe:       nil,
 		},
-		HttpHandler: server.Handler,
+		Server:  server,
+		Handler: server.Handler,
 	}
 
 	return BOT, nil
