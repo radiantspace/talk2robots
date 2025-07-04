@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/v5/statsd"
-	fasthttpprom "github.com/carousell/fasthttp-prometheus-middleware"
 	"github.com/fasthttp/router"
 	tu "github.com/mymmrac/telego/telegoutil"
 	log "github.com/sirupsen/logrus"
@@ -86,17 +85,37 @@ func main() {
 	redis.RedisClient = redis.NewClient(config.CONFIG.Redis)
 	mongo.MongoDBClient = mongo.NewClient(config.CONFIG.MongoDBConnection)
 
-	rtr := router.New()
+	// create and setup main telegram bot
+	var telegramBot *telegram.Bot
+	if config.CONFIG.TelegramBotToken != "" {
+		telegramBot, err = telegram.NewBot(config.CONFIG)
+		if err != nil {
+			log.Fatalf("ERROR creating bot: %v", err)
+		}
 
+		// payments bot used for notifications
+		payments.PaymentsBot = telegramBot.Bot
+	}
+
+	// create system bot for alerts, etc
+	var systemBot *telegram.Bot
+	if env == "production" {
+		systemBot, err = telegram.NewSystemBot(config.CONFIG)
+		if err != nil {
+			log.Fatalf("ERROR creating system bot: %v", err)
+		}
+	} else {
+		systemBot = telegram.NewStubSystemBot(config.CONFIG)
+	}
+
+	rtr := router.New()
+	rtr.GET("/", func(ctx *fasthttp.RequestCtx) {
+		ctx.Redirect(config.CONFIG.BotUrl, fasthttp.StatusFound)
+	})
 	rtr.GET("/health", func(ctx *fasthttp.RequestCtx) {
 		ctx.SetStatusCode(fasthttp.StatusOK)
 		_, _ = ctx.WriteString("❤️ from robots")
 	})
-
-	rtr.GET("/", func(ctx *fasthttp.RequestCtx) {
-		ctx.Redirect(config.CONFIG.BotUrl, fasthttp.StatusFound)
-	})
-
 	rtr.GET("/miniapp", func(ctx *fasthttp.RequestCtx) {
 		ctx.Redirect("https://t.me/gienjibot?start=s=miniapp", fasthttp.StatusFound)
 	})
@@ -120,38 +139,6 @@ func main() {
 		payments.PaymentsSlackClient = slackBot.Client
 	}
 
-	if promAddress := util.Env("PROMETHEUS_LISTEN_ADDRESS", ""); promAddress != "" {
-		log.Debugf("Setting up prometheus metrics on %s", promAddress)
-		p := fasthttpprom.NewPrometheus("backend")
-		p.SetListenAddress(promAddress)
-		p.Use(rtr)
-	} else {
-		log.Warnf("Prometheus metrics are disabled")
-	}
-
-	// create and setup main telegram bot
-	var telegramBot *telegram.Bot
-	if config.CONFIG.TelegramBotToken != "" {
-		telegramBot, err = telegram.NewBot(rtr, config.CONFIG)
-		if err != nil {
-			log.Fatalf("ERROR creating bot: %v", err)
-		}
-
-		// payments bot used for notifications
-		payments.PaymentsBot = telegramBot.Bot
-	}
-
-	// create system bot for alerts, etc
-	var systemBot *telegram.Bot
-	if env == "production" {
-		systemBot, err = telegram.NewSystemBot(rtr, config.CONFIG)
-		if err != nil {
-			log.Fatalf("ERROR creating system bot: %v", err)
-		}
-	} else {
-		systemBot = telegram.NewStubSystemBot(config.CONFIG)
-	}
-
 	// run onstart worker once
 	onstart.Run(config.CONFIG)
 
@@ -165,41 +152,58 @@ func main() {
 
 	go TearDown(sigs, done, slackBot, telegramBot, systemBot, status.WORKER, clearusage.WORKER)
 
+	telegramBot.Server.Handler = fasthttp.TimeoutHandler(func(ctx *fasthttp.RequestCtx) {
+		switch string(ctx.Path()) {
+		case "/bot":
+			telegramBot.Handler(ctx)
+		case "/sbot":
+			systemBot.Handler(ctx)
+		default:
+			rtr.Handler(ctx)
+		}
+	}, time.Second*30, "Request timeout")
 	go func() {
-		err = telegramBot.StartWebhook(util.Env("BACKEND_LISTEN_ADDRESS"))
-		util.Assert(err == nil, "StartWebhook:", err)
+		err = telegramBot.Server.ListenAndServe(util.Env("BACKEND_LISTEN_ADDRESS"))
+		util.Assert(err == nil, "ListenAndServe:", err)
 	}()
 
 	chatId, _ := strconv.ParseInt(config.CONFIG.TelegramSystemTo, 10, 64)
 	successfulStartMessage := fmt.Sprintf("🤖 %s started successfully 🚀 inside %s", config.CONFIG.BotName, util.Env("POD_NAME", "unknown"))
-	_, err = systemBot.Bot.SendMessage(tu.Message(tu.ID(chatId), successfulStartMessage))
+	_, err = systemBot.Bot.SendMessage(context.Background(), tu.Message(tu.ID(chatId), successfulStartMessage))
 	if err != nil {
 		log.Errorf("Failed to send start message to systemBot: %s", err)
 	}
-	log.Infof(successfulStartMessage)
+	log.Info(successfulStartMessage)
 
 	<-done
-	log.Infof("Done")
+	log.Info("Done")
 }
 
 func TearDown(sigs chan os.Signal, done chan struct{}, slackBot *slack.Bot, telegramBot *telegram.Bot, systemBot *telegram.Bot, statusWorker *workers.Worker, clearUsageWorker *workers.Worker) {
 	<-sigs
 	exitMessage := fmt.Sprintf("🤖 %s bids farewell ❌ inside %s", config.CONFIG.BotName, util.Env("POD_NAME", "unknown"))
-	log.Infof(exitMessage)
+	log.Info(exitMessage)
 	chatId, _ := strconv.ParseInt(config.CONFIG.TelegramSystemTo, 10, 64)
-	systemBot.Bot.SendMessage(tu.Message(tu.ID(chatId), exitMessage))
+	systemBot.Bot.SendMessage(context.Background(), tu.Message(tu.ID(chatId), exitMessage))
 	statusWorker.StopWorker()
 	clearUsageWorker.StopWorker()
-	err := telegramBot.StopWebhook()
+	err := telegramBot.BotHandler.Stop()
 	if err != nil {
-		log.Errorf("TearDown: StopWebhook for bot: %v", err)
+		log.Errorf("TearDown: BotHandler.Stop for bot: %v", err)
 	}
-	telegramBot.BotHandler.Stop()
-	systemBot.Bot.StopWebhook()
+	err = telegramBot.Stop()
 	if err != nil {
-		log.Errorf("TearDown: StopWebhook for system bot: %v", err)
+		log.Errorf("TearDown: Stop for bot: %v", err)
 	}
-	systemBot.BotHandler.Stop()
+	err = systemBot.BotHandler.Stop()
+	if err != nil {
+		log.Errorf("TearDown: BotHandler.Stop for system bot: %v", err)
+	}
+	err = systemBot.Stop()
+	if err != nil {
+		log.Errorf("TearDown: Stop for system bot: %v", err)
+	}
+
 	err = mongo.MongoDBClient.Disconnect(context.Background())
 	if err != nil {
 		log.Errorf("TearDown: Disconnecting from MongoDB: %v", err)

@@ -1,0 +1,54 @@
+name: CI
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./backend/go.mod
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - run: touch .env
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Build
+        run: make build
+
+      - name: Format
+        run: make fmt
+
+      - name: Vet
+        run: make vet
+
+      - name: Lint
+        run: make lint || true
+
+      - name: Test
+        run: make test

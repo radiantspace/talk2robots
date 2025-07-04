@@ -1,5 +1,5 @@
 # build API
-FROM golang:1.21-alpine as build-go
+FROM golang:1.24-alpine as build-go
 RUN apk --update add ca-certificates upx && update-ca-certificates
 RUN go env -w CGO_ENABLED="0"
 WORKDIR /
@@ -8,7 +8,8 @@ COPY go.sum .
 RUN go mod download
 COPY *.go ./
 COPY app app
-RUN go build -ldflags="-s -w" -o backend . && upx --best --lzma backend
+RUN go build -ldflags="-s -w" -o backend .
+RUN upx --best --lzma backend
 
 # final stage
 FROM alpine:latest

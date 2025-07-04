@@ -57,7 +57,7 @@ func ProcessChatCompleteStreamingMessage(
 
 	if err != nil {
 		log.Errorf("Failed get streaming response from AI: %s", err)
-		_, err = bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+		_, err = bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		if err != nil {
 			log.Errorf("Failed to send error message in chat: %s, %v", chatIDString, err)
 		}
@@ -105,7 +105,7 @@ func ProcessThreadedStreamingMessage(
 
 		if err != nil {
 			log.Errorf("Failed to create and run thread streaming for user id: %s, error: %v", chatIDString, err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+			bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 	} else {
@@ -114,14 +114,14 @@ func ProcessThreadedStreamingMessage(
 		err = createThreadMessageWithRetries(ctx, threadId, threadRunId, message.Text, chatIDString)
 		if err != nil {
 			log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+			bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 
 		messages, err = openai.CreateRunStreaming(ctx, models.AssistantIdForModel(engineModel), engineModel, threadId, cancelContext)
 		if err != nil {
 			log.Errorf("Failed to create and run streaming for user id: %s, error: %v", chatIDString, err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+			bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 	}
@@ -173,7 +173,7 @@ func ProcessThreadedNonStreamingMessage(
 		})
 		if err != nil {
 			log.Errorf("Failed to create thread: %s", err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+			bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 		threadId = threadRun.ThreadID
@@ -185,14 +185,14 @@ func ProcessThreadedNonStreamingMessage(
 		err := createThreadMessageWithRetries(ctx, threadId, threadRunId, message.Text, chatIDString)
 		if err != nil {
 			log.Errorf("Failed to add message to thread in chat %s: %s", chatID, err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+			bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 
 		threadRun, err = openai.CreateRun(ctx, models.AssistantIdForModel(engineModel), threadId)
 		if err != nil {
 			log.Errorf("Failed to create run in chat %s: %s", chatIDString, err)
-			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+			bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 			return
 		}
 		threadRunId = threadRun.ID
@@ -201,7 +201,7 @@ func ProcessThreadedNonStreamingMessage(
 	_, err := pollThreadRun(ctx, threadId, chatIDString, threadRunId)
 	if err != nil {
 		log.Errorf("Failed to final poll thread run in chat %s: %s", chatIDString, err)
-		bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID).WithMessageThreadID(message.MessageThreadID))
+		bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID).WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 
@@ -209,7 +209,7 @@ func ProcessThreadedNonStreamingMessage(
 	threadMessage, err := openai.ListThreadMessagesForARun(ctx, threadId, threadRunId)
 	if err != nil {
 		log.Errorf("Failed to get messages from thread in chat %s: %s", chatIDString, err)
-		bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+		bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 
@@ -257,7 +257,7 @@ func ProcessChatCompleteNonStreamingMessage(ctx context.Context, bot *telego.Bot
 		log.Errorf("Failed get response from Open AI in chat %s: %s", chatID, err)
 
 		if isPrivate {
-			bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+			bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		}
 		return
 	}
@@ -265,7 +265,7 @@ func ProcessChatCompleteNonStreamingMessage(ctx context.Context, bot *telego.Bot
 	if mode == lib.Teacher || mode == lib.Grammar {
 		if strings.Contains(response, "[correct]") {
 			log.Infof("Correct message in chat %s 👍", chatID)
-			err = bot.SetMessageReaction(&telego.SetMessageReactionParams{
+			err = bot.SetMessageReaction(ctx, &telego.SetMessageReactionParams{
 				ChatID:    chatID,
 				MessageID: message.MessageID,
 				Reaction:  []telego.ReactionType{&telego.ReactionTypeEmoji{Type: "emoji", Emoji: "👍"}},
@@ -315,7 +315,7 @@ func prepareMessages(
 	messages = util.MessagesToMultimodalMessages(seedData)
 
 	// check if message had an image attachments and pass it on in base64 format to the model
-	if message.Photo == nil || len(message.Photo) == 0 {
+	if len(message.Photo) == 0 {
 		messages = append(messages, models.MultimodalMessage{
 			Role:    "user",
 			Content: []models.MultimodalContent{{Type: "text", Text: userMessagePrimer + message.Text}},
@@ -327,13 +327,13 @@ func prepareMessages(
 	photoMultiModelContent, err := getPhotoBase64(message, ctx, bot)
 	if err != nil {
 		if strings.Contains(err.Error(), "free plan") {
-			bot.SendMessage(&telego.SendMessageParams{
+			bot.SendMessage(ctx, &telego.SendMessageParams{
 				ChatID:          chatID,
 				Text:            "Image vision is not currently available on free plans. Check /upgrade options to use this feature.",
 				MessageThreadID: message.MessageThreadID,
 			})
 		} else {
-			bot.SendMessage(&telego.SendMessageParams{
+			bot.SendMessage(ctx, &telego.SendMessageParams{
 				ChatID:          chatID,
 				Text:            "😔 can't accept image messages at the moment",
 				MessageThreadID: message.MessageThreadID,
@@ -367,7 +367,7 @@ func getPhotoBase64(message *telego.Message, ctx context.Context, bot *telego.Bo
 		photoWidth := photoSize.Width
 		log.Infof("Got photo from chat %s, width: %d, height: %d, kbytes: %.1fk", chatIDString, photoWidth, photoSize.Height, float64(photoSize.FileSize/1024))
 		var photoFile *telego.File
-		photoFile, err = bot.GetFile(&telego.GetFileParams{FileID: photoSize.FileID})
+		photoFile, err = bot.GetFile(ctx, &telego.GetFileParams{FileID: photoSize.FileID})
 		if err != nil {
 			err = fmt.Errorf("failed to get image file params in chat %s: %s", chatIDString, err)
 			continue
@@ -477,12 +477,13 @@ func ChunkSendMessage(bot *telego.Bot, message *telego.Message, text string) {
 		return
 	}
 	chatID := message.Chat.ChatID()
+	ctx := context.Background()
 	for _, chunk := range util.ChunkString(text, 4000) {
-		_, err := bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+		_, err := bot.SendMessage(ctx, tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
 		if err != nil {
 			if strings.Contains(err.Error(), "message thread not found") {
 				// retry without message thread id
-				_, err = bot.SendMessage(tu.Message(chatID, chunk).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+				_, err = bot.SendMessage(ctx, tu.Message(chatID, chunk).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
 			}
 
 			if err != nil {
@@ -524,29 +525,29 @@ func ChunkEditSendMessage(
 				ReplyMarkup: markup,
 				ParseMode:   "MarkdownV2",
 			}
-			_, err = bot.EditMessageText(params)
+			_, err = bot.EditMessageText(ctx, params)
 
 			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
 				params.ParseMode = "HTML"
-				_, err = bot.EditMessageText(params)
+				_, err = bot.EditMessageText(ctx, params)
 			}
 
 			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
 				params.ParseMode = ""
-				_, err = bot.EditMessageText(params)
+				_, err = bot.EditMessageText(ctx, params)
 			}
 
 			time.Sleep(1 * time.Second) // sleep to prevent rate limiting
 		} else {
 			log.Debugf("[ChunkEditSendMessage] chunk %d (size %d) - sending new message in chat %s", i, len(chunk), chatID)
-			lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithParseMode("MarkdownV2").WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
+			lastMessage, err = bot.SendMessage(ctx, tu.Message(chatID, chunk).WithParseMode("MarkdownV2").WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
 
 			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
-				lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithParseMode("HTML").WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
+				lastMessage, err = bot.SendMessage(ctx, tu.Message(chatID, chunk).WithParseMode("HTML").WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
 			}
 
 			if err != nil && strings.Contains(err.Error(), "can't parse entities") {
-				lastMessage, err = bot.SendMessage(tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
+				lastMessage, err = bot.SendMessage(ctx, tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(markup))
 			}
 
 			time.Sleep(1 * time.Second) // sleep to prevent rate limiting
@@ -602,10 +603,10 @@ func ChunkSendVoice(ctx context.Context, bot *telego.Bot, message *telego.Messag
 		if caption {
 			voiceParams.Caption = trimmedChunk
 		}
-		_, err = bot.SendVoice(voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+		_, err = bot.SendVoice(ctx, voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
 		if err != nil && strings.Contains(err.Error(), "can't parse entities") {
 			voiceParams.ParseMode = ""
-			_, err = bot.SendVoice(voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+			_, err = bot.SendVoice(ctx, voiceParams.WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
 		}
 		time.Sleep(1 * time.Second) // sleep to prevent rate limiting
 		if err != nil {
@@ -638,12 +639,12 @@ func processMessageChannel(
 	chatID := util.GetChatID(message)
 	chatIDString := util.GetChatIDString(message)
 	responseText := "..."
-	responseMessage, err := bot.SendMessage(tu.Message(chatID, responseText).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
+	responseMessage, err := bot.SendMessage(ctx, tu.Message(chatID, responseText).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
 		getPendingReplyMarkup(),
 	))
 	if err != nil {
 		log.Errorf("Failed to send primer message in chat: %s, %v", chatIDString, err)
-		bot.SendMessage(tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
+		bot.SendMessage(ctx, tu.Message(chatID, OOPSIE).WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 	// only update message every 3 seconds to prevent rate limiting from telegram
@@ -656,14 +657,14 @@ func processMessageChannel(
 
 		if finalMessageString == "✅" {
 			// if the final message is just a checkmark, delete response and add thumbs up reaction to original message
-			err = bot.DeleteMessage(&telego.DeleteMessageParams{
+			err = bot.DeleteMessage(ctx, &telego.DeleteMessageParams{
 				ChatID:    chatID,
 				MessageID: responseMessage.MessageID,
 			})
 			if err != nil {
 				log.Errorf("Failed to delete message in chat: %s, %v", chatIDString, err)
 			}
-			err = bot.SetMessageReaction(&telego.SetMessageReactionParams{
+			err = bot.SetMessageReaction(ctx, &telego.SetMessageReactionParams{
 				ChatID:    chatID,
 				MessageID: message.MessageID,
 				Reaction:  []telego.ReactionType{&telego.ReactionTypeEmoji{Type: "emoji", Emoji: "👍"}},

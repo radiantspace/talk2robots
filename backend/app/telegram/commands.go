@@ -110,7 +110,7 @@ func setupCommandHandlers() {
 		newCommandHandler(SupportCommand, supportCommandHandler),
 		newCommandHandler(TermsCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
 			log.Infof("Terms command received from userID: %s", util.GetChatIDString(message))
-			bot.SendMessage(tu.Message(util.GetChatID(message), USAGE_TERMS_URL).WithMessageThreadID(message.MessageThreadID))
+			bot.SendMessage(ctx, tu.Message(util.GetChatID(message), USAGE_TERMS_URL).WithMessageThreadID(message.MessageThreadID))
 		}),
 		// we have to use system command here since it's not possible to transfer fileId from one bot to another
 		// be super careful with this command refactoring and make sure that it's not possible to send this command from any other chat
@@ -123,15 +123,15 @@ func setupCommandHandlers() {
 
 			// get video from message
 			if message.Video == nil {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, "Please provide video").WithMessageThreadID(message.MessageThreadID))
+				bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "Please provide video").WithMessageThreadID(message.MessageThreadID))
 				return
 			}
 			err := redis.RedisClient.Set(ctx, "onboarding-video", message.Video.FileID, 0).Err()
 			if err != nil {
-				bot.SendMessage(tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to save video: %v", err)).WithMessageThreadID(message.MessageThreadID))
+				bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to save video: %v", err)).WithMessageThreadID(message.MessageThreadID))
 				return
 			}
-			bot.SendMessage(tu.Message(SystemBOT.ChatID, "Onboarding video saved").WithMessageThreadID(message.MessageThreadID))
+			bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "Onboarding video saved").WithMessageThreadID(message.MessageThreadID))
 		}),
 		newCommandHandler(ClearThreadCommand, clearThreadCommandHandler),
 		newCommandHandler(BillingCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
@@ -145,7 +145,7 @@ func setupCommandHandlers() {
 			}
 
 			if user.StripeCustomerId == "" {
-				bot.SendMessage(tu.Message(chatID, "You don't have billing setup.").WithMessageThreadID(message.MessageThreadID))
+				bot.SendMessage(ctx, tu.Message(chatID, "You don't have billing setup.").WithMessageThreadID(message.MessageThreadID))
 				return
 			}
 
@@ -154,7 +154,7 @@ func setupCommandHandlers() {
 			stripePortalLink := "https://billing.stripe.com/p/login/bIYbMG468cuR9a06oo"
 
 			// send link to customer as a button in telegram
-			bot.SendMessage(
+			bot.SendMessage(ctx,
 				tu.Message(chatID, notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
 					&telego.InlineKeyboardMarkup{
 						InlineKeyboard: [][]telego.InlineKeyboardButton{
@@ -190,7 +190,7 @@ func (c CommandHandlers) handleCommand(ctx context.Context, bot *Bot, message *t
 		commandHandler.Handler(ctx, bot, message)
 	} else {
 		config.CONFIG.DataDogClient.Incr("unknown_command", nil, 1)
-		bot.SendMessage(tu.Message(util.GetChatID(message), "Unknown command \U0001f937").WithMessageThreadID(message.MessageThreadID))
+		bot.SendMessage(ctx, tu.Message(util.GetChatID(message), "Unknown command \U0001f937").WithMessageThreadID(message.MessageThreadID))
 	}
 }
 
@@ -214,7 +214,7 @@ func getModeHandlerFunction(mode lib.ModeName, response string) func(context.Con
 			response = strings.ReplaceAll(response, "English", getLanguageName(params))
 		}
 		response = lib.AddBotSuffixToGroupCommands(ctx, response)
-		bot.SendMessage(tu.Message(util.GetChatID(message), response).WithMessageThreadID(message.MessageThreadID))
+		bot.SendMessage(ctx, tu.Message(util.GetChatID(message), response).WithMessageThreadID(message.MessageThreadID))
 		lib.SaveMode(util.GetChatIDString(message), util.GetTopicID(message), mode, params)
 	}
 }
@@ -260,6 +260,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 
 		// send link to customer as a button in telegram
 		bot.SendMessage(
+			ctx,
 			tu.Message(chatID, notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
 				&telego.InlineKeyboardMarkup{
 					InlineKeyboard: [][]telego.InlineKeyboardButton{
@@ -277,7 +278,7 @@ func upgradeCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 		return
 	}
 	if lib.IsUserBasic(ctx) {
-		bot.SendMessage(tu.Message(chatID, "You are already a basic paid plan user! Premium upgrade plans are not available yet. Stay tuned for updates!").WithMessageThreadID(message.MessageThreadID))
+		bot.SendMessage(ctx, tu.Message(chatID, "You are already a basic paid plan user! Premium upgrade plans are not available yet. Stay tuned for updates!").WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 
@@ -289,7 +290,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 	chatID := util.GetChatID(message)
 	topicString := util.GetTopicID(message)
 	if lib.IsUserFree(ctx) {
-		bot.SendMessage(tu.Message(chatID, "You are already a free user!").WithMessageThreadID(message.MessageThreadID))
+		bot.SendMessage(ctx, tu.Message(chatID, "You are already a free user!").WithMessageThreadID(message.MessageThreadID))
 		return
 	}
 
@@ -312,7 +313,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 	}
 
 	log.Infof("Sending downgrade confirmation message to user %s: %s", chatString, callbackData)
-	bot.SendMessage(tu.Message(chatID, confirmationMessage).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
+	bot.SendMessage(ctx, tu.Message(chatID, confirmationMessage).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(
 		&telego.InlineKeyboardMarkup{
 			InlineKeyboard: [][]telego.InlineKeyboardButton{
 				{
@@ -331,7 +332,7 @@ func cancelSubscriptionCommandHandler(ctx context.Context, bot *Bot, message *te
 }
 
 func emptyCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
-	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), "There is no message provided to correct or comment on. If you have a message you would like me to review, please provide it.").WithMessageThreadID(message.MessageThreadID))
+	_, err := bot.SendMessage(ctx, tu.Message(util.GetChatID(message), "There is no message provided to correct or comment on. If you have a message you would like me to review, please provide it.").WithMessageThreadID(message.MessageThreadID))
 	if err != nil {
 		log.Errorf("Failed to send EmptyCommand message: %v", err)
 	}
@@ -345,14 +346,14 @@ func supportCommandHandler(ctx context.Context, bot *Bot, message *telego.Messag
 		tu.Entity("free+support@radiant.space").Email(),
 		tu.Entityf(", explaining the problem and mentioning userID: %s.", util.GetChatIDString(message)),
 	).WithMessageThreadID(message.MessageThreadID)
-	_, err := bot.SendMessage(supportMessage)
+	_, err := bot.SendMessage(ctx, supportMessage)
 	if err != nil {
 		log.Errorf("Failed to send SupportCommand message: %v", err)
 	}
 }
 
 func statusCommandHandler(ctx context.Context, bot *Bot, message *telego.Message) {
-	_, err := bot.SendMessage(tu.Message(util.GetChatID(message), GetUserStatus(ctx)).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
+	_, err := bot.SendMessage(ctx, tu.Message(util.GetChatID(message), GetUserStatus(ctx)).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
 	if err != nil {
 		log.Errorf("Failed to send StatusCommand message: %v", err)
 	}
@@ -363,7 +364,7 @@ func clearThreadCommandHandler(ctx context.Context, bot *Bot, message *telego.Me
 	chatIDString := util.GetChatIDString(message)
 	topicIDString := util.GetTopicID(message)
 
-	_, err := bot.SendMessage(tu.Message(chatID, "All memory cleared!").WithMessageThreadID(message.MessageThreadID))
+	_, err := bot.SendMessage(ctx, tu.Message(chatID, "All memory cleared!").WithMessageThreadID(message.MessageThreadID))
 	if err != nil {
 		log.Errorf("Failed to send ClearThreadCommand message: %v", err)
 	}
@@ -931,7 +932,7 @@ func startCommandHandler(ctx context.Context, bot *Bot, message *telego.Message)
 
 	notification := lib.AddBotSuffixToGroupCommands(ctx, ONBOARDING_TEXT)
 	chatId := util.GetChatID(message)
-	_, err := bot.SendMessage(tu.Message(chatId, notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
+	_, err := bot.SendMessage(ctx, tu.Message(chatId, notification).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(GetStatusKeyboard(ctx)))
 	if err != nil {
 		log.Errorf("Failed to send StartCommand message: %v", err)
 	}
@@ -945,7 +946,7 @@ func sendGeneralOnboardingVideo(ctx context.Context, bot *Bot, message *telego.M
 		return
 	}
 	log.Infof("Sending onboarding video %s to userID: %s", videoFileId, util.GetChatIDString(message))
-	_, err := bot.SendVideo(&telego.SendVideoParams{
+	_, err := bot.SendVideo(ctx, &telego.SendVideoParams{
 		ChatID: util.GetChatID(message),
 		Video:  telego.InputFile{FileID: videoFileId},
 	})
