@@ -35,24 +35,18 @@ jobs:
 
       - name: Install dependencies
         run: make deps
-        working-directory: ./backend
 
       - name: Build
         run: make build
-        working-directory: ./backend
 
       - name: Format
         run: make fmt
-        working-directory: ./backend
 
       - name: Vet
         run: make vet
-        working-directory: ./backend
 
       - name: Lint
         run: make lint || true
-        working-directory: ./backend
 
       - name: Test
         run: make test
-        working-directory: ./backend
