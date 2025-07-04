@@ -126,7 +126,7 @@ func handleSystemMessage(bhctx *th.Context, message telego.Message) error {
 		return nil
 	}
 
-	err := bot.SendChatAction(context.Background(), &telego.SendChatActionParams{ChatID: SystemBOT.ChatID, Action: telego.ChatActionTyping})
+	err := bot.SendChatAction(ctx, &telego.SendChatActionParams{ChatID: SystemBOT.ChatID, Action: telego.ChatActionTyping})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %s", err)
 	}
@@ -134,7 +134,7 @@ func handleSystemMessage(bhctx *th.Context, message telego.Message) error {
 	// process commands
 	if message.Text == string(EmptyCommand) || strings.HasPrefix(message.Text, "/") || strings.HasPrefix(message.Caption, "/") {
 		log.Infof("System bot received message: %+v", message) // audit
-		SystemCommandHandlers.handleCommand(context.Background(), SystemBOT, &message)
+		SystemCommandHandlers.handleCommand(ctx, SystemBOT, &message)
 	}
 
 	return nil

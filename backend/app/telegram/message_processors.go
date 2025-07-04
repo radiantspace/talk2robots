@@ -479,11 +479,11 @@ func ChunkSendMessage(bot *telego.Bot, message *telego.Message, text string) {
 	chatID := message.Chat.ChatID()
 	ctx := context.Background()
 	for _, chunk := range util.ChunkString(text, 4000) {
-		_, err := bot.SendMessage(context.Background(), tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+		_, err := bot.SendMessage(ctx, tu.Message(chatID, chunk).WithMessageThreadID(message.MessageThreadID).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
 		if err != nil {
 			if strings.Contains(err.Error(), "message thread not found") {
 				// retry without message thread id
-				_, err = bot.SendMessage(context.Background(), tu.Message(chatID, chunk).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
+				_, err = bot.SendMessage(ctx, tu.Message(chatID, chunk).WithReplyMarkup(getLikeDislikeReplyMarkup(message.MessageThreadID)))
 			}
 
 			if err != nil {
