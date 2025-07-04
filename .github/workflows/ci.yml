@@ -33,6 +33,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - run: touch .env
+
       - name: Install dependencies
         run: make deps
 
