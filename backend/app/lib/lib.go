@@ -50,7 +50,7 @@ func SetupUserAndContext(userId string, client ClientName, channelId string, top
 			log.Infof("User %s not found, creating a new one", userId)
 		} else {
 			log.Errorf("Failed to get a user (%s): %v", userId, err)
-			return nil, nil, nil, err
+			return nil, nil, cancelContext, err
 		}
 	}
 
@@ -107,12 +107,11 @@ func ConvertFasthttpRequest(ctx *fasthttp.RequestCtx) (*http.Request, error) {
 func ConvertFasthttpHeader(fh *fasthttp.RequestHeader) http.Header {
 	h := make(http.Header)
 
-	fh.VisitAll(func(key, value []byte) {
-		sKey := string(key)
-		sValue := string(value)
-
+	for _, kv := range fh.All() {
+		sKey := string(kv[0])
+		sValue := string(kv[1])
 		h.Add(sKey, sValue)
-	})
+	}
 
 	return h
 }
