@@ -108,7 +108,6 @@ func main() {
 		systemBot = telegram.NewStubSystemBot(config.CONFIG)
 	}
 
-	log.Debugf("Config: %+v", config.CONFIG)
 	rtr := router.New()
 	rtr.GET("/", func(ctx *fasthttp.RequestCtx) {
 		ctx.Redirect(config.CONFIG.BotUrl, fasthttp.StatusFound)
