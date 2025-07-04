@@ -126,7 +126,7 @@ func handleSystemMessage(bhctx *th.Context, message telego.Message) error {
 		return nil
 	}
 
-	err := bot.SendChatAction(ctx, &telego.SendChatActionParams{ChatID: SystemBOT.ChatID, Action: telego.ChatActionTyping})
+	err := bot.SendChatAction(context.Background(), &telego.SendChatActionParams{ChatID: SystemBOT.ChatID, Action: telego.ChatActionTyping})
 	if err != nil {
 		log.Errorf("Failed to send chat action: %s", err)
 	}
@@ -143,7 +143,7 @@ func handleSystemMessage(bhctx *th.Context, message telego.Message) error {
 func setupSystemCommandHandlers() {
 	SystemCommandHandlers = CommandHandlers{
 		newCommandHandler(EmptyCommand, func(ctx context.Context, bot *Bot, message *telego.Message) {
-			bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "There is no message provided to correct or comment on. If you have a message you would like me to review, please provide it."))
+			bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, "There is no message provided to correct or comment on. If you have a message you would like me to review, please provide it."))
 		}),
 		newCommandHandler(SYSTEMStatusCommand, handleStatus),
 		newCommandHandler(SYSTEMUserCommand, handleUser),
@@ -160,19 +160,19 @@ func setupSystemCommandHandlers() {
 
 func handleStatus(ctx context.Context, bot *Bot, message *telego.Message) {
 	systemStatus := redis.RedisClient.Get(context.Background(), "system-status")
-	bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, systemStatus.Val()))
+	bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, systemStatus.Val()))
 }
 
 func handleUser(ctx context.Context, bot *Bot, message *telego.Message) {
 	commandArray := strings.Split(message.Text, " ")
 	if len(commandArray) < 2 {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "Please provide user id"))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, "Please provide user id"))
 		return
 	}
 	userId := commandArray[1]
 	user, err := mongo.MongoDBClient.GetUser(context.WithValue(context.Background(), models.UserContext{}, userId))
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get user: %s", err)))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get user: %s", err)))
 		return
 	}
 	userJson, err := json.Marshal(user)
@@ -187,20 +187,20 @@ func handleUser(ctx context.Context, bot *Bot, message *telego.Message) {
 	userString += "current thread        - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadKey(userId, "")).Val() + "\n"
 	userString += "current prompt tokens - " + redis.RedisClient.Get(ctx, lib.UserCurrentThreadPromptKey(userId, "")).Val()
 
-	bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("User: %+v", userString)))
+	bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("User: %+v", userString)))
 }
 
 func handleStripeReset(ctx context.Context, bot *Bot, message *telego.Message) {
 	commandArray := strings.Split(message.Text, " ")
 	if len(commandArray) < 2 {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "Please provide user id"))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, "Please provide user id"))
 		return
 	}
 	userId := commandArray[1]
 	ctx = context.WithValue(ctx, models.UserContext{}, userId)
 	user, err := mongo.MongoDBClient.GetUser(ctx)
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get user: %s", err)))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get user: %s", err)))
 		return
 	}
 	stripeCustomerId := user.StripeCustomerId
@@ -208,35 +208,35 @@ func handleStripeReset(ctx context.Context, bot *Bot, message *telego.Message) {
 		payments.StripeCancelSubscription(ctx, stripeCustomerId)
 		customer, err := customer.Del(stripeCustomerId, nil)
 		if err != nil {
-			bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to delete customer: %s", err)))
+			bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to delete customer: %s", err)))
 		} else {
-			bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Customer deleted from Stripe: %+v", customer)))
+			bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Customer deleted from Stripe: %+v", customer)))
 		}
 		err = mongo.MongoDBClient.UpdateUserStripeCustomerId(ctx, "")
 		if err != nil {
-			bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to update user: %s", err)))
+			bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to update user: %s", err)))
 			return
 		}
 		//  downgrade engine to GPT-4o Mini
 		redis.SaveModel(userId, models.ChatGpt4oMini)
 	}
 
-	bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Stripe Reset for: %+v", user)))
+	bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Stripe Reset for: %+v", user)))
 }
 
 func handleUsersCount(ctx context.Context, bot *Bot, message *telego.Message) {
 	users, err := mongo.MongoDBClient.GetUsersCount(context.Background())
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users: %s", err)))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users: %s", err)))
 		return
 	}
-	bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Users: %+v", users)))
+	bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Users: %+v", users)))
 }
 
 func handleUsageReset(ctx context.Context, bot *Bot, message *telego.Message) {
 	commandArray := strings.Split(message.Text, " ")
 	if len(commandArray) < 2 {
-		bot.SendMessage(ctx,
+		bot.SendMessage(context.Background(),
 			tu.Message(SystemBOT.ChatID, "Please provide user id"))
 		return
 	}
@@ -244,70 +244,70 @@ func handleUsageReset(ctx context.Context, bot *Bot, message *telego.Message) {
 	redis.RedisClient.Del(ctx, lib.UserTotalCostKey(userId))
 	redis.RedisClient.Del(ctx, lib.UserTotalAudioMinutesKey(userId))
 	redis.RedisClient.Del(ctx, lib.UserTotalTokensKey(userId))
-	bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "Usage reset for user: "+userId))
+	bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, "Usage reset for user: "+userId))
 }
 
 func handleUsersForSubscription(ctx context.Context, bot *Bot, message *telego.Message) {
 	commandArray := strings.Split(message.Text, " ")
 	if len(commandArray) < 2 {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "Please provide subscription name"))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, "Please provide subscription name"))
 		return
 	}
 	subscriptionName := commandArray[1]
 	usersCount, err := mongo.MongoDBClient.GetUsersCountForSubscription(context.Background(), subscriptionName)
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users: %s", err)))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users: %s", err)))
 		return
 	}
-	bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Users count for %s subscription: %d", subscriptionName, usersCount)))
+	bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Users count for %s subscription: %d", subscriptionName, usersCount)))
 }
 
 func handleBanUser(ctx context.Context, bot *Bot, message *telego.Message) {
 	commandArray := strings.Split(message.Text, " ")
 	if len(commandArray) < 2 {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "Please provide user id"))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, "Please provide user id"))
 		return
 	}
 	userId := commandArray[1]
 	err := redis.RedisClient.Set(ctx, userId+":banned", "true", 0).Err()
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to ban user: %v", err)))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to ban user: %v", err)))
 		return
 	}
-	bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "User "+userId+" banned"))
+	bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, "User "+userId+" banned"))
 }
 
 func handleUnbanUser(ctx context.Context, bot *Bot, message *telego.Message) {
 	commandArray := strings.Split(message.Text, " ")
 	if len(commandArray) < 2 {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "Please provide user id"))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, "Please provide user id"))
 		return
 	}
 	userId := commandArray[1]
 	err := redis.RedisClient.Del(ctx, userId+":banned").Err()
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to unban user: %v", err)))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to unban user: %v", err)))
 		return
 	}
-	bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, "User "+userId+" unbanned"))
+	bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, "User "+userId+" unbanned"))
 }
 
 func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Message) {
 	commandUsage := fmt.Sprintf("Usage: %s <maximum_users_to_notify> <days_after_last_notification> <message>", SYSTEMSendMessageToUsers)
 	commandArray := strings.Split(message.Text, " ")
 	if len(commandArray) < 4 {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, commandUsage))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, commandUsage))
 		return
 	}
 	maximumUsers, err := strconv.Atoi(commandArray[1])
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, commandUsage))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, commandUsage))
 		return
 	}
 	// skip users who were notified after this amount of days ago
 	daysAfterLastNotification, err := strconv.Atoi(commandArray[2])
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, commandUsage))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, commandUsage))
 		return
 	}
 	messageText := strings.Join(commandArray[3:], " ")
@@ -323,7 +323,7 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 
 	defer func() {
 		message := fmt.Sprintf("Message sent to %.f users, %.f groups skipped, %.f error users skipped, %.f non-telegram users skipped", notifiedUsers, skippedGroupUsers, skippedErrorUsers, skippedNonTelegramUsers)
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, message))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, message))
 		log.Info("[SYSTEM] " + message)
 		config.CONFIG.DataDogClient.Incr("custom_message_sent_total", []string{}, notifiedUsers)
 		config.CONFIG.DataDogClient.Incr("custom_message_sent_groups_skipped", []string{}, skippedGroupUsers)
@@ -341,7 +341,7 @@ func handleSendMessageToUsers(ctx context.Context, bot *Bot, message *telego.Mes
 	for {
 		users, err := mongo.MongoDBClient.GetUserIdsNotifiedBefore(context.Background(), time.Now().AddDate(0, 0, -1*daysAfterLastNotification), page, pageSize)
 		if err != nil {
-			bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users page %d (page size %d): %s", page, pageSize, err)))
+			bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to get users page %d (page size %d): %s", page, pageSize, err)))
 			return
 		}
 		if len(users) == 0 {
@@ -396,13 +396,13 @@ func handleSendMessageToAUser(ctx context.Context, bot *Bot, message *telego.Mes
 	commandUsage := fmt.Sprintf("Usage: %s <user_id> <message>", SYSTEMSendMessageToAUser)
 	commandArray := strings.Split(message.Text, " ")
 	if len(commandArray) < 3 {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, commandUsage))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, commandUsage))
 		return
 	}
 	userId := commandArray[1]
 	userIdInt, err := strconv.ParseInt(userId, 10, 64)
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, commandUsage))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, commandUsage))
 		return
 	}
 	messageText := strings.Join(commandArray[2:], " ")
@@ -410,10 +410,10 @@ func handleSendMessageToAUser(ctx context.Context, bot *Bot, message *telego.Mes
 	_, err = BOT.SendMessage(ctx, tu.Message(tu.ID(userIdInt), messageText))
 	if err != nil {
 		log.Errorf("Failed to send message to user %s: %v", userId, err)
-		bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to send message to user %s: %v", userId, err)))
+		bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Failed to send message to user %s: %v", userId, err)))
 		return
 	}
 
 	log.Infof("[SYSTEM] Message sent to user %s", userId)
-	bot.SendMessage(ctx, tu.Message(SystemBOT.ChatID, fmt.Sprintf("Message sent to user %s", userId)))
+	bot.SendMessage(context.Background(), tu.Message(SystemBOT.ChatID, fmt.Sprintf("Message sent to user %s", userId)))
 }

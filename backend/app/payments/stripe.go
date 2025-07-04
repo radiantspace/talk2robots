@@ -133,7 +133,7 @@ func StripeCreateCheckoutSession(ctx context.Context, bot *telego.Bot, message *
 	params.AddMetadata(AppID, config.CONFIG.BotName)
 	s, err := session.New(params)
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
+		bot.SendMessage(context.Background(), tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
 		log.Errorf("StripeCreateCheckoutSession: %v", err)
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func StripeGetCustomer(ctx context.Context, bot *telego.Bot, message *telego.Mes
 	chatID := util.GetChatID(message)
 	c, err := customer.Get(customerId, nil)
 	if err != nil {
-		bot.SendMessage(ctx, tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
+		bot.SendMessage(context.Background(), tu.Message(chatID, "Couldn't reach Stripe. Please try again later."))
 		log.Errorf("StripeGetCustomer: %v", err)
 		return nil, err
 	}

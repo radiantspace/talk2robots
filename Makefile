@@ -73,6 +73,8 @@ clean: ## Clean up build artifacts
 .PHONY: tools
 tools: ## Install development tools
 	@echo '$(HEADER) tools'
+	mkdir -p data
+	chmod 777 data
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 .PHONY: fmt

@@ -21,7 +21,7 @@ const (
 	ChatGpt4Turbo       Engine = "gpt-4-turbo-preview"
 	ChatGpt4o           Engine = "gpt-4o"
 	Whisper             Engine = "whisper-1"
-	TTS                 Engine = "tts-1"
+	TTS                 Engine = "gpt-4o-mini-tts"
 
 	// used as Redis keys
 	AssistantGpt4  AssistantKey = "assistant:gpt-4"

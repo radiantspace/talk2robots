@@ -156,7 +156,7 @@ func handleMessageWithBot(bot *telego.Bot, message telego.Message) error {
 			}
 
 			// only allow admins to use commands in channels
-			chatMember, err := bot.GetChatMember(ctx, &telego.GetChatMemberParams{
+			chatMember, err := bot.GetChatMember(context.Background(), &telego.GetChatMemberParams{
 				ChatID: chatID,
 				UserID: message.From.ID,
 			})
@@ -240,7 +240,7 @@ func handleMessageWithBot(bot *telego.Bot, message telego.Message) error {
 	if mode == lib.Transcribe {
 		ChunkSendMessage(bot, &message, voiceTranscriptionText)
 		if isPrivate && message.Text != "" {
-			bot.SendMessage(ctx, tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
+			bot.SendMessage(context.Background(), tu.Message(chatID, "The bot is in /transcribe mode. Please send a voice/audio/video message to transcribe or change to another mode (/status)."))
 		}
 		return nil
 	}
@@ -258,7 +258,7 @@ func handleMessageWithBot(bot *telego.Bot, message telego.Message) error {
 			if strings.Contains(err.Error(), "content_policy_violation") {
 				log.Warnf("Content policy violation in chat %s", chatIDString)
 				config.CONFIG.DataDogClient.Incr("telegram.image.content_policy_violation", []string{"client:telegram", "channel_type:" + message.Chat.Type}, 1)
-				bot.SendMessage(ctx, tu.Message(chatID, "Sorry, I can't create an image with that content. Please try again with a different prompt.").WithMessageThreadID(message.MessageThreadID))
+				bot.SendMessage(context.Background(), tu.Message(chatID, "Sorry, I can't create an image with that content. Please try again with a different prompt.").WithMessageThreadID(message.MessageThreadID))
 				return err
 			}
 			log.Errorf("Error creating image in chat %s: %v", chatIDString, err)
@@ -269,7 +269,7 @@ func handleMessageWithBot(bot *telego.Bot, message telego.Message) error {
 			revisedPrompt = revisedPrompt[:997] + "..."
 		}
 		if url != "" {
-			_, err := bot.SendPhoto(ctx, &telego.SendPhotoParams{
+			_, err := bot.SendPhoto(context.Background(), &telego.SendPhotoParams{
 				ChatID:          chatID,
 				Photo:           telego.InputFile{URL: url},
 				Caption:         revisedPrompt,
@@ -341,7 +341,7 @@ func handleCallbackQuery(bhctx *th.Context, callbackQuery telego.CallbackQuery) 
 	switch callbackQuery.Data {
 	case "like":
 		log.Infof("User %d liked a message in chat %d.", userId, chatId)
-		_, err := bot.EditMessageReplyMarkup(ctx, &telego.EditMessageReplyMarkupParams{
+		_, err := bot.EditMessageReplyMarkup(context.Background(), &telego.EditMessageReplyMarkupParams{
 			ChatID:      chat.ChatID(),
 			MessageID:   messageId,
 			ReplyMarkup: nil,
@@ -401,10 +401,10 @@ func handleCallbackQuery(bhctx *th.Context, callbackQuery telego.CallbackQuery) 
 		err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreeSubscriptionName])
 		if err != nil {
 			log.Errorf("Failed to downgrade user %s subscription: to free %v", chatString, err)
-			bot.SendMessage(ctx, tu.Message(tu.ID(chatId), "Failed to downgrade your account to free plan. Please try again later.").WithMessageThreadID(topicId))
+			bot.SendMessage(context.Background(), tu.Message(tu.ID(chatId), "Failed to downgrade your account to free plan. Please try again later.").WithMessageThreadID(topicId))
 			return err
 		}
-		bot.SendMessage(ctx, tu.Message(tu.ID(chatId), "You are now a free user!").WithMessageThreadID(topicId))
+		bot.SendMessage(context.Background(), tu.Message(tu.ID(chatId), "You are now a free user!").WithMessageThreadID(topicId))
 	case "downgradefrombasic":
 		user, ctx, _, err := lib.SetupUserAndContext(chatString, "telegram", chatString, topicString)
 		if err != nil {
@@ -421,9 +421,9 @@ func handleCallbackQuery(bhctx *th.Context, callbackQuery telego.CallbackQuery) 
 			err := mongo.MongoDBClient.UpdateUserSubscription(ctx, models.Subscriptions[models.FreePlusSubscriptionName])
 			if err != nil {
 				log.Errorf("Failed to downgrade user %s subscription: to free+ %v", chatString, err)
-				bot.SendMessage(ctx, tu.Message(tu.ID(chatId), "Failed to downgrade your account to free+ plan. Please try again later.").WithMessageThreadID(topicId))
+				bot.SendMessage(context.Background(), tu.Message(tu.ID(chatId), "Failed to downgrade your account to free+ plan. Please try again later.").WithMessageThreadID(topicId))
 			}
-			bot.SendMessage(ctx, tu.Message(tu.ID(chatId), "You are now a free+ user!").WithMessageThreadID(topicId))
+			bot.SendMessage(context.Background(), tu.Message(tu.ID(chatId), "You are now a free+ user!").WithMessageThreadID(topicId))
 			return err
 		}
 
@@ -725,12 +725,12 @@ func handleInlineQuery(bhctx *th.Context, inlineQuery telego.InlineQuery) error 
 			ParseMode:   "HTML",
 		},
 	})
-	err = bot.AnswerInlineQuery(ctx, params)
+	err = bot.AnswerInlineQuery(context.Background(), params)
 
 	// retry w/o parse mode if failed
 	if err != nil && strings.Contains(err.Error(), "can't parse entities") {
 		params.Results[0].(*telego.InlineQueryResultArticle).InputMessageContent.(*telego.InputTextMessageContent).ParseMode = ""
-		err = bot.AnswerInlineQuery(ctx, params)
+		err = bot.AnswerInlineQuery(context.Background(), params)
 	}
 
 	if err != nil {
@@ -825,14 +825,14 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 		log.Errorf("No voice/audio/video message in chat %s", chatIDString)
 		return ""
 	}
-	fileData, err := bot.GetFile(ctx, &telego.GetFileParams{FileID: fileId})
+	fileData, err := bot.GetFile(context.Background(), &telego.GetFileParams{FileID: fileId})
 	if err != nil {
 		log.Errorf("Failed to get voice/audio/video file data in chat %s: %v", chatIDString, err)
 		if strings.Contains(err.Error(), "file is too big") {
-			_, _ = bot.SendMessage(ctx, tu.Message(chatID, "Telegram API doesn't support downloading files bigger than 20Mb, try sending a shorter voice/audio/video message.").WithMessageThreadID(message.MessageThreadID))
+			_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "Telegram API doesn't support downloading files bigger than 20Mb, try sending a shorter voice/audio/video message.").WithMessageThreadID(message.MessageThreadID))
 			return ""
 		}
-		_, err = bot.SendMessage(ctx, tu.Message(chatID, "Something went wrong while getting voice/audio/video file, please try again.").WithMessageThreadID(message.MessageThreadID))
+		_, err = bot.SendMessage(context.Background(), tu.Message(chatID, "Something went wrong while getting voice/audio/video file, please try again.").WithMessageThreadID(message.MessageThreadID))
 		if err != nil {
 			log.Errorf("Failed to send message in chat %s: %v", chatIDString, err)
 		}
@@ -904,7 +904,7 @@ func getVoiceTranscript(ctx context.Context, bot *telego.Bot, message telego.Mes
 
 	if whisper.Transcript().Text == "" {
 		log.Warnf("Failed to transcribe voice message in chat %s from %s, size %d", chatIDString, fileData.FilePath, fileData.FileSize)
-		bot.SendMessage(ctx, tu.Message(chatID, "Couldn't transcribe the voice/audio/video message, maybe next time?").WithMessageThreadID(message.MessageThreadID))
+		bot.SendMessage(context.Background(), tu.Message(chatID, "Couldn't transcribe the voice/audio/video message, maybe next time?").WithMessageThreadID(message.MessageThreadID))
 		return ""
 	}
 

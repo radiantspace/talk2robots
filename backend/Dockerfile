@@ -20,6 +20,7 @@ USER backend
 WORKDIR /home/backend
 # create subdirectories
 RUN mkdir -p data
+RUN chown backend:backend data
 COPY --from=build-go /backend ./
 EXPOSE 8080 8801
 ENTRYPOINT ["./backend"]

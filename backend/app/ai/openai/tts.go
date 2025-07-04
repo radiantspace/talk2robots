@@ -27,7 +27,7 @@ func CreateSpeech(ctx context.Context, tts *models.TTSRequest) (io.ReadCloser, e
 	}
 
 	if tts.Model == "" {
-		tts.Model = "tts-1"
+		tts.Model = "gpt-4o-mini-tts"
 	}
 
 	if len(tts.Input) > 4096 {
