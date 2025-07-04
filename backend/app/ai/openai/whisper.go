@@ -150,7 +150,7 @@ func (uw *whisper) onWhispered(reader io.Reader, fileName string) (string, error
 	}
 	io.Copy(part, reader)
 
-	writer.WriteField("model", "whisper-1")
+	writer.WriteField("model", "gpt-4o-mini-transcribe")
 
 	// if uw.mode == "transcriptions" {
 	// 	language := uw.WhisperConfig.Language
