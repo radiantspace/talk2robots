@@ -1,9 +1,9 @@
 package models
 
 const (
-	Haiku Engine = "claude-haiku-4-5-20251001"
-	Opus  Engine = "claude-opus-4-5-20251101"
-	Sonet Engine = "claude-sonnet-4-5-20250929"
+	Haiku  Engine = "claude-haiku-4-5-20251001"
+	Opus   Engine = "claude-opus-4-5-20251101"
+	Sonnet Engine = "claude-sonnet-4-5-20250929"
 )
 
 type ClaudeUsage struct {

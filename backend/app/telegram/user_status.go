@@ -145,7 +145,7 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 	model := redis.GetModel(userIdString)
 	gpt4oActive := ""
 	gpt4oMiniActive := ""
-	sonetActive := ""
+	sonnetActive := ""
 	haikuActive := ""
 	grokActive := ""
 	switch model {
@@ -153,8 +153,8 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 		gpt4oActive = "✅ "
 	case models.ChatGpt4oMini:
 		gpt4oMiniActive = "✅ "
-	case models.Sonet:
-		sonetActive = "✅ "
+	case models.Sonnet:
+		sonnetActive = "✅ "
 	case models.Haiku:
 		haikuActive = "✅ "
 	case models.Grok:
@@ -165,31 +165,31 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 		InlineKeyboard: [][]telego.InlineKeyboardButton{
 			{
 				{
-					Text:         grokActive + "Grok 💰💰🏃🏃🧠🧠🧠",
+					Text:         grokActive + "Grok 💰🏃🏃🏃🧠🧠🧠",
 					CallbackData: string(models.Grok) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         gpt4oActive + "GPT 4o 💰💰💰🏃🏃🧠🧠🧠🧠",
+					Text:         gpt4oActive + "GPT 4 💰💰💰🏃🏃🧠🧠🧠🧠",
 					CallbackData: string(models.ChatGpt4o) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         gpt4oMiniActive + "GPT 4o mini 💰🏃🏃🏃🏃🧠🧠",
+					Text:         gpt4oMiniActive + "GPT 4 mini 💰🏃🏃🏃🏃🧠🧠",
 					CallbackData: string(models.ChatGpt4oMini) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         sonetActive + "Claude Sonet 💰💰💰🏃🏃🧠🧠🧠🧠",
-					CallbackData: string(models.Sonet) + ":" + topicString,
+					Text:         sonnetActive + "Claude Sonnet 🔎 💰💰💰🏃🏃🧠🧠🧠🧠",
+					CallbackData: string(models.Sonnet) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         haikuActive + "Claude Haiku 💰💰🏃🏃🏃🏃🧠🧠",
+					Text:         haikuActive + "Claude Haiku 🔎 💰💰🏃🏃🏃🏃🧠🧠",
 					CallbackData: string(models.Haiku) + ":" + topicString,
 				},
 			},

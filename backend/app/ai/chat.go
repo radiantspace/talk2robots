@@ -53,9 +53,9 @@ const (
 	HAIKU_INPUT_PRICE  = 1.0 / 1000000
 	HAIKU_OUTPUT_PRICE = 5.0 / 1000000
 
-	// claude sonet
-	SONET_INPUT_PRICE  = 3.0 / 1000000
-	SONET_OUTPUT_PRICE = 15.0 / 1000000
+	// claude sonnet
+	SONNET_INPUT_PRICE  = 3.0 / 1000000
+	SONNET_OUTPUT_PRICE = 15.0 / 1000000
 
 	// claude opus
 	OPUS_INPUT_PRICE  = 5.0 / 1000000
@@ -280,8 +280,8 @@ func PricePerInputToken(model models.Engine) float64 {
 		return CHAT_GPT4O_INPUT_PRICE
 	case models.ChatGpt4oMini:
 		return CHAT_GPT4O_MINI_INPUT_PRICE
-	case models.Sonet:
-		return SONET_INPUT_PRICE
+	case models.Sonnet:
+		return SONNET_INPUT_PRICE
 	case models.Haiku:
 		return HAIKU_INPUT_PRICE
 	case models.Grok:
@@ -305,8 +305,8 @@ func PricePerOutputToken(model models.Engine) float64 {
 		return CHAT_GPT4O_OUTPUT_PRICE
 	case models.ChatGpt4oMini:
 		return CHAT_GPT4O_MINI_OUTPUT_PRICE
-	case models.Sonet:
-		return SONET_OUTPUT_PRICE
+	case models.Sonnet:
+		return SONNET_OUTPUT_PRICE
 	case models.Haiku:
 		return HAIKU_OUTPUT_PRICE
 	case models.Grok:
@@ -327,7 +327,7 @@ func LimitPromptTokensForModel(model models.Engine, promptTokensCount float64) i
 		return int(math.Min(15*1024, promptTokensCount))
 	case models.LlamaV3_70b, models.LlamaV3_8b:
 		return int(math.Min(7*1024, promptTokensCount))
-	case models.Sonet, models.Haiku, models.Opus:
+	case models.Sonnet, models.Haiku, models.Opus:
 		return int(math.Min(199*1024, promptTokensCount))
 	case models.Grok:
 		return int(math.Min(63*1024, promptTokensCount))
@@ -371,14 +371,13 @@ func (a *API) chatCompleteClaude(ctx context.Context, completion models.ChatComp
 		"messages":   completion.Messages,
 		"model":      completion.Model,
 		"system":     systemPrompt,
-		// "tools": []map[string]interface{}{
-		// 	{
-		// 		"name":     "web_search",
-		// 		"type":     "web_search_20250305",
-		// 		"max_uses": 5,
-		// 	},
-		// },
-		// "betas": []string{"web-search-2025-03-05"},
+		"tools": []map[string]interface{}{
+			{
+				"name":     "web_search",
+				"type":     "web_search_20250305",
+				"max_uses": 5,
+			},
+		},
 	}
 
 	body, err := json.Marshal(data)
@@ -394,7 +393,7 @@ func (a *API) chatCompleteClaude(ctx context.Context, completion models.ChatComp
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", authTokenFromModel(models.Engine(completion.Model)))
 	req.Header.Set("anthropic-version", "2023-06-01")
-	// req.Header.Set("anthropic-beta", "web-search-2025-03-05")
+	req.Header.Set("anthropic-beta", "web-search-2025-03-05")
 
 	status := fmt.Sprintf("status:%d", 0)
 	resp, err := a.client.Do(req)
@@ -448,14 +447,13 @@ func chatCompleteStreamingClaude(ctx context.Context, completion models.ChatMult
 		"model":      completion.Model,
 		"system":     systemPrompt,
 		"stream":     true,
-		// "tools": []map[string]interface{}{
-		// 	{
-		// 		"name":     "web_search",
-		// 		"type":     "web_search_20250305",
-		// 		"max_uses": 5,
-		// 	},
-		// },
-		// "betas": []string{"web-search-2025-03-05"},
+		"tools": []map[string]interface{}{
+			{
+				"name":     "web_search",
+				"type":     "web_search_20250305",
+				"max_uses": 5,
+			},
+		},
 	}
 
 	body, err := json.Marshal(data)
@@ -471,7 +469,7 @@ func chatCompleteStreamingClaude(ctx context.Context, completion models.ChatMult
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", authTokenFromModel(models.Engine(completion.Model)))
 	req.Header.Set("anthropic-version", "2023-06-01")
-	// req.Header.Set("anthropic-beta", "web-search-2025-03-05")
+	req.Header.Set("anthropic-beta", "web-search-2025-03-05")
 
 	messages := make(chan string)
 
