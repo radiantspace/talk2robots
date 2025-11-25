@@ -389,7 +389,7 @@ func handleCallbackQuery(bhctx *th.Context, callbackQuery telego.CallbackQuery) 
 			MessageID:   messageId,
 			ReplyMarkup: GetStatusKeyboard(ctx),
 		})
-	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.ChatGpt4oMini), string(models.ChatGpt4Turbo), string(models.ChatGpt4TurboVision), string(models.LlamaV3_8b), string(models.LlamaV3_70b), string(models.Sonet35), string(models.Haiku3), string(models.Opus3), string(models.Sonet35_241022), string(models.Grok):
+	case string(models.ChatGpt35Turbo), string(models.ChatGpt4), string(models.ChatGpt4o), string(models.ChatGpt4oMini), string(models.ChatGpt4Turbo), string(models.ChatGpt4TurboVision), string(models.LlamaV3_8b), string(models.LlamaV3_70b), string(models.Haiku), string(models.Opus), string(models.Sonet), string(models.Grok):
 		handleEngineSwitchCallbackQuery(callbackQuery, topicString)
 	case string(models.DallE3), string(models.Midjourney6), string(models.StableDiffusion3), string(models.Playground25):
 		handleImageModelSwitchCallbackQuery(callbackQuery, topicString)
@@ -568,7 +568,7 @@ func handleEngineSwitchCallbackQuery(callbackQuery telego.CallbackQuery, topicSt
 		}
 		return
 	}
-	if callbackQuery.Data == string(models.Sonet35) || callbackQuery.Data == string(models.Haiku3) || callbackQuery.Data == string(models.Opus3) || callbackQuery.Data == string(models.Sonet35_241022) {
+	if callbackQuery.Data == string(models.Haiku) || callbackQuery.Data == string(models.Opus) || callbackQuery.Data == string(models.Sonet) {
 		// fetch user subscription
 		user, err := mongo.MongoDBClient.GetUser(ctx)
 		if err != nil {

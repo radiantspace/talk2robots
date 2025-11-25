@@ -49,17 +49,17 @@ const (
 	FIREWORKS_16B_80B_PRICE = 0.9 / 1000000
 	FIREWORKS_0B_16B_PRICE  = 0.2 / 1000000
 
-	// claude haiku 3.0
-	HAIKU_INPUT_PRICE  = 0.25 / 1000000
-	HAIKU_OUTPUT_PRICE = 1.25 / 1000000
+	// claude haiku
+	HAIKU_INPUT_PRICE  = 1.0 / 1000000
+	HAIKU_OUTPUT_PRICE = 5.0 / 1000000
 
-	// claude sonet 3.5
+	// claude sonet
 	SONET_INPUT_PRICE  = 3.0 / 1000000
 	SONET_OUTPUT_PRICE = 15.0 / 1000000
 
-	// claude opus 3.0
-	OPUS_INPUT_PRICE  = 15.0 / 1000000
-	OPUS_OUTPUT_PRICE = 75.0 / 1000000
+	// claude opus
+	OPUS_INPUT_PRICE  = 5.0 / 1000000
+	OPUS_OUTPUT_PRICE = 25.0 / 1000000
 
 	// grok-4-1-fast-reasoning
 	GROK_INPUT_PRICE  = 0.2 / 1000000
@@ -280,9 +280,9 @@ func PricePerInputToken(model models.Engine) float64 {
 		return CHAT_GPT4O_INPUT_PRICE
 	case models.ChatGpt4oMini:
 		return CHAT_GPT4O_MINI_INPUT_PRICE
-	case models.Sonet35, models.Sonet35_241022:
+	case models.Sonet:
 		return SONET_INPUT_PRICE
-	case models.Haiku3:
+	case models.Haiku:
 		return HAIKU_INPUT_PRICE
 	case models.Grok:
 		return GROK_INPUT_PRICE
@@ -305,9 +305,9 @@ func PricePerOutputToken(model models.Engine) float64 {
 		return CHAT_GPT4O_OUTPUT_PRICE
 	case models.ChatGpt4oMini:
 		return CHAT_GPT4O_MINI_OUTPUT_PRICE
-	case models.Sonet35, models.Sonet35_241022:
+	case models.Sonet:
 		return SONET_OUTPUT_PRICE
-	case models.Haiku3:
+	case models.Haiku:
 		return HAIKU_OUTPUT_PRICE
 	case models.Grok:
 		return GROK_OUTPUT_PRICE
@@ -327,7 +327,7 @@ func LimitPromptTokensForModel(model models.Engine, promptTokensCount float64) i
 		return int(math.Min(15*1024, promptTokensCount))
 	case models.LlamaV3_70b, models.LlamaV3_8b:
 		return int(math.Min(7*1024, promptTokensCount))
-	case models.Sonet35, models.Sonet35_241022, models.Haiku3, models.Opus3:
+	case models.Sonet, models.Haiku, models.Opus:
 		return int(math.Min(199*1024, promptTokensCount))
 	case models.Grok:
 		return int(math.Min(63*1024, promptTokensCount))
@@ -371,6 +371,14 @@ func (a *API) chatCompleteClaude(ctx context.Context, completion models.ChatComp
 		"messages":   completion.Messages,
 		"model":      completion.Model,
 		"system":     systemPrompt,
+		"tools": []map[string]interface{}{
+			{
+				"name":     "web_search",
+				"type":     "web_search_20250305",
+				"max_uses": 5,
+			},
+		},
+		"betas": []string{"web-search-2025-03-05"},
 	}
 
 	body, err := json.Marshal(data)
@@ -439,6 +447,14 @@ func chatCompleteStreamingClaude(ctx context.Context, completion models.ChatMult
 		"model":      completion.Model,
 		"system":     systemPrompt,
 		"stream":     true,
+		"tools": []map[string]interface{}{
+			{
+				"name":     "web_search",
+				"type":     "web_search_20250305",
+				"max_uses": 5,
+			},
+		},
+		"betas": []string{"web-search-2025-03-05"},
 	}
 
 	body, err := json.Marshal(data)

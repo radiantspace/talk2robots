@@ -38,12 +38,6 @@ func GetModel(chatID string) models.Engine {
 		return models.ChatGpt4o
 	}
 
-	// use updated sonet35 model
-	if models.Engine(engine) == models.Sonet35 {
-		go SaveModel(chatID, models.Sonet35_241022)
-		return models.Sonet35_241022
-	}
-
 	return models.Engine(engine)
 }
 

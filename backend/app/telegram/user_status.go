@@ -145,24 +145,18 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 	model := redis.GetModel(userIdString)
 	gpt4oActive := ""
 	gpt4oMiniActive := ""
-	sonet35Active := ""
-	haiku3Active := ""
-	bigLlama3Active := ""
-	smallLlama3Active := ""
+	sonetActive := ""
+	haikuActive := ""
 	grokActive := ""
 	switch model {
 	case models.ChatGpt4o:
 		gpt4oActive = "✅ "
 	case models.ChatGpt4oMini:
 		gpt4oMiniActive = "✅ "
-	case models.Sonet35_241022:
-		sonet35Active = "✅ "
-	case models.Haiku3:
-		haiku3Active = "✅ "
-	case models.LlamaV3_70b:
-		bigLlama3Active = "✅ "
-	case models.LlamaV3_8b:
-		smallLlama3Active = "✅ "
+	case models.Sonet:
+		sonetActive = "✅ "
+	case models.Haiku:
+		haikuActive = "✅ "
 	case models.Grok:
 		grokActive = "✅ "
 	}
@@ -189,26 +183,14 @@ func GetModelsKeyboard(ctx context.Context) *telego.InlineKeyboardMarkup {
 			},
 			{
 				{
-					Text:         sonet35Active + "Claude Sonet 3.5 💰💰💰🏃🏃🧠🧠🧠🧠",
-					CallbackData: string(models.Sonet35_241022) + ":" + topicString,
+					Text:         sonetActive + "Claude Sonet 💰💰💰🏃🏃🧠🧠🧠🧠",
+					CallbackData: string(models.Sonet) + ":" + topicString,
 				},
 			},
 			{
 				{
-					Text:         haiku3Active + "Claude Haiku 3 💰💰🏃🏃🏃🏃🧠🧠",
-					CallbackData: string(models.Haiku3) + ":" + topicString,
-				},
-			},
-			{
-				{
-					Text:         bigLlama3Active + "Big Llama3 💰💰💰🏃🏃🧠🧠🧠",
-					CallbackData: string(models.LlamaV3_70b) + ":" + topicString,
-				},
-			},
-			{
-				{
-					Text:         smallLlama3Active + "Small Llama3 💰🏃🏃🏃🏃🧠",
-					CallbackData: string(models.LlamaV3_8b) + ":" + topicString,
+					Text:         haikuActive + "Claude Haiku 💰💰🏃🏃🏃🏃🧠🧠",
+					CallbackData: string(models.Haiku) + ":" + topicString,
 				},
 			},
 			{

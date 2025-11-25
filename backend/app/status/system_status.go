@@ -90,7 +90,7 @@ func (h *SystemStatusHandler) GetSystemStatus() SystemStatus {
 			Available: h.AI != nil && h.AI.IsAvailable(aiContext, models.LlamaV3_8b),
 		},
 		ClaudeAI: &Status{
-			Available: h.AI != nil && h.AI.IsAvailable(aiContext, models.Haiku3),
+			Available: h.AI != nil && h.AI.IsAvailable(aiContext, models.Haiku),
 		},
 		Usage: SystemUsage{},
 		Time:  time.Now(),
