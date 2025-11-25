@@ -371,14 +371,14 @@ func (a *API) chatCompleteClaude(ctx context.Context, completion models.ChatComp
 		"messages":   completion.Messages,
 		"model":      completion.Model,
 		"system":     systemPrompt,
-		"tools": []map[string]interface{}{
-			{
-				"name":     "web_search",
-				"type":     "web_search_20250305",
-				"max_uses": 5,
-			},
-		},
-		"betas": []string{"web-search-2025-03-05"},
+		// "tools": []map[string]interface{}{
+		// 	{
+		// 		"name":     "web_search",
+		// 		"type":     "web_search_20250305",
+		// 		"max_uses": 5,
+		// 	},
+		// },
+		// "betas": []string{"web-search-2025-03-05"},
 	}
 
 	body, err := json.Marshal(data)
@@ -394,7 +394,7 @@ func (a *API) chatCompleteClaude(ctx context.Context, completion models.ChatComp
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", authTokenFromModel(models.Engine(completion.Model)))
 	req.Header.Set("anthropic-version", "2023-06-01")
-	req.Header.Set("anthropic-beta", "web-search-2025-03-05")
+	// req.Header.Set("anthropic-beta", "web-search-2025-03-05")
 
 	status := fmt.Sprintf("status:%d", 0)
 	resp, err := a.client.Do(req)
@@ -448,14 +448,14 @@ func chatCompleteStreamingClaude(ctx context.Context, completion models.ChatMult
 		"model":      completion.Model,
 		"system":     systemPrompt,
 		"stream":     true,
-		"tools": []map[string]interface{}{
-			{
-				"name":     "web_search",
-				"type":     "web_search_20250305",
-				"max_uses": 5,
-			},
-		},
-		"betas": []string{"web-search-2025-03-05"},
+		// "tools": []map[string]interface{}{
+		// 	{
+		// 		"name":     "web_search",
+		// 		"type":     "web_search_20250305",
+		// 		"max_uses": 5,
+		// 	},
+		// },
+		// "betas": []string{"web-search-2025-03-05"},
 	}
 
 	body, err := json.Marshal(data)
@@ -471,7 +471,7 @@ func chatCompleteStreamingClaude(ctx context.Context, completion models.ChatMult
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", authTokenFromModel(models.Engine(completion.Model)))
 	req.Header.Set("anthropic-version", "2023-06-01")
-	req.Header.Set("anthropic-beta", "web-search-2025-03-05")
+	// req.Header.Set("anthropic-beta", "web-search-2025-03-05")
 
 	messages := make(chan string)
 
