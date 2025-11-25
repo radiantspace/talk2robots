@@ -61,9 +61,9 @@ const (
 	OPUS_INPUT_PRICE  = 15.0 / 1000000
 	OPUS_OUTPUT_PRICE = 75.0 / 1000000
 
-	// grok-beta
-	GROK_INPUT_PRICE  = 5.0 / 1000000
-	GROK_OUTPUT_PRICE = 15.0 / 1000000
+	// grok-4-1-fast-reasoning
+	GROK_INPUT_PRICE  = 0.2 / 1000000
+	GROK_OUTPUT_PRICE = 0.5 / 1000000
 
 	CHARS_PER_TOKEN = 2.0 // average number of characters per token, must be tuned or moved to tiktoken
 )

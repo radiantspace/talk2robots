@@ -1,5 +1,5 @@
 package models
 
 const (
-	Grok Engine = "grok-beta"
+	Grok Engine = "grok-4-1-fast-reasoning"
 )
