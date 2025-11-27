@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"strings"
 	"talk2robots/m/v2/app/models"
 
 	log "github.com/sirupsen/logrus"
@@ -36,6 +37,26 @@ func GetModel(chatID string) models.Engine {
 	if models.Engine(engine) == models.ChatGpt4Turbo || models.Engine(engine) == models.ChatGpt4TurboVision || models.Engine(engine) == models.ChatGpt4 {
 		go SaveModel(chatID, models.ChatGpt4o)
 		return models.ChatGpt4o
+	}
+
+	if strings.Contains(engine, "grok-beta") {
+		go SaveModel(chatID, models.Grok)
+		return models.Grok
+	}
+
+	if strings.Contains(engine, "claude-3-haiku") {
+		go SaveModel(chatID, models.Haiku)
+		return models.Haiku
+	}
+
+	if strings.Contains(engine, "claude-3-opus") {
+		go SaveModel(chatID, models.Opus)
+		return models.Opus
+	}
+
+	if strings.Contains(engine, "claude-3-sonnet") || strings.Contains(engine, "claude-3-5-sonnet") {
+		go SaveModel(chatID, models.Sonnet)
+		return models.Sonnet
 	}
 
 	return models.Engine(engine)
